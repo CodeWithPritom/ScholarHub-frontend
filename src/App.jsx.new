@@ -1,0 +1,1084 @@
+import { useState, useEffect, useRef } from 'react'
+import { BrowserRouter, Routes, Route, useNavigate, useLocation, useParams, Link, Navigate } from 'react-router-dom'
+import { supabase } from './supabaseClient'
+import { generateCitations, copyToClipboard, generateCitation } from './citationUtils'
+import Auth from './Auth'
+import MyLibrary from './MyLibrary'
+import Dashboard from './Dashboard'
+import ResearchPage from './ResearchPage'
+import LandingPage from './LandingPage'
+import Archive from './Archive'
+import Resources from './Resources'
+import Footer from './Footer'
+import { motion, AnimatePresence } from 'framer-motion'
+import { 
+  Search, 
+  BookOpen, 
+  ExternalLink, 
+  AlertCircle, 
+  Loader2, 
+  Dna, 
+  Database,
+  Activity,
+  Globe, 
+  Menu,
+  X,
+  LogIn,
+  LogOut,
+  Library,
+  User,
+  ArrowUpRight,
+  Filter,
+  RefreshCcw,
+  Newspaper,
+  Share2,
+  Calendar,
+  Users,
+  ChevronDown,
+  ChevronUp,
+  ArrowLeft,
+  FileText,
+  Copy,
+  Check,
+  Sparkles,
+  Bot,
+  MessageSquare,
+  Send,
+  XCircle,
+  Minimize2,
+  Maximize2,
+  Printer,
+  Download,
+  LayoutGrid,
+  FileDown,
+  Bookmark,
+  Trash2,
+  FolderPlus,
+  Pencil,
+  Tag,
+  ChevronRight,
+  Quote
+} from 'lucide-react'
+
+// Base API URL for Production Backend
+const BASE_URL = 'http://localhost:8000' || 'https://ncbi-backend-production.up.railway.app'
+
+/**
+ * Utility to format abstract text with sub-headers
+ */
+const formatAbstract = (text) => {
+  if (!text) return null
+  
+  const sections = ['OBJECTIVE', 'METHODS', 'RESULTS', 'CONCLUSIONS', 'IMPORTANCE', 'BACKGROUND', 'DESIGN', 'SETTING', 'PARTICIPANTS', 'MAIN OUTCOME MEASURES', 'RESULTS', 'CONCLUSIONS AND RELEVANCE']
+  
+  // Find matches and split
+  const regex = new RegExp(`(${sections.join('|')}):`, 'g')
+  const parts = text.split(regex)
+  
+  if (parts.length === 1) return <p className="leading-relaxed mb-6">{text}</p>
+  
+  const formatted = []
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i]
+    if (sections.includes(part)) {
+      formatted.push(<h4 key={`h-${i}`} className="text-sm font-black text-slate-900 mt-8 mb-3 uppercase tracking-widest">{part}</h4>)
+    } else if (part.trim()) {
+      formatted.push(<p key={`p-${i}`} className="leading-relaxed mb-4 text-slate-700">{part.trim()}</p>)
+    }
+  }
+  
+  return formatted
+}
+
+/**
+ * Minimal Markdown-lite formatter for AI summaries
+ */
+const formatMarkdown = (text) => {
+  if (!text) return null
+  
+  // Split by double newline for paragraphs
+  const paragraphs = text.split('\n\n')
+  
+  return paragraphs.map((para, i) => {
+    // Handle list items
+    if (para.trim().startsWith('- ') || para.trim().startsWith('* ')) {
+      const items = para.split('\n').map(line => line.replace(/^[-*]\s+/, '').trim())
+      return (
+        <ul key={i} className="list-disc ml-6 mb-6 space-y-2">
+          {items.map((item, j) => <li key={j}>{parseInline(item)}</li>)}
+        </ul>
+      )
+    }
+    
+    return <p key={i} className="mb-6 leading-relaxed">{parseInline(para)}</p>
+  })
+}
+
+/**
+ * Parse inline bold **text**
+ */
+const parseInline = (text) => {
+  const parts = text.split(/(\*\*.*?\*\*)/g)
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i} className="font-black text-slate-900">{part.slice(2, -2)}</strong>
+    }
+    return part
+  })
+}
+
+const CopyButton = ({ text, label = '' }) => {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = async (e) => {
+    e.stopPropagation()
+    e.preventDefault()
+    await copyToClipboard(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+  return (
+    <button
+      onClick={handleCopy}
+      className={`inline-flex items-center gap-1 px-1.5 py-1 rounded-lg transition-all duration-200 ${
+        copied
+          ? 'bg-green-50 text-green-600'
+          : 'text-slate-300 hover:text-blue-600 hover:bg-blue-50'
+      }`}
+      title={copied ? 'Copied!' : `Copy ${label}`}
+    >
+      {copied ? <Check size={12} /> : <Copy size={12} />}
+    </button>
+  )
+}
+
+/**
+ * Citation Modal — APA / MLA / Harvard style citations
+ */
+const CitationModal = ({ article, isOpen, onClose }) => {
+  const [activeTab, setActiveTab] = useState('apa')
+  const [copiedStyle, setCopiedStyle] = useState(null)
+
+  if (!isOpen || !article) return null
+  const citations = generateCitations(article)
+
+  const styles = [
+    { key: 'apa', label: 'APA 7th' },
+    { key: 'mla', label: 'MLA 9th' },
+    { key: 'harvard', label: 'Harvard' }
+  ]
+
+  const handleCopy = async (style) => {
+    await copyToClipboard(citations[style])
+    setCopiedStyle(style)
+    setTimeout(() => setCopiedStyle(null), 2000)
+  }
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="bg-white rounded-[2.5rem] p-8 md:p-10 max-w-2xl w-full shadow-[0_48px_96px_-16px_rgba(0,0,0,0.25)] border border-slate-100 max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-200">
+                  <Quote size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 tracking-tight">Citation Generator</h3>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Auto-formatted references</p>
+                </div>
+              </div>
+              <button onClick={onClose} className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Style Tabs */}
+            <div className="flex bg-slate-50 rounded-2xl p-1.5 mb-6 border border-slate-100">
+              {styles.map(s => (
+                <button
+                  key={s.key}
+                  onClick={() => setActiveTab(s.key)}
+                  className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all ${
+                    activeTab === s.key
+                      ? 'bg-white text-slate-900 shadow-lg shadow-slate-200/50'
+                      : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Citation Text */}
+            <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 mb-6">
+              <p className="text-sm font-medium text-slate-700 leading-relaxed whitespace-pre-wrap break-words" style={{ fontFamily: "'Merriweather', serif" }}>
+                {citations[activeTab]}
+              </p>
+            </div>
+
+            {/* Copy Button */}
+            <button
+              onClick={() => handleCopy(activeTab)}
+              className={`w-full py-4 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 ${
+                copiedStyle === activeTab
+                  ? 'bg-green-500 text-white shadow-xl shadow-green-200'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white shadow-xl shadow-blue-200'
+              }`}
+            >
+              {copiedStyle === activeTab ? <><Check size={16} /> Copied to Clipboard!</> : <><Copy size={16} /> Copy {styles.find(s => s.key === activeTab)?.label} Citation</>}
+            </button>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
+/**
+ * Home Page Component
+ */
+const PaperDetail = () => {
+  const { pmid } = useParams()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const article = location.state?.article
+  const [copied, setCopied] = useState(false)
+  const [citationOpen, setCitationOpen] = useState(false)
+  const [related, setRelated] = useState([])
+  const [relatedLoading, setRelatedLoading] = useState(false)
+
+  const handleCopyCitation = async () => {
+    if (!article) return
+    const citations = generateCitations(article)
+    await copyToClipboard(citations.apa)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  useEffect(() => {
+    window.scrollTo(0, 0)
+    if (!article) {
+      navigate('/')
+      return
+    }
+
+    // Save to session archive
+    const currentArchive = JSON.parse(sessionStorage.getItem('viewed_papers') || '[]')
+    if (!currentArchive.some(p => p.pmid === article.pmid)) {
+      const newArchive = [article, ...currentArchive].slice(0, 50)
+      sessionStorage.setItem('viewed_papers', JSON.stringify(newArchive))
+    }
+
+    const fetchRelated = async () => {
+      setRelatedLoading(true)
+      try {
+        const res = await fetch(`${BASE_URL}/related-papers/${pmid}`)
+        if (res.ok) {
+          const data = await res.json()
+          setRelated(data.related_articles || [])
+        }
+      } catch (err) {
+        console.error('Failed to fetch related papers', err)
+      } finally {
+        setRelatedLoading(false)
+      }
+    }
+
+    fetchRelated()
+  }, [article, navigate, pmid])
+
+  if (!article) return null
+
+  return (
+    <div className="min-h-screen bg-white selection:bg-blue-100 selection:text-blue-700">
+      {/* Citation Modal */}
+      <CitationModal article={article} isOpen={citationOpen} onClose={() => setCitationOpen(false)} />
+
+      {/* Detail Navbar */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-100">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+          <button 
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-blue-600 transition-colors group"
+          >
+            <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+            Back to Results
+          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setCitationOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-all"
+            >
+              <Quote size={14} />
+              Cite
+            </button>
+            <a 
+              href={`https://pubmed.ncbi.nlm.nih.gov/${pmid}/`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all shadow-lg shadow-blue-200"
+            >
+              View on NCBI
+              <ExternalLink size={14} />
+            </a>
+          </div>
+        </div>
+      </nav>
+
+      <main className="pt-32 pb-32 max-w-5xl mx-auto px-6">
+        <div className="grid lg:grid-cols-4 gap-12">
+          {/* Main Content */}
+          <div className="lg:col-span-3">
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
+                <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-[0.2em] border border-blue-100">
+                  Clinical Abstract
+                </span>
+                {article.pub_type && (
+                  <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-[0.15em] border border-indigo-100">
+                    {article.pub_type.split(',')[0]}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-start gap-2">
+                <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-slate-900 leading-[1.1] tracking-tight mb-8 flex-1">
+                  {article.title}
+                </h2>
+                <CopyButton text={article.title} label="Title" />
+              </div>
+            </div>
+
+            {/* Keywords */}
+            {article.keywords && article.keywords.length > 0 && (
+              <div className="mb-10 flex flex-wrap gap-2">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mr-2 py-1">
+                  <Tag size={12} className="text-blue-500" /> Keywords
+                </span>
+                {article.keywords.map((kw, i) => (
+                  <span key={i} className="px-3 py-1 bg-slate-50 text-slate-600 text-[10px] font-bold rounded-lg border border-slate-100">
+                    {kw}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Abstract with Serif Typography */}
+            <article className="prose prose-slate max-w-none">
+              <div className="font-serif text-lg md:text-xl text-slate-800 leading-relaxed antialiased font-light" style={{ fontFamily: "'Merriweather', serif" }}>
+                {formatAbstract(article.abstract)}
+              </div>
+            </article>
+
+            {/* DOI Link Section */}
+            {article.doi && (
+              <div className="mt-16 p-8 bg-slate-50 rounded-3xl border border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div>
+                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Digital Object Identifier</h4>
+                    <p className="text-sm font-bold text-slate-900">{article.doi}</p>
+                  </div>
+                  <CopyButton text={article.doi} label="DOI" />
+                </div>
+                <a 
+                  href={`https://doi.org/${article.doi}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-4 bg-white hover:bg-blue-600 text-slate-400 hover:text-white rounded-2xl border border-slate-200 transition-all shadow-sm group"
+                >
+                  <ArrowUpRight size={24} className="group-hover:scale-110 transition-transform" />
+                </a>
+              </div>
+            )}
+
+            {/* Affiliations */}
+            {article.affiliations && article.affiliations.length > 0 && (
+              <div className="mt-10 p-8 bg-slate-50/50 rounded-3xl border border-slate-100">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <Globe size={12} className="text-blue-500" /> Affiliations
+                </h4>
+                <div className="space-y-2">
+                  {article.affiliations.map((aff, i) => (
+                    <p key={i} className="text-xs font-medium text-slate-500 leading-relaxed">{aff}</p>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Related Research Section */}
+            <div className="mt-16">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 border border-indigo-100 shadow-sm">
+                  <Activity size={20} />
+                </div>
+                <h3 className="text-2xl font-black tracking-tight text-slate-900">Related Studies</h3>
+              </div>
+              
+              {relatedLoading ? (
+                <div className="flex items-center gap-3 text-slate-400">
+                  <div className="w-5 h-5 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                  <span className="text-xs font-bold uppercase tracking-widest">Discovering related papers...</span>
+                </div>
+              ) : related.length > 0 ? (
+                <div className="grid md:grid-cols-2 gap-4">
+                  {related.map((relPaper, idx) => (
+                    <div 
+                      key={idx}
+                      onClick={() => navigate(`/paper/${relPaper.pmid}`, { state: { article: relPaper } })}
+                      className="p-6 bg-white rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-200 hover:-translate-y-1 transition-all cursor-pointer group flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 text-slate-500 rounded-lg text-[10px] font-black uppercase tracking-widest mb-3 border border-slate-100">
+                          <Activity size={10} className="text-indigo-400" />
+                          {relPaper.date || 'Recent'}
+                        </div>
+                        <h4 className="text-sm font-black text-slate-900 leading-snug mb-3 group-hover:text-indigo-600 transition-colors line-clamp-3">
+                          {relPaper.title}
+                        </h4>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-400 mt-4 pt-4 border-t border-slate-50">
+                        <span className="truncate max-w-[60%]">{relPaper.journal}</span>
+                        <span className="text-indigo-500 flex items-center gap-1 group-hover:gap-2 transition-all shrink-0">
+                          Read <ArrowUpRight size={12} />
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500 font-medium">No related studies found for this publication.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Sidebar Metadata */}
+          <aside className="lg:col-span-1">
+            <div className="sticky top-32 space-y-6">
+              {/* Citation Buttons */}
+              <div className="flex flex-col gap-2">
+                <button 
+                  onClick={() => setCitationOpen(true)}
+                  className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl flex items-center justify-center gap-3 font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-blue-200"
+                >
+                  <Quote size={16} /> Generate Citation
+                </button>
+                <button 
+                  onClick={handleCopyCitation}
+                  className={`w-full py-3.5 rounded-2xl border-2 flex items-center justify-center gap-3 font-black text-xs uppercase tracking-widest transition-all duration-300 ${
+                    copied 
+                      ? 'bg-green-50 border-green-200 text-green-600 shadow-lg shadow-green-100' 
+                      : 'bg-white border-slate-100 text-slate-600 hover:border-blue-200 hover:text-blue-600'
+                  }`}
+                >
+                  {copied ? <Check size={16} /> : <Copy size={16} />}
+                  {copied ? 'APA Copied!' : 'Quick Copy APA'}
+                </button>
+              </div>
+
+              <div className="space-y-5">
+                <div>
+                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <BookOpen size={14} className="text-blue-500" /> Journal
+                  </h5>
+                  <p className="text-sm font-bold text-slate-900 leading-snug">{article.journal}</p>
+                </div>
+                <div>
+                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <Calendar size={14} className="text-blue-500" /> Publication Date
+                  </h5>
+                  <p className="text-sm font-bold text-slate-900">{article.date}</p>
+                </div>
+                <div>
+                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <Users size={14} className="text-blue-500" /> Authors
+                  </h5>
+                  <div className="text-xs font-bold text-slate-600 leading-relaxed space-y-0.5">
+                    {article.full_authors && article.full_authors.length > 0
+                      ? article.full_authors.map((a, i) => <div key={i}>{a}</div>)
+                      : article.authors
+                    }
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-6 border-t border-slate-100">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <span className="text-[10px] font-black text-slate-400 uppercase">PMID</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs font-bold text-slate-900">{article.pmid}</span>
+                      <CopyButton text={article.pmid} label="PMID" />
+                    </div>
+                  </div>
+                  {(article.volume || article.issue) && (
+                    <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                      <span className="text-[10px] font-black text-slate-400 uppercase">Vol / Issue</span>
+                      <span className="text-xs font-bold text-slate-900">
+                        {article.volume}{article.issue ? `(${article.issue})` : ''}
+                      </span>
+                    </div>
+                  )}
+                  {article.pub_type && (
+                    <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                      <span className="text-[10px] font-black text-slate-400 uppercase">Type</span>
+                      <span className="text-xs font-bold text-slate-900 text-right max-w-[120px] truncate">{article.pub_type.split(',')[0]}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </main>
+
+      <Footer />
+    </div>
+  )
+}
+
+function App() {
+  const [articles, setArticles] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [lastSearched, setLastSearched] = useState('')
+  const [hasSearched, setHasSearched] = useState(false)
+  
+  // Rate Limiting & Cooldown
+  const [searchCount, setSearchCount] = useState(() => parseInt(sessionStorage.getItem('searchCount') || '0', 10))
+  const [cooldownTime, setCooldownTime] = useState(0)
+  
+  // Auth State
+  const [user, setUser] = useState(null)
+  const [authLoading, setAuthLoading] = useState(true)
+
+  // Pro Feature: Result Limit
+  const [resultLimit, setResultLimit] = useState(20)
+  
+  // Advanced Filters
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [sortBy, setSortBy] = useState('relevance')
+  
+  // New State for Global Latest Research
+  const [globalLatestPaper, setGlobalLatestPaper] = useState(null)
+  const [globalLatestLoading, setGlobalLatestLoading] = useState(true)
+
+  // AI Assistant States
+  const [aiPromptVisible, setAiPromptVisible] = useState(false)
+  const [aiChatOpen, setAiChatOpen] = useState(false)
+  const [aiThinking, setAiThinking] = useState(false)
+  const [aiSummary, setAiSummary] = useState('')
+  const [aiStep, setAiStep] = useState('') // Psychological UI Trick
+  const [aiProgress, setAiProgress] = useState(0)
+  const [aiWidgetMode, setAiWidgetMode] = useState('normal') // 'normal', 'minimized', 'maximized'
+
+  // New Chat States
+  const [chatHistory, setChatHistory] = useState([])
+  const [chatInput, setChatInput] = useState('')
+  const chatEndRef = useRef(null)
+
+  // Supabase Auth: Persistent Login via onAuthStateChange
+  useEffect(() => {
+    // Get the initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      setAuthLoading(false)
+    })
+
+    // Listen for auth state changes (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    setUser(null)
+  }
+
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [chatHistory])
+
+  const handleSendMessage = async (e) => {
+    if (e) e.preventDefault()
+    if (!chatInput.trim() || aiThinking) return
+
+    const userMsg = chatInput.trim()
+    setChatInput('')
+    setChatHistory(prev => [...prev, { role: 'user', content: userMsg }])
+    setAiThinking(true)
+
+    try {
+      const response = await fetch(`${BASE_URL}/chat-with-research`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_message: userMsg,
+          articles: articles.length > 0 ? articles : (globalLatestPaper ? [globalLatestPaper] : [])
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setChatHistory(prev => [...prev, { role: 'assistant', content: data.output }])
+      } else {
+        setChatHistory(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error connecting to the research database.' }])
+      }
+    } catch (err) {
+      setChatHistory(prev => [...prev, { role: 'assistant', content: 'Network error. Please check your connection.' }])
+    } finally {
+      setAiThinking(false)
+    }
+  }
+
+  const handleSummarize = async () => {
+    if (articles.length === 0) return
+    
+    setAiPromptVisible(false)
+    setAiChatOpen(true)
+    setAiThinking(true)
+    setAiSummary('')
+    
+    // Psychological Progress Steps
+    const steps = [
+      { msg: 'Reading Abstracts...', p: 20 },
+      { msg: 'Identifying Trends...', p: 50 },
+      { msg: 'Drafting Summary...', p: 85 },
+      { msg: 'Finalizing Report...', p: 100 }
+    ]
+
+    for (const step of steps) {
+      setAiStep(step.msg)
+      setAiProgress(step.p)
+      await new Promise(r => setTimeout(r, 800)) // Artificial delay for effect
+    }
+
+    try {
+      const top5 = articles.slice(0, 5).map(a => ({ title: a.title, abstract: a.abstract }))
+      const response = await fetch(`${BASE_URL}/summarize-research`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ articles: top5 })
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setAiSummary(data.output || data.summary || data.text || 'Analysis complete. Key findings are ready.')
+      } else {
+        setAiSummary('Failed to connect to AI engine. Please try again.')
+      }
+    } catch (err) {
+      setAiSummary('Network error. AI synchronization failed.')
+    } finally {
+      setAiThinking(false)
+    }
+  }
+
+  const clearFilters = () => {
+    setStartDate('')
+    setEndDate('')
+    setSortBy('relevance')
+    setResultLimit(20)
+  }
+
+  // Fetch Global Latest Research
+  const fetchGlobalLatest = async () => {
+    setGlobalLatestLoading(true)
+    try {
+      const response = await fetch(`${BASE_URL}/get-latest-research`, {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-store'
+      })
+      if (response.ok) {
+        const data = await response.json()
+        console.log("Global Latest Raw Data:", data)
+        
+        // Simple Mapping: FastAPI returns exactly what's needed
+        if (data && data.latest) {
+          setGlobalLatestPaper(data.latest)
+        }
+      }
+    } catch (err) {
+      console.error("Latest research fetch failed:", err)
+      console.error("Full Error Details:", err)
+    } finally {
+      setGlobalLatestLoading(false)
+    }
+  }
+
+  // Fetch on mount
+  useEffect(() => {
+    fetchGlobalLatest()
+  }, [])
+
+  const searchPubMed = async (e) => {
+    if (e) e.preventDefault()
+    if (!searchTerm.trim()) return
+    
+    if (cooldownTime > 0) return
+
+    if (searchCount >= 10) {
+      setCooldownTime(15)
+      setSearchCount(0)
+      sessionStorage.setItem('searchCount', '0')
+      return
+    }
+
+    const queryKey = `ncbi_cache_${searchTerm}_${resultLimit}_${startDate}_${endDate}_${sortBy}`
+    const cachedData = sessionStorage.getItem(queryKey)
+    if (cachedData) {
+      const results = JSON.parse(cachedData)
+      setArticles(results)
+      setHasSearched(true)
+      setLastSearched(searchTerm)
+      if (results.length > 0) {
+        setTimeout(() => setAiPromptVisible(true), 1500)
+      }
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+    setHasSearched(true)
+    setLastSearched(searchTerm)
+
+    try {
+      const newCount = searchCount + 1
+      setSearchCount(newCount)
+      sessionStorage.setItem('searchCount', newCount.toString())
+
+      const fetchUrl = `${BASE_URL}/search?keyword=${encodeURIComponent(searchTerm)}&limit=${resultLimit}&start_date=${startDate}&end_date=${endDate}&sort_by=${sortBy}`
+      
+      const response = await fetch(fetchUrl, { method: 'GET', mode: 'cors' })
+      if (!response.ok) throw new Error(`Server status ${response.status}`)
+      
+      const data = await response.json()
+      const results = data.articles || []
+      
+      sessionStorage.setItem(queryKey, JSON.stringify(results))
+      setArticles(results)
+      
+      if (results.length > 0) {
+        setTimeout(() => setAiPromptVisible(true), 1500)
+      }
+    } catch (err) {
+      setError(err.message.includes('Failed to fetch') ? 'Network error. Check if FastAPI backend is running.' : err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Cooldown timer effect
+  useEffect(() => {
+    if (cooldownTime > 0) {
+      const timer = setTimeout(() => setCooldownTime(prev => prev - 1), 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [cooldownTime])
+
+  // Debounce search effect
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (searchTerm.trim() && searchTerm !== lastSearched && cooldownTime === 0) {
+        searchPubMed()
+      }
+    }, 1000)
+    return () => clearTimeout(handler)
+  }, [searchTerm, resultLimit, startDate, endDate, sortBy, lastSearched, cooldownTime])
+
+  // Live User Presence State
+  const [liveUsersCount, setLiveUsersCount] = useState(1)
+
+  useEffect(() => {
+    // Supabase Presence for 'online-users'
+    const channel = supabase.channel('online-users', {
+      config: {
+        presence: {
+          key: user ? user.id : 'guest-' + Math.random().toString(36).substring(2, 9),
+        },
+      },
+    })
+
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const newState = channel.presenceState()
+        const count = Object.keys(newState).length
+        setLiveUsersCount(count === 0 ? 1 : count)
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({ online_at: new Date().toISOString() })
+        }
+      })
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user])
+
+  // Show loading spinner while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-6">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Dna size={20} className="text-blue-600" />
+            </div>
+          </div>
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] animate-pulse">Initializing Session...</span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route 
+          path="/" 
+          element={user ? (
+            <Home 
+              articles={articles} 
+              loading={loading} 
+              error={error} 
+              searchTerm={searchTerm} 
+              setSearchTerm={setSearchTerm} 
+              searchPubMed={searchPubMed}
+              hasSearched={hasSearched}
+              lastSearched={lastSearched}
+              globalLatestPaper={globalLatestPaper}
+              globalLatestLoading={globalLatestLoading}
+              onRefreshLatest={fetchGlobalLatest}
+              resultLimit={resultLimit}
+              setResultLimit={setResultLimit}
+              startDate={startDate}
+              setStartDate={setStartDate}
+              endDate={endDate}
+              setEndDate={setEndDate}
+              sortBy={sortBy}
+              setSortBy={setSortBy}
+              onClearFilters={clearFilters}
+              aiPromptVisible={aiPromptVisible}
+              setAiPromptVisible={setAiPromptVisible}
+              aiChatOpen={aiChatOpen}
+              setAiChatOpen={setAiChatOpen}
+              aiThinking={aiThinking}
+              aiSummary={aiSummary}
+              aiStep={aiStep}
+              aiProgress={aiProgress}
+              onSummarize={handleSummarize}
+              aiWidgetMode={aiWidgetMode}
+              setAiWidgetMode={setAiWidgetMode}
+              chatHistory={chatHistory}
+              chatInput={chatInput}
+              setChatInput={setChatInput}
+              handleSendMessage={handleSendMessage}
+              chatEndRef={chatEndRef}
+              user={user}
+              onLogout={handleLogout}
+              liveUsersCount={liveUsersCount}
+              cooldownTime={cooldownTime}
+            />
+          ) : (
+            <LandingPage />
+          )} 
+        />
+        <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
+        <Route path="/library" element={user ? <MyLibrary user={user} onLogout={handleLogout} /> : <Navigate to="/auth" replace />} />
+        <Route path="/paper/:pmid" element={<PaperDetail />} />
+        <Route path="/ai-report" element={<AIReport />} />
+        <Route path="/dashboard" element={<Dashboard liveUsersCount={liveUsersCount} />} />
+        <Route path="/archive" element={user ? <Archive /> : <Navigate to="/auth" replace />} />
+        <Route path="/resources" element={<Resources />} />
+      </Routes>
+    </BrowserRouter>
+  )
+}
+
+/**
+ * Dedicated AI Report Page
+ */
+const AIReport = () => {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { summary, keyword, sourceCount } = location.state || {}
+
+  useEffect(() => {
+    window.scrollTo(0, 0)
+    if (!summary) navigate('/')
+  }, [summary, navigate])
+
+  if (!summary) return null
+
+  return (
+    <div className="min-h-screen bg-slate-50 selection:bg-blue-100 selection:text-blue-700">
+      {/* Report Header */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-100 print:hidden">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <button 
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-sm font-black text-slate-600 hover:text-blue-600 transition-colors uppercase tracking-widest group"
+          >
+            <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+            Back to Search
+          </button>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => window.print()}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 text-xs font-black rounded-xl hover:bg-slate-200 transition-all uppercase tracking-widest"
+            >
+              <Printer size={14} />
+              Print
+            </button>
+            <button 
+              onClick={() => window.print()}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-xs font-black rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 uppercase tracking-widest"
+            >
+              <Download size={14} />
+              Export PDF
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* Print Specific Styles */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          @page { size: A4; margin: 2cm; }
+          body { background: white !important; }
+          .min-h-screen { background: white !important; padding: 0 !important; }
+          main { padding-top: 0 !important; padding-bottom: 0 !important; max-width: 100% !important; }
+          .lg\\:grid-cols-4 { display: block !important; }
+          .shadow-2xl { shadow: none !important; box-shadow: none !important; }
+          .rounded-\\[3rem\\] { border-radius: 0 !important; }
+          .p-12, .md\\:p-20 { padding: 0 !important; }
+          .border { border: none !important; }
+          .font-serif { font-size: 12pt !important; line-height: 1.6 !important; color: black !important; }
+          h1 { font-size: 24pt !important; margin-bottom: 1cm !important; }
+          .mt-20 { margin-top: 1cm !important; }
+        }
+      `}} />
+
+      <main className="pt-32 pb-32 max-w-6xl mx-auto px-6">
+        <div className="grid lg:grid-cols-4 gap-12">
+          {/* Sidebar Metadata */}
+          <aside className="lg:col-span-1 order-2 lg:order-1 print:hidden">
+            <div className="sticky top-32 space-y-8">
+              <div className="p-8 bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white">
+                    <Sparkles size={20} />
+                  </div>
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest">Analysis Metadata</h4>
+                </div>
+                
+                <div className="space-y-6">
+                  <div>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Original Query</span>
+                    <p className="text-sm font-bold text-slate-900 bg-slate-50 px-3 py-2 rounded-lg border border-slate-100">"{keyword}"</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Analysis Scope</span>
+                    <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <FileText size={14} className="text-blue-500" />
+                      {sourceCount} Analyzed Papers
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Confidence Score</span>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-green-500 w-[94%]"></div>
+                      </div>
+                      <span className="text-[10px] font-black text-green-600">94%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-8 bg-slate-900 rounded-[2.5rem] text-white print:hidden">
+                <h5 className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-4">Research Note</h5>
+                <p className="text-xs text-slate-400 leading-relaxed font-medium">
+                  This report is synthesized using advanced LLM technology. Please cross-reference with PMIDs for clinical decisions.
+                </p>
+              </div>
+            </div>
+          </aside>
+
+          {/* Main Content */}
+          <div className="lg:col-span-3 order-1 lg:order-2">
+            <div className="bg-white rounded-[3rem] p-12 md:p-20 border border-slate-100 shadow-2xl shadow-slate-200/50">
+              <div className="mb-12 border-b border-slate-100 pb-12">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black bg-blue-50 text-blue-600 border border-blue-100 uppercase tracking-widest mb-6">
+                  Executive Intelligence Report
+                </div>
+                <h1 className="text-4xl md:text-5xl font-black text-slate-900 leading-tight tracking-tight mb-4">
+                  Scientific Synthesis: {keyword}
+                </h1>
+                <p className="text-slate-400 text-sm font-bold uppercase tracking-[0.3em]">
+                  Generated on {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                </p>
+              </div>
+
+              <article className="prose prose-slate max-w-none">
+                <div className="font-serif text-xl md:text-2xl text-slate-800 leading-relaxed antialiased font-light" style={{ fontFamily: "'Merriweather', serif" }}>
+                  {formatMarkdown(summary)}
+                </div>
+              </article>
+
+              <div className="mt-20 pt-12 border-t border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300">
+                    <Database size={24} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data Source</p>
+                    <p className="text-xs font-bold text-slate-900">National Library of Medicine (NCBI)</p>
+                  </div>
+                </div>
+                <div className="w-32 h-10 opacity-20 grayscale">
+                  <div className="flex items-center gap-1 font-black text-2xl tracking-tighter text-slate-900">
+                    <Dna size={24} className="text-blue-600" />
+                    NCBI<span className="text-blue-600">PRO</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+// MyLibrary component has been moved to MyLibrary.jsx
+
+export default App
+
+
+
