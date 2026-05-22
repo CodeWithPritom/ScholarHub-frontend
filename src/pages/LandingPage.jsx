@@ -366,7 +366,7 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount }) => {
             <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="flex justify-center lg:justify-end">
               <div className="p-4 bg-slate-900/50 backdrop-blur-xl border border-slate-700/50 rounded-[2rem] shadow-2xl relative overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-tr from-[#5865F2]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
-                <iframe src="https://discord.com/widget?id=1487496436391346208&theme=dark" width="350" height="500" allowtransparency="true" frameborder="0" sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts" className="rounded-xl relative z-10 w-full max-w-[350px]"></iframe>
+                <iframe src="https://discord.com/widget?id=1487496436391346208&theme=dark" width="350" height="500" allowtransparency="true" frameBorder="0" sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts" className="rounded-xl relative z-10 w-full max-w-[350px]"></iframe>
               </div>
             </motion.div>
           </div>

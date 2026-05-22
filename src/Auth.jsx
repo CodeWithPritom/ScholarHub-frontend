@@ -41,11 +41,16 @@ const Auth = () => {
       setError('Please enter your email address first.')
       return
     }
+    if (!captchaToken) {
+      setError("Please complete the captcha verification.")
+      return
+    }
     setLoading(true)
     setError(null)
     setSuccess(null)
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        captchaToken: captchaToken,
         redirectTo: `${window.location.origin}/settings`
       })
       if (error) throw error
@@ -54,6 +59,8 @@ const Auth = () => {
       setError(err.message)
     } finally {
       setLoading(false)
+      turnstileRef.current?.reset()
+      setCaptchaToken('')
     }
   }
 
@@ -342,7 +349,7 @@ const Auth = () => {
                   </div>
                 )}
 
-                {isLogin && !isForgotPassword && (
+                {isLogin && (
                   <div className="flex justify-center py-2">
                     <Turnstile 
                       ref={turnstileRef}
@@ -358,7 +365,7 @@ const Auth = () => {
                     <button
                       type="button"
                       onClick={handleForgotPassword}
-                      disabled={loading}
+                      disabled={loading || !captchaToken}
                       className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 group"
                     >
                       {loading ? (
