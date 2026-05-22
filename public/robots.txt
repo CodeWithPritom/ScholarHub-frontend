@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /auth
+Disallow: /profile
+Disallow: /library
+Disallow: /settings
+
+Sitemap: https://scholarhub-ai.me/sitemap.xml

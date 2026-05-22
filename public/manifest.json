@@ -1,0 +1,21 @@
+{
+  "name": "ScholarHub AI",
+  "short_name": "ScholarHub",
+  "description": "The AI-Powered Discovery Hub for Global Researchers. Unifying specialized academic databases into one intelligent platform.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/vite.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
