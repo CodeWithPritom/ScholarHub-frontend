@@ -44,7 +44,7 @@ const About = () => {
               <div>
                 <h3 className="text-sm font-black text-blue-600 uppercase tracking-widest mb-3">The Vision</h3>
                 <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight">
-                  Democratizing Academic Research
+                  Democratizing Academic Research with ScholarHub AI
                 </h1>
               </div>
               <div className="space-y-6 text-slate-600 font-medium leading-relaxed text-lg">
@@ -62,7 +62,7 @@ const About = () => {
             <div className="order-1 lg:order-2 flex justify-center lg:justify-end">
               <div className="relative w-full max-w-md aspect-square rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white">
                 <div className="absolute inset-0 bg-blue-600/10 mix-blend-overlay z-10"></div>
-                <img src={creatorImg} alt="Arup Bhowmik Pritom" className="w-full h-full object-cover" />
+                <img src={creatorImg} alt="Arup Bhowmik Pritom - Founder and Architect of ScholarHub AI" className="w-full h-full object-cover" />
               </div>
             </div>
           </motion.div>

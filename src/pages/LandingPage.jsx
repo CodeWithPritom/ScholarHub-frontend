@@ -140,9 +140,9 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount }) => {
             <Globe size={14} /> Phase 5 Deployment Active
           </motion.div>
           
-          <motion.h2 variants={itemVariants} className="text-6xl md:text-8xl font-black tracking-tight leading-[0.9] mb-8">
+          <motion.h1 variants={itemVariants} className="text-6xl md:text-8xl font-black tracking-tight leading-[0.9] mb-8">
             ScholarHub <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-500">AI</span>
-          </motion.h2>
+          </motion.h1>
           
           <motion.p variants={itemVariants} className="text-lg md:text-2xl text-slate-400 font-medium mb-12 max-w-2xl mx-auto leading-relaxed">
             The AI-Powered Discovery Hub for Global Researchers. Unifying GEB, Pharmacy, Engineering, and General Literature into one intelligent platform.

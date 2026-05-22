@@ -32,7 +32,30 @@ const Auth = () => {
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
   const [captchaToken, setCaptchaToken] = useState('')
+  const [isForgotPassword, setIsForgotPassword] = useState(false)
   const turnstileRef = useRef(null)
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault()
+    if (!email) {
+      setError('Please enter your email address first.')
+      return
+    }
+    setLoading(true)
+    setError(null)
+    setSuccess(null)
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/settings`
+      })
+      if (error) throw error
+      setSuccess("Password reset link sent! Please check your email.")
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleNextStep = (e) => {
     e.preventDefault()
@@ -293,24 +316,33 @@ const Auth = () => {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                    <Lock size={12} className="text-blue-500" />
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    minLength={6}
-                    className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all placeholder:text-slate-300"
-                    disabled={loading}
-                  />
-                </div>
+                {!isForgotPassword && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between ml-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        <Lock size={12} className="text-blue-500" />
+                        Password
+                      </label>
+                      {isLogin && (
+                        <button type="button" onClick={() => setIsForgotPassword(true)} className="text-[10px] font-black text-blue-500 hover:text-blue-600 uppercase tracking-widest transition-colors">
+                          Forgot Password?
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      minLength={6}
+                      className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all placeholder:text-slate-300"
+                      disabled={loading}
+                    />
+                  </div>
+                )}
 
-                {isLogin && (
+                {isLogin && !isForgotPassword && (
                   <div className="flex justify-center py-2">
                     <Turnstile 
                       ref={turnstileRef}
@@ -321,24 +353,47 @@ const Auth = () => {
                   </div>
                 )}
 
-                <button
-                  type="submit"
-                  disabled={loading || (isLogin && !captchaToken)}
-                  className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 group"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 size={18} className="animate-spin" />
-                      Authenticating...
-                    </>
-                  ) : (
-                    <>
-                      {isLogin ? <LogIn size={18} /> : <ChevronRight size={18} />}
-                      {isLogin ? 'Access Research Hub' : 'Next: About You'}
-                      <Sparkles size={14} className="opacity-50 group-hover:opacity-100 transition-opacity" />
-                    </>
-                  )}
-                </button>
+                {isForgotPassword ? (
+                  <div className="space-y-4">
+                    <button
+                      type="button"
+                      onClick={handleForgotPassword}
+                      disabled={loading}
+                      className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 group"
+                    >
+                      {loading ? (
+                        <Loader2 size={18} className="animate-spin" />
+                      ) : (
+                        <>
+                          <Mail size={18} />
+                          Send Reset Link
+                        </>
+                      )}
+                    </button>
+                    <button type="button" onClick={() => setIsForgotPassword(false)} className="w-full text-center text-[10px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest transition-colors">
+                      Back to Login
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={loading || (isLogin && !captchaToken)}
+                    className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 group"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        Authenticating...
+                      </>
+                    ) : (
+                      <>
+                        {isLogin ? <LogIn size={18} /> : <ChevronRight size={18} />}
+                        {isLogin ? 'Access Research Hub' : 'Next: About You'}
+                        <Sparkles size={14} className="opacity-50 group-hover:opacity-100 transition-opacity" />
+                      </>
+                    )}
+                  </button>
+                )}
               </>
             )}
 

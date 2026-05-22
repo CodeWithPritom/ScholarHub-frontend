@@ -87,7 +87,7 @@ const Resources = () => {
         <div className="text-center md:text-left">
           <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2 flex items-center justify-center md:justify-start gap-3">
             <Database className="text-blue-600" size={32} />
-            Research Resources
+            ScholarHub AI Research Resources
           </h1>
           <p className="text-slate-500 font-medium">Access primary external bibliographic engines and learn how to use the platform effectively.</p>
         </div>

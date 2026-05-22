@@ -13,6 +13,8 @@
     <meta name="description" content="ScholarHub AI is the ultimate intelligent research platform. Unifying GEB, Pharmacy, Engineering, and General Literature into one AI-powered discovery hub with zero hallucination." />
     <meta name="keywords" content="ScholarHub, AI Research, Academic Research, Literature Review, PubMed, arXiv, Semantic Scholar, Llama 3.1, Groq, Research Assistant" />
     <meta name="author" content="Arup Bhowmik Pritom" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="googlebot" content="index, follow" />
 
     <!-- Open Graph / Facebook / LinkedIn -->
     <meta property="og:type" content="website" />
@@ -30,24 +32,37 @@
 
     <!-- Schema.org JSON-LD -->
     <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "ScholarHub AI",
-      "applicationCategory": "EducationalApplication",
-      "operatingSystem": "Web",
-      "url": "https://scholarhub-ai.me",
-      "description": "ScholarHub AI is the ultimate intelligent research platform unifying specialized academic databases into one AI-powered discovery hub.",
-      "creator": {
-        "@type": "Person",
-        "name": "Arup Bhowmik Pritom"
+    [
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "ScholarHub AI",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Web",
+        "url": "https://scholarhub-ai.me",
+        "description": "ScholarHub AI is the ultimate intelligent research platform unifying specialized academic databases into one AI-powered discovery hub.",
+        "creator": {
+          "@type": "Person",
+          "name": "Arup Bhowmik Pritom"
+        },
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "BDT"
+        }
       },
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "BDT"
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "ScholarHub AI",
+        "url": "https://scholarhub-ai.me",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://scholarhub-ai.me/research?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
       }
-    }
+    ]
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

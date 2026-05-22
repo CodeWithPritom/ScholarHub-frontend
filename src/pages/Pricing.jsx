@@ -327,7 +327,7 @@ const Pricing = ({ user }) => {
         {/* Header */}
         <div className="text-center mb-20">
           <h1 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter mb-6 leading-tight">
-            Supercharge your <br/><span className="text-blue-600">Research Journey</span>
+            ScholarHub AI Pricing: <br/><span className="text-blue-600">Supercharge your Research</span>
           </h1>
           <p className="text-lg text-slate-500 font-medium max-w-2xl mx-auto mb-10 leading-relaxed">
             Unlock multi-disciplinary AI models, bypass rate limits, and discover breakthroughs faster than ever before.
