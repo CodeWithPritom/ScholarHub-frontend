@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Dna, ArrowRight, Activity, Users, Database, Globe, Megaphone, X, Play, Brain, CheckCircle2, Server, MessageSquare } from 'lucide-react'
 import { supabase } from '../supabaseClient'
-import logo from '../../assets/images/logo.png'
+import logo from '../assets/images/logo.png'
 import Footer from '../Footer'
 
 const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount }) => {

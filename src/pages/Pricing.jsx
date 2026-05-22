@@ -5,7 +5,7 @@ import { supabase } from '../supabaseClient'
 import { motion, AnimatePresence } from 'framer-motion'
 import Footer from '../Footer'
 import { BASE_URL } from '../utils/api'
-import logo from '../../assets/images/logo.png'
+import logo from '../assets/images/logo.png'
 
 const Pricing = ({ user }) => {
   const navigate = useNavigate()

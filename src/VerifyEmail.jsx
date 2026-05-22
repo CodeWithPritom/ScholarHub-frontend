@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Mail, ArrowLeft, Send } from 'lucide-react'
 import { supabase } from './supabaseClient'
-import logo from '../assets/images/logo.png'
+import logo from './assets/images/logo.png'
 
 const VerifyEmail = ({ user }) => {
   const [resending, setResending] = React.useState(false)

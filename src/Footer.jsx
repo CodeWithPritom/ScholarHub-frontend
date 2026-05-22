@@ -1,7 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { Dna, Globe, MessageCircle, FileText } from 'lucide-react'
-import logo from '../assets/images/logo.png'
+import logo from './assets/images/logo.png'
 
 const Footer = ({ user, onAuthRequired }) => {
   return (

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Dna, Menu, X, Library, User, ChevronDown, Settings, ShieldAlert, LogOut, MessageCircle } from 'lucide-react'
-import logo from '../../assets/images/logo.png'
+import logo from '../assets/images/logo.png'
 
 const Navbar = ({ user, profile, liveUsersCount, onLogout, transparent = false }) => {
   const [isScrolled, setIsScrolled] = useState(false)
