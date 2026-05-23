@@ -18,7 +18,7 @@
 
 <br />
 
-## 🌟 Executive Summary
+## Executive Summary
 
 **ScholarHub AI** is an incredibly complex, enterprise-grade SaaS platform designed to tear down the fragmented walls of modern academic discovery. Built from the ground up for massive scalability, high availability (99.9% uptime), and military-grade security, it acts as a highly optimized proxy and intelligence layer over the world's most prominent bibliographic databases.
 
@@ -26,17 +26,88 @@ By marrying cutting-edge semantic search algorithms with state-of-the-art open-s
 
 ---
 
-## 📸 Architecture Visualization
+## Architecture Visualization
 
-> **For the Repository Owner:** You can generate a stunning hero image for this section using Midjourney, DALL-E 3, or Gemini Advanced with the exact following prompt:
-> 
-> *`A highly professional, dark-mode, futuristic isometric software architecture diagram for an AI-powered SaaS platform called "ScholarHub AI". The diagram should visually represent a React/Vite frontend securely connecting to a Python FastAPI backend server. Show data streams flowing from the FastAPI server into three distinct blocks: 1) A PostgreSQL database with high-security locks, 2) Academic APIs like NCBI, arXiv, and OpenAlex, and 3) An AI Engine block featuring 'Llama 3.1' and 'Groq'. The style should be sleek, corporate, with glowing blue and purple data lines on a dark obsidian background, highly detailed, photorealistic UI elements, 8k resolution, technical diagram style.`*
-
-*(Once generated, replace this text with your image: `![System Architecture](docs/architecture.png)`)*
+<img width="1672" height="941" alt="architecture" src="https://github.com/user-attachments/assets/d0ae9de7-d7ab-4b03-b772-4003b7e558d2" />
 
 ---
 
-## 🏗️ Core System Architecture & Data Flow
+## 💻 Desktop Experience
+
+ScholarHub AI features a seamless, highly responsive web interface designed for deep research sessions, real-time analytics, and enterprise-grade data management.
+
+<table align="center">
+  <tr>
+    <td align="center" width="50%">
+      <img src="https://github.com/user-attachments/assets/85cf226c-7db3-4c64-9248-63b4a685d1a6" alt="Landing Page Hero" />
+      <br /><b>Landing Page & Hero</b>
+    </td>
+    <td align="center" width="50%">
+      <img src="https://github.com/user-attachments/assets/5757e309-23e9-4a28-952d-3b903e335a73" alt="Intelligence Engine" />
+      <br /><b>The Intelligence Engine</b>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/38c6e519-2d3e-4fa7-8e19-adf6e3192240" alt="Pricing Architecture" />
+      <br /><b>Transparent SaaS Pricing</b>
+    </td>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/966676d6-ba4c-4550-b16f-b7a0e92533e3" alt="Community Discord" />
+      <br /><b>Community Integration</b>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/b4f9fb5f-9607-44ab-84dd-d0e2c279ebed" alt="Search Dashboard" />
+      <br /><b>Primary Search Dashboard</b>
+    </td>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/122e474d-06ae-4390-84b7-566990bed7b0" alt="Advanced Filters" />
+      <br /><b>Advanced Date & Priority Filters</b>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/0354e819-2764-4c5d-8915-6bbd13052a97" alt="Paper Details" />
+      <br /><b>In-Depth Paper Details</b>
+    </td>
+    <td align="center">
+      <img src="https://github.com/user-attachments/assets/bed31f65-4398-4210-86a7-4751f9ff47ee" alt="AI Chat Report" />
+      <br /><b>Llama 3.1 AI Executive Report</b>
+    </td>
+  </tr>
+</table>
+
+<br />
+
+## 📱 Mobile-First Architecture
+
+We built ScholarHub AI to be 100% responsive out of the box, delivering a native-app-like experience on all mobile devices with slide-out drawers, swipeable portals, and native bottom sheets.
+
+<table align="center">
+  <tr>
+    <td align="center" width="25%">
+      <img src="https://github.com/user-attachments/assets/3eae13f3-0af1-4368-b36b-f4ba98edeb8c" alt="Mobile View 1" />
+      <br /><b>Mobile Landing</b>
+    </td>
+    <td align="center" width="25%">
+      <img src="https://github.com/user-attachments/assets/972068c7-2535-4942-adde-02b1d41dd666" alt="Mobile View 2" />
+      <br /><b>Mobile Dashboard</b>
+    </td>
+    <td align="center" width="25%">
+      <img src="https://github.com/user-attachments/assets/10704356-071b-4d3e-878f-220b8f56569d" alt="Mobile View 3" />
+      <br /><b>Slide-out Navigation</b>
+    </td>
+    <td align="center" width="25%">
+      <img src="https://github.com/user-attachments/assets/ec39e779-eb2b-43a7-8362-cb0cc3116056" alt="Mobile View 4" />
+      <br /><b>Native AI Bottom Sheet</b>
+    </td>
+  </tr>
+</table>
+
+<br />
+## Core System Architecture & Data Flow
 
 ScholarHub AI is built on a highly decoupled, modern tech stack designed to ensure that heavy AI inferencing and massive data pulls do not bottleneck the client experience.
 
@@ -75,7 +146,7 @@ graph TD
 
 ---
 
-## 🗄️ Database Schema & Relational Connections
+## Database Schema & Relational Connections
 
 The platform utilizes **Supabase (PostgreSQL)**. This isn't just a simple data store; it relies heavily on complex relational integrity, foreign key cascading, and real-time triggers.
 
@@ -115,7 +186,7 @@ erDiagram
 
 ---
 
-## 🛡️ Enterprise-Grade Security & Authentication
+## Enterprise-Grade Security & Authentication
 
 Security is woven into the very fabric of ScholarHub AI. We employ a multi-layered defense mechanism:
 
@@ -138,7 +209,7 @@ Security is woven into the very fabric of ScholarHub AI. We employ a multi-layer
 
 ---
 
-## 📡 The Multi-Source Engine & Error Cascade
+## The Multi-Source Engine & Error Cascade
 
 Querying legacy academic APIs is notoriously unstable. ScholarHub AI implements a highly resilient **"Zero-Data & Error Fallback Cascade"**.
 
@@ -171,7 +242,7 @@ The system actively routes queries to optimized endpoints based on the selected 
 
 ---
 
-## 🧠 The AI Brain: Llama 3.1 8b Integration
+## The AI Brain: Llama 3.1 8b Integration
 
 The core value proposition of ScholarHub is its ability to contextually synthesize hundreds of pages of academic text in seconds.
 
@@ -189,7 +260,7 @@ AI APIs are prone to sudden rate-limits or downtime. We engineered a 3-tier redu
 
 ---
 
-## 💼 SaaS Quota Architecture & E-Commerce
+## SaaS Quota Architecture & E-Commerce
 
 ScholarHub AI features a production-ready SaaS billing and quota engine.
 
@@ -209,7 +280,7 @@ The admin panel allows the creation of highly specific marketing coupons:
 
 
 
-## 👨‍💻 Core Architect
+## Core Architect
 
 **Arup Bhowmik Pritom**  
 *Founder & Principal Architect*  
