@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="frontend/src/assets/images/logo.png" alt="ScholarHub AI Logo" width="150"/>
+  <img src="/src/assets/images/logo.png" alt="ScholarHub AI Logo" width="150"/>
 
   <h1>ScholarHub AI</h1>
   <p><em>The Enterprise-Grade, AI-Powered Discovery Hub for Global Researchers.</em></p>
