@@ -23,7 +23,7 @@ const Footer = ({ user, onAuthRequired }) => {
               </div>
             </Link>
             <p className="text-sm text-slate-400 leading-relaxed font-medium">
-              Engineered to bridge the gap between vast biomedical databases and the modern researcher's need for intuitive, rapid information synthesis.
+              Engineered to bridge the gap between vast biomedical databases and the modern researcher's need for intuitive, rapid information synthesis. Whether you call us ScholarHub, HubScholar, or the ultimate Research Hub, we've got you covered.
             </p>
             <div className="text-xs font-black text-slate-500 uppercase tracking-widest">
               Founder: <span className="text-blue-400">Arup Bhowmik Pritom</span>

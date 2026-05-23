@@ -125,7 +125,7 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
           </motion.h1>
           
           <motion.p variants={itemVariants} className="text-lg md:text-2xl text-slate-400 font-medium mb-12 max-w-2xl mx-auto leading-relaxed">
-            The AI-Powered Discovery Hub for Global Researchers. Unifying GEB, Pharmacy, Engineering, and General Literature into one intelligent platform.
+            The AI-Powered Discovery Hub for Global Researchers. Whether you call it ScholarHub or a Hub for Scholars, we provide the ultimate intelligent platform unifying GEB, Pharmacy, Engineering, and General Literature.
           </motion.p>
           
           <motion.div variants={itemVariants} className="flex flex-col items-center justify-center gap-4 mx-auto w-full">
