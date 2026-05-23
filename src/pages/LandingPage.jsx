@@ -5,8 +5,9 @@ import { Dna, ArrowRight, Activity, Users, Database, Globe, Megaphone, X, Play, 
 import { supabase } from '../supabaseClient'
 import logo from '../assets/images/logo.png'
 import Footer from '../Footer'
+import Navbar from '../components/Navbar'
 
-const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount }) => {
+const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogout }) => {
   const navigate = useNavigate()
 
   const handleLaunch = () => {
@@ -63,40 +64,14 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount }) => {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-blue-600/20 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute -top-[200px] -right-[200px] w-[600px] h-[600px] bg-indigo-600/20 blur-[120px] rounded-full pointer-events-none" />
       
-      {/* Navbar Minimal */}
-      <nav className="absolute top-0 w-full z-50 py-8 px-6">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src={logo} alt="ScholarHub AI" className="h-12 w-auto object-contain drop-shadow-lg" />
-            <div>
-              <h1 className="text-xl font-black tracking-tighter leading-none">
-                ScholarHub<span className="text-blue-500">AI</span>
-              </h1>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Global Hub</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-6">
-            <button onClick={() => navigate('/archive')} className="text-sm font-bold text-slate-300 hover:text-white transition-colors">Archive</button>
-            <button onClick={() => navigate('/resources')} className="text-sm font-bold text-slate-300 hover:text-white transition-colors">Resources</button>
-            <button onClick={() => navigate('/about')} className="text-sm font-bold text-slate-300 hover:text-white transition-colors">About</button>
-            <a href="#tutorial" className="text-sm font-bold text-slate-300 hover:text-white transition-colors">Tutorial</a>
-            <button onClick={() => navigate('/pricing')} className="text-sm font-bold text-slate-300 hover:text-white transition-colors">Pricing</button>
-            {user && (
-              <button onClick={() => navigate('/research')} className="text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors">Research</button>
-            )}
-            {user ? (
-              <button onClick={() => navigate('/profile')} className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-colors backdrop-blur-md">
-                My Profile
-              </button>
-            ) : (
-              <button onClick={() => navigate('/auth')} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-colors shadow-lg shadow-blue-500/30">
-                Log In
-              </button>
-            )}
-          </div>
-        </div>
-      </nav>
+      {/* Global Responsive Navbar */}
+      <Navbar 
+        user={user} 
+        profile={profile} 
+        liveUsersCount={liveUsersCount} 
+        onLogout={onLogout} 
+        transparent={true} 
+      />
 
       {/* Global Announcement Banner */}
       <AnimatePresence>

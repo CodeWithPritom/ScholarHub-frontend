@@ -120,15 +120,18 @@ const AIChatWidget = ({
             animate={{ 
               y: 0, 
               opacity: 1,
-              width: aiWidgetMode === 'maximized' ? 'min(1200px, 90vw)' : aiWidgetMode === 'minimized' ? '300px' : '450px',
               height: aiWidgetMode === 'minimized' ? '70px' : 'auto'
             }}
             transition={{ type: 'spring', damping: 20, stiffness: 100 }}
             exit={{ y: 100, opacity: 0 }}
-            className={`fixed bottom-0 left-0 right-0 md:bottom-10 md:left-auto md:right-10 z-[101] bg-white shadow-[0_48px_96px_-16px_rgba(0,0,0,0.25)] md:border border-slate-100 overflow-hidden flex flex-col max-w-full ${
-              aiWidgetMode === 'maximized' ? 'rounded-t-[2.5rem] md:rounded-[3rem]' : 'rounded-t-[2rem] md:rounded-[2.5rem]'
+            className={`fixed inset-x-0 bottom-0 md:bottom-10 md:left-auto md:right-10 z-[101] bg-white shadow-[0_48px_96px_-16px_rgba(0,0,0,0.25)] md:border border-slate-100 overflow-hidden flex flex-col w-full ${
+              aiWidgetMode === 'maximized' 
+                ? 'md:w-[min(1200px,90vw)] rounded-t-[2.5rem] md:rounded-[3rem] h-[100dvh] md:h-auto' 
+                : aiWidgetMode === 'minimized'
+                ? 'md:w-[300px] rounded-t-[2rem] md:rounded-[2.5rem]'
+                : 'md:w-[450px] rounded-t-[2rem] md:rounded-[2.5rem] h-[85dvh] md:h-auto'
             }`}
-            style={{ maxHeight: aiWidgetMode === 'maximized' ? '90vh' : aiWidgetMode === 'minimized' ? '70px' : '85vh' }}
+            style={{ maxHeight: aiWidgetMode === 'maximized' ? '100dvh' : aiWidgetMode === 'minimized' ? '70px' : '85dvh' }}
           >
             {/* Chat Header */}
             <div className={`p-6 bg-slate-900 text-white flex items-center justify-between transition-all ${aiWidgetMode === 'minimized' ? 'h-full' : ''}`}>

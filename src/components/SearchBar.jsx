@@ -54,67 +54,95 @@ const SearchBar = ({
   return (
     <>
       {/* Portal Selector */}
-      <div className="w-full max-w-full lg:max-w-[60%] mb-8 relative">
+      <div className="w-full mb-8 relative">
         {userTier !== 'pro' ? (
-          <div className={`inline-flex items-center gap-2 px-4 py-2.5 border rounded-2xl shadow-sm ${getPortalTheme(portal).bg} ${getPortalTheme(portal).border}`}>
-            <span className="text-sm">
-              {getPortalDetails(portal).icon}
-            </span>
-            <span className={`text-xs font-black uppercase tracking-widest ${getPortalTheme(portal).text}`}>
-              {getPortalDetails(portal).name} - {userTier}
-            </span>
-            <Lock size={12} className={`${getPortalTheme(portal).icon} ml-1`} />
+          <div className="flex overflow-x-auto whitespace-nowrap scrollbar-hide gap-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className={`inline-flex items-center gap-2 px-4 py-2.5 border rounded-2xl shadow-sm ${getPortalTheme(portal).bg} ${getPortalTheme(portal).border}`}>
+              <span className="text-sm">
+                {getPortalDetails(portal).icon}
+              </span>
+              <span className={`text-xs font-black uppercase tracking-widest ${getPortalTheme(portal).text}`}>
+                {getPortalDetails(portal).name} - {userTier}
+              </span>
+              <Lock size={12} className={`${getPortalTheme(portal).icon} ml-1`} />
+            </div>
           </div>
         ) : (
-          <div className="relative inline-block text-left">
-            <button
-              type="button"
-              onClick={() => setIsPortalDropdownOpen(!isPortalDropdownOpen)}
-              className="inline-flex items-center gap-3 px-5 py-3 bg-white border-2 border-slate-100 hover:border-blue-200 rounded-2xl shadow-sm text-sm font-black text-slate-700 uppercase tracking-widest transition-all"
-            >
-              <span className="flex items-center gap-2">
-                <span>{getPortalDetails(portal).icon}</span>
-                {getPortalDetails(portal).name}
-              </span>
-              <ChevronDown size={16} className={`text-slate-400 transition-transform ${isPortalDropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
+          <>
+            {/* Desktop Dropdown */}
+            <div className="hidden md:inline-block relative text-left">
+              <button
+                type="button"
+                onClick={() => setIsPortalDropdownOpen(!isPortalDropdownOpen)}
+                className="inline-flex items-center gap-3 px-5 py-3 bg-white border-2 border-slate-100 hover:border-blue-200 rounded-2xl shadow-sm text-sm font-black text-slate-700 uppercase tracking-widest transition-all"
+              >
+                <span className="flex items-center gap-2">
+                  <span>{getPortalDetails(portal).icon}</span>
+                  {getPortalDetails(portal).name}
+                </span>
+                <ChevronDown size={16} className={`text-slate-400 transition-transform ${isPortalDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+  
+              <AnimatePresence>
+                {isPortalDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute left-0 mt-2 w-56 rounded-2xl bg-white shadow-2xl border border-slate-100 z-50 overflow-hidden"
+                  >
+                    <div className="p-2 space-y-1">
+                      {['geb', 'pharma', 'eng', 'physics', 'math', 'social', 'law', 'chem'].map(pId => {
+                        const details = getPortalDetails(pId);
+                        const theme = getPortalTheme(pId);
+                        const isSelected = portal === pId;
+                        return (
+                          <button
+                            key={pId}
+                            onClick={() => {
+                              setPortal(pId);
+                              setIsPortalDropdownOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                              isSelected 
+                                ? `${theme.bg} ${theme.textHover}`
+                                : 'hover:bg-slate-50 text-slate-600'
+                            }`}
+                          >
+                            <span className="text-sm">{details.icon}</span>
+                            {details.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
-            <AnimatePresence>
-              {isPortalDropdownOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="absolute left-0 mt-2 w-56 rounded-2xl bg-white shadow-2xl border border-slate-100 z-50 overflow-hidden"
-                >
-                  <div className="p-2 space-y-1">
-                    {['geb', 'pharma', 'eng', 'physics', 'math', 'social', 'law', 'chem'].map(pId => {
-                      const details = getPortalDetails(pId);
-                      const theme = getPortalTheme(pId);
-                      const isSelected = portal === pId;
-                      return (
-                        <button
-                          key={pId}
-                          onClick={() => {
-                            setPortal(pId);
-                            setIsPortalDropdownOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
-                            isSelected 
-                              ? `${theme.bg} ${theme.textHover}`
-                              : 'hover:bg-slate-50 text-slate-600'
-                          }`}
-                        >
-                          <span className="text-sm">{details.icon}</span>
-                          {details.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+            {/* Mobile Swipeable List */}
+            <div className="md:hidden flex overflow-x-auto whitespace-nowrap scrollbar-hide gap-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+              {['geb', 'pharma', 'eng', 'physics', 'math', 'social', 'law', 'chem'].map(pId => {
+                const details = getPortalDetails(pId);
+                const theme = getPortalTheme(pId);
+                const isSelected = portal === pId;
+                return (
+                  <button
+                    key={pId}
+                    onClick={() => setPortal(pId)}
+                    className={`inline-flex items-center shrink-0 gap-2 px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border ${
+                      isSelected 
+                        ? `${theme.bg} ${theme.border} ${theme.textHover} shadow-sm`
+                        : 'bg-white border-slate-100 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="text-sm">{details.icon}</span>
+                    {details.name}
+                  </button>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
 
@@ -134,7 +162,7 @@ const SearchBar = ({
             disabled={loading}
             autoComplete="off"
           />
-          <div className="relative md:absolute md:right-2 md:inset-y-0 mt-3 md:mt-0 flex flex-col md:flex-row items-center gap-2 w-full md:w-auto">
+          <div className="relative md:absolute md:right-2 md:inset-y-0 mt-3 md:mt-0 flex flex-col md:flex-row items-stretch md:items-center gap-2 w-full md:w-auto">
             <button
               type="button"
               onClick={handleAiRefine}
@@ -303,8 +331,8 @@ const SearchBar = ({
                   {/* Custom Date Filter */}
                   <div className="space-y-3">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Custom Date Range</label>
-                    <div className="flex items-center gap-3">
-                      <div className="relative flex-1">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                      <div className="relative w-full sm:flex-1">
                         <input 
                           type="date" 
                           value={startDate}
@@ -317,8 +345,8 @@ const SearchBar = ({
                           </button>
                         )}
                       </div>
-                      <span className="text-slate-300 font-bold">to</span>
-                      <div className="relative flex-1">
+                      <span className="text-slate-300 font-bold hidden sm:inline text-center">to</span>
+                      <div className="relative w-full sm:flex-1">
                         <input 
                           type="date" 
                           value={endDate}

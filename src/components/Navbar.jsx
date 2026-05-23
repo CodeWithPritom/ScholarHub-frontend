@@ -50,10 +50,10 @@ const Navbar = ({ user, profile, liveUsersCount, onLogout, transparent = false }
             <Link to="/" className="flex items-center gap-2 sm:gap-3 flex-shrink-0 z-[60]">
               <img src={logo} alt="ScholarHub AI" className="h-10 w-auto object-contain" />
               <div className="hidden min-[360px]:block">
-                <h1 className="text-base sm:text-xl font-black tracking-tight text-slate-900 leading-none">
+                <h1 className={`text-base sm:text-xl font-black tracking-tight leading-none ${transparent && !isScrolled ? 'text-white' : 'text-slate-900'}`}>
                   ScholarHub <span className="text-blue-600 uppercase">AI</span>
                 </h1>
-                <p className="text-[8px] sm:text-[10px] uppercase tracking-widest font-bold text-slate-400 mt-0.5 sm:mt-1">
+                <p className={`text-[8px] sm:text-[10px] uppercase tracking-widest font-bold mt-0.5 sm:mt-1 ${transparent && !isScrolled ? 'text-slate-300' : 'text-slate-400'}`}>
                   Advanced Research Hub
                 </p>
               </div>
@@ -189,7 +189,7 @@ const Navbar = ({ user, profile, liveUsersCount, onLogout, transparent = false }
                 
                 <button 
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                  className={`p-2 rounded-xl transition-colors ${mobileMenuOpen || isScrolled || !transparent ? 'bg-slate-100 text-slate-900' : 'bg-white/10 text-slate-900 md:text-white'}`}
+                  className={`p-2 rounded-xl transition-colors ${mobileMenuOpen || isScrolled || !transparent ? 'bg-slate-100 text-slate-900' : 'bg-white/10 text-white'}`}
                 >
                   {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
                 </button>

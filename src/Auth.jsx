@@ -194,14 +194,14 @@ const Auth = () => {
   return (
     <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center px-6 relative overflow-hidden selection:bg-blue-100 selection:text-blue-700">
       {/* Background Decoration */}
-      <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
-      <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-indigo-500/5 rounded-full blur-3xl translate-x-1/2 translate-y-1/2"></div>
+      <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0"></div>
+      <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-indigo-500/5 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 pointer-events-none z-0"></div>
 
       <motion.div
         initial={{ opacity: 0, y: 30, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="relative w-full max-w-md"
+        className="relative w-full max-w-md z-10 pointer-events-auto"
       >
         {/* Back to Home */}
         <Link 
@@ -350,11 +350,12 @@ const Auth = () => {
                 )}
 
                 {isLogin && (
-                  <div className="flex justify-center py-2">
+                  <div className="relative z-[9999] pointer-events-auto touch-auto min-h-[70px] w-full flex justify-center my-4">
                     <Turnstile 
                       ref={turnstileRef}
                       siteKey="0x4AAAAAADMiMm356ph5tSi8" 
                       onSuccess={(token) => setCaptchaToken(token)}
+                      theme="light"
                       options={{ theme: 'light' }}
                     />
                   </div>
