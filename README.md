@@ -44,7 +44,7 @@ ScholarHub AI features a seamless, highly responsive web interface designed for 
     </td>
     <td align="center" width="50%">
       <img src="https://github.com/user-attachments/assets/5757e309-23e9-4a28-952d-3b903e335a73" alt="Intelligence Engine" />
-      <br /><b>The Intelligence Engine</b>
+      <br /><b>Live Data and Engine Informations</b>
     </td>
   </tr>
   <tr>
@@ -70,11 +70,11 @@ ScholarHub AI features a seamless, highly responsive web interface designed for 
   <tr>
     <td align="center">
       <img src="https://github.com/user-attachments/assets/0354e819-2764-4c5d-8915-6bbd13052a97" alt="Paper Details" />
-      <br /><b>In-Depth Paper Details</b>
+      <br /><b>In-Depth Paper Details and Llama 3.1 AI Executive Report</b>
     </td>
     <td align="center">
       <img src="https://github.com/user-attachments/assets/bed31f65-4398-4210-86a7-4751f9ff47ee" alt="AI Chat Report" />
-      <br /><b>Llama 3.1 AI Executive Report</b>
+      <br /><b>Pricing</b>
     </td>
   </tr>
 </table>
@@ -97,11 +97,11 @@ We built ScholarHub AI to be 100% responsive out of the box, delivering a native
     </td>
     <td align="center" width="25%">
       <img src="https://github.com/user-attachments/assets/10704356-071b-4d3e-878f-220b8f56569d" alt="Mobile View 3" />
-      <br /><b>Slide-out Navigation</b>
+      <br /><b>Llama 3.1 AI Executive Report</b>
     </td>
     <td align="center" width="25%">
       <img src="https://github.com/user-attachments/assets/ec39e779-eb2b-43a7-8362-cb0cc3116056" alt="Mobile View 4" />
-      <br /><b>Native AI Bottom Sheet</b>
+      <br /><b>Profile and Security</b>
     </td>
   </tr>
 </table>
