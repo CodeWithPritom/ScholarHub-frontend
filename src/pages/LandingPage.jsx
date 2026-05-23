@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Dna, ArrowRight, Activity, Users, Database, Globe, Megaphone, X, Play, Brain, CheckCircle2, Server, MessageSquare } from 'lucide-react'
+import { Dna, ArrowRight, Activity, Users, Database, Globe, Megaphone, X, Play, Brain, CheckCircle2, Server, MessageSquare, Smartphone } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 import logo from '../assets/images/logo.png'
 import Footer from '../Footer'
@@ -123,15 +123,23 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
             The AI-Powered Discovery Hub for Global Researchers. Unifying GEB, Pharmacy, Engineering, and General Literature into one intelligent platform.
           </motion.p>
           
-          <motion.button 
-            variants={itemVariants}
-            onClick={handleLaunch}
-            disabled={user && !profile}
-            className={`group px-8 py-5 bg-white text-slate-900 hover:bg-blue-50 rounded-2xl text-sm font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-4 mx-auto shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] ${user && !profile ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-[0_0_60px_-15px_rgba(255,255,255,0.5)] hover:scale-105'}`}
-          >
-            {user ? (profile ? "Go to Workspace" : "Syncing Profile...") : "Start Your Discovery"}
-            <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-          </motion.button>
+          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-center gap-4 mx-auto">
+            <button 
+              onClick={handleLaunch}
+              disabled={user && !profile}
+              className={`group px-8 py-5 bg-white text-slate-900 hover:bg-blue-50 rounded-2xl text-sm font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-4 shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] ${user && !profile ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-[0_0_60px_-15px_rgba(255,255,255,0.5)] hover:scale-105'}`}
+            >
+              {user ? (profile ? "Go to Workspace" : "Syncing Profile...") : "Start Your Discovery"}
+              <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+            </button>
+            <a 
+              href="https://github.com/CodeWithPritom/ScholarHub-frontend/releases/download/v1.0.0/ScholarHub.AI.apk"
+              className="group px-8 py-5 bg-slate-800 text-white hover:bg-slate-700 border border-slate-700 rounded-2xl text-sm font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-4 hover:scale-105"
+            >
+              <Smartphone size={18} className="text-blue-400 group-hover:-translate-y-1 transition-transform" />
+              Download for Android
+            </a>
+          </motion.div>
           
           <motion.div variants={itemVariants} className="mt-24 w-full max-w-5xl mx-auto">
             <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-6">Welcome to ScholarHub AI - Watch the Demo</h3>
