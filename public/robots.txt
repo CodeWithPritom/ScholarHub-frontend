@@ -1,7 +1,16 @@
 User-agent: *
-Allow: /
+
+# Public Routes (Allowed)
+Allow: /$
+Allow: /research
+Allow: /about
+Allow: /pricing
+Allow: /resources
+
+# Private & Sensitive Routes (Disallowed)
 Disallow: /admin
 Disallow: /auth
+Disallow: /verify-email
 Disallow: /profile
 Disallow: /library
 Disallow: /settings

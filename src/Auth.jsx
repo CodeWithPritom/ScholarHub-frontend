@@ -12,6 +12,7 @@ import {
   Loader2, 
   ArrowLeft,
   Check,
+  AlertTriangle,
   Sparkles,
   ChevronRight,
   BookOpen
@@ -273,10 +274,20 @@ const Auth = () => {
             <motion.div 
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex items-start gap-3 p-4 bg-green-50 border border-green-100 rounded-2xl mb-8"
+              className="flex flex-col gap-3 mb-8"
             >
-              <Check size={18} className="text-green-600 shrink-0 mt-0.5" />
-              <p className="text-sm font-bold text-green-700 leading-snug">{success}</p>
+              <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-100 rounded-2xl">
+                <Check size={18} className="text-green-600 shrink-0 mt-0.5" />
+                <p className="text-sm font-bold text-green-700 leading-snug">{success}</p>
+              </div>
+              {success.includes('check your email') && (
+                <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-100 rounded-2xl shadow-sm">
+                  <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-sm font-bold text-amber-700 leading-snug">
+                    If you don't see it in your Inbox, please check your <strong>SPAM or JUNK folder</strong> and mark it as 'Not Spam' to ensure you receive future research updates.
+                  </p>
+                </div>
+              )}
             </motion.div>
           )}
 

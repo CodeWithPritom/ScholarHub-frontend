@@ -1,8 +1,9 @@
 import React from 'react'
 import { motion } from 'framer-motion'
-import { Dna, ArrowLeft, Terminal, Server, Database, Globe, Layers, ShieldCheck, Zap } from 'lucide-react'
+import { Dna, ArrowLeft, Terminal, Server, Database, Globe, Layers, ShieldCheck, Zap, Monitor, Smartphone } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import creatorImg from '../assets/images/creator.jpg'
+import architectureImg from '../assets/images/architecture.png'
 import Footer from '../Footer'
 
 const About = () => {
@@ -49,7 +50,7 @@ const About = () => {
               </div>
               <div className="space-y-6 text-slate-600 font-medium leading-relaxed text-lg">
                 <p>
-                  ScholarHub AI was founded by <strong className="text-slate-900">Arup Bhowmik Pritom</strong>, a passionate Computer Science undergraduate with a vision to break down the walls of academic knowledge.
+                  ScholarHub AI was founded by <strong className="text-slate-900">Arup Bhowmik Pritom</strong>, the creator of the popular 'Catalyst Smart Classroom' platform, with a vision to break down the walls of academic knowledge.
                 </p>
                 <p>
                   For decades, brilliant students and researchers globally have been gated by expensive paywalls, scattered databases, and restrictive API rate limits. ScholarHub AI was built to bypass these bottlenecks, providing a unified, AI-powered hub that aggregates world-class APIs into a single, intuitive platform.
@@ -75,6 +76,10 @@ const About = () => {
             <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">The Architecture</h2>
           </motion.div>
           
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="w-full max-w-5xl mx-auto rounded-[2rem] overflow-hidden shadow-2xl border border-slate-200 mb-16 bg-white p-2">
+            <img src={architectureImg} alt="ScholarHub AI System Architecture" className="w-full h-auto rounded-[1.5rem]" />
+          </motion.div>
+          
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {techStack.map((item, idx) => (
               <motion.div 
@@ -92,6 +97,31 @@ const About = () => {
                 <p className="text-slate-500 font-medium text-sm">{item.tech}</p>
               </motion.div>
             ))}
+          </div>
+        </section>
+
+        {/* Section 3: Platform Architecture & Accessibility */}
+        <section>
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-16">
+            <h3 className="text-sm font-black text-blue-600 uppercase tracking-widest mb-3">Omnichannel Sync</h3>
+            <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">Platform Architecture & Accessibility</h2>
+          </motion.div>
+          <div className="bg-white rounded-[2rem] p-10 lg:p-16 border border-slate-200 shadow-xl shadow-slate-200/20 max-w-4xl mx-auto">
+            <div className="space-y-6 text-slate-600 font-medium leading-relaxed text-lg">
+              <p>
+                To deliver a truly ubiquitous research experience, ScholarHub AI is engineered to be instantly available across all major operating systems while maintaining absolute synchronization.
+              </p>
+              <div className="grid md:grid-cols-2 gap-8 mt-8">
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                  <h4 className="flex items-center gap-2 text-xl font-black text-slate-900 mb-3"><Monitor size={20} className="text-blue-600" /> Desktop Experience</h4>
+                  <p className="text-sm">We leveraged <strong>Electron.js</strong> to package our highly reactive web interface into a performant, focused desktop application optimized for Windows. This allows researchers to utilize full-screen focus modes free from browser tab clutter.</p>
+                </div>
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                  <h4 className="flex items-center gap-2 text-xl font-black text-slate-900 mb-3"><Smartphone size={20} className="text-emerald-600" /> Mobile Experience</h4>
+                  <p className="text-sm">Our mobile architecture utilizes advanced <strong>PWA & WebView</strong> wrapping technologies. This ensures that the native Android app directly mirrors the core cloud infrastructure, guaranteeing that your library, search history, and AI credits stay perfectly synchronized across all devices in real-time.</p>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 

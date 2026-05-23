@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Dna, ArrowRight, Activity, Users, Database, Globe, Megaphone, X, Play, Brain, CheckCircle2, Server, MessageSquare, Smartphone } from 'lucide-react'
+import { Dna, ArrowRight, Activity, Users, Database, Globe, Megaphone, X, Play, Brain, CheckCircle2, Server, MessageSquare, Smartphone, Monitor, Zap } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 import logo from '../assets/images/logo.png'
 import Footer from '../Footer'
@@ -111,8 +111,13 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
           animate="visible"
           className="max-w-4xl mx-auto text-center"
         >
-          <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-black uppercase tracking-widest mb-8 backdrop-blur-md">
-            <Globe size={14} /> Phase 5 Deployment Active
+          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-black uppercase tracking-widest backdrop-blur-md">
+              <Globe size={14} /> Phase 5 Deployment Active
+            </div>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-black uppercase tracking-widest backdrop-blur-md">
+              <Zap size={14} /> From the creator of Catalyst Smart Classroom
+            </div>
           </motion.div>
           
           <motion.h1 variants={itemVariants} className="text-6xl md:text-8xl font-black tracking-tight leading-[0.9] mb-8">
@@ -123,22 +128,31 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
             The AI-Powered Discovery Hub for Global Researchers. Unifying GEB, Pharmacy, Engineering, and General Literature into one intelligent platform.
           </motion.p>
           
-          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-center gap-4 mx-auto">
+          <motion.div variants={itemVariants} className="flex flex-col items-center justify-center gap-4 mx-auto w-full">
             <button 
               onClick={handleLaunch}
               disabled={user && !profile}
-              className={`group px-8 py-5 bg-white text-slate-900 hover:bg-blue-50 rounded-2xl text-sm font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-4 shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] ${user && !profile ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-[0_0_60px_-15px_rgba(255,255,255,0.5)] hover:scale-105'}`}
+              className={`group px-8 py-5 w-full sm:w-auto bg-white text-slate-900 hover:bg-blue-50 rounded-2xl text-sm font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-4 shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] ${user && !profile ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-[0_0_60px_-15px_rgba(255,255,255,0.5)] hover:scale-105'}`}
             >
               {user ? (profile ? "Go to Workspace" : "Syncing Profile...") : "Start Your Discovery"}
               <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
             </button>
-            <a 
-              href="https://github.com/CodeWithPritom/ScholarHub-frontend/releases/download/v1.0.0/ScholarHub.AI.apk"
-              className="group px-8 py-5 bg-slate-800 text-white hover:bg-slate-700 border border-slate-700 rounded-2xl text-sm font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-4 hover:scale-105"
-            >
-              <Smartphone size={18} className="text-blue-400 group-hover:-translate-y-1 transition-transform" />
-              Download for Android
-            </a>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-2 w-full sm:w-auto">
+              <a 
+                href="https://github.com/CodeWithPritom/ScholarHub-frontend/releases/download/v1.0.0/ScholarHub.AI.Setup.1.0.0.exe"
+                className="group px-6 py-4 w-full sm:w-auto bg-slate-800 text-white hover:bg-slate-700 border border-slate-700 rounded-2xl text-xs font-black uppercase tracking-[0.1em] transition-all flex items-center justify-center gap-3 shadow-lg shadow-black/20 hover:scale-105"
+              >
+                <Monitor size={16} className="text-blue-400 group-hover:-translate-y-1 transition-transform" />
+                Download for Windows
+              </a>
+              <a 
+                href="https://github.com/CodeWithPritom/ScholarHub-frontend/releases/download/v1.0.0/ScholarHub.AI.apk"
+                className="group px-6 py-4 w-full sm:w-auto bg-slate-800 text-white hover:bg-slate-700 border border-slate-700 rounded-2xl text-xs font-black uppercase tracking-[0.1em] transition-all flex items-center justify-center gap-3 shadow-lg shadow-black/20 hover:scale-105"
+              >
+                <Smartphone size={16} className="text-blue-400 group-hover:-translate-y-1 transition-transform" />
+                Download for Android
+              </a>
+            </div>
           </motion.div>
           
           <motion.div variants={itemVariants} className="mt-24 w-full max-w-5xl mx-auto">
@@ -226,6 +240,45 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
               <Brain className="text-indigo-400 mb-6 relative z-10" size={40} />
               <h3 className="text-2xl font-black mb-4 relative z-10">Powered by Llama 3.1 <span className="text-indigo-400">(8B Instruct)</span></h3>
               <p className="text-slate-400 mb-8 font-medium leading-relaxed relative z-10">We utilize the latest state-of-the-art open models. Llama 3.1 provides a massive context window with zero-hallucination guardrails—meaning it answers strictly based on the provided papers at lightning-fast inference speeds.</p>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section: Available Everywhere */}
+      <section className="py-32 relative z-10 border-t border-slate-800 bg-slate-900/50">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-black mb-6">Research on Any Device</h2>
+            <p className="text-slate-400 font-medium max-w-2xl mx-auto">ScholarHub AI is built to seamlessly sync across all your devices, giving you access to your library wherever you go.</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8">
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-8 text-center flex flex-col items-center">
+              <div className="w-16 h-16 bg-blue-500/10 text-blue-400 rounded-2xl flex items-center justify-center mb-6">
+                <Globe size={32} />
+              </div>
+              <h3 className="text-2xl font-black mb-4">Web</h3>
+              <p className="text-slate-400 font-medium leading-relaxed">Access instantly via any browser. No installation required for immediate discovery.</p>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-8 text-center flex flex-col items-center relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4">
+                <span className="px-4 py-1.5 bg-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-indigo-500/20">New</span>
+              </div>
+              <div className="w-16 h-16 bg-indigo-500/10 text-indigo-400 rounded-2xl flex items-center justify-center mb-6">
+                <Monitor size={32} />
+              </div>
+              <h3 className="text-2xl font-black mb-4">Desktop App</h3>
+              <p className="text-slate-400 font-medium leading-relaxed">Full-screen focus mode for deep research. Optimized for Windows.</p>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }} className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-8 text-center flex flex-col items-center relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4">
+                <span className="px-4 py-1.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-emerald-500/20">New</span>
+              </div>
+              <div className="w-16 h-16 bg-emerald-500/10 text-emerald-400 rounded-2xl flex items-center justify-center mb-6">
+                <Smartphone size={32} />
+              </div>
+              <h3 className="text-2xl font-black mb-4">Mobile App</h3>
+              <p className="text-slate-400 font-medium leading-relaxed">Carry your library in your pocket. Seamless research on the go.</p>
             </motion.div>
           </div>
         </div>
