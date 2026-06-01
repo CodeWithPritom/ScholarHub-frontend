@@ -159,7 +159,7 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
             <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-6">Welcome to ScholarHub AI - Watch the Demo</h3>
             <div className="relative w-full aspect-video rounded-[2rem] overflow-hidden border border-slate-800 shadow-2xl shadow-blue-500/10">
               <iframe 
-                src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=0&controls=1&rel=0" 
+                src="https://www.youtube.com/embed/7RjTeYbRYfI?autoplay=0&controls=1&rel=0" 
                 title="ScholarHub AI Demo" 
                 className="absolute inset-0 w-full h-full object-cover bg-slate-900"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
@@ -320,7 +320,7 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
               
               <div className="w-full aspect-video rounded-2xl overflow-hidden border border-slate-800 shadow-xl">
                 <iframe 
-                  src="https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0" 
+                  src="https://www.youtube.com/embed/7RjTeYbRYfI?rel=0" 
                   title="Full Tutorial" 
                   className="w-full h-full object-cover bg-slate-900"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
