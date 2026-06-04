@@ -7,7 +7,7 @@ import {
   BookOpen, ArrowUpRight, X, FileDown, Megaphone 
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
-import { BASE_URL } from './utils/api';
+import { BASE_URL, fireSessionExpired } from './utils/api';
 import { getOrCreateDeviceId } from './utils/deviceSync';
 import Footer from './Footer';
 import AuthModal from './AuthModal';
@@ -631,6 +631,9 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
     setPortal(unlockedPortalState);
     setShowExpiryToast(true);
     setTimeout(() => setShowExpiryToast(false), 5000);
+
+    // Fire global event → App.jsx downgrades profile.tier to 'free' + redirects to /pricing
+    fireSessionExpired('Your premium session has expired. Please renew to continue using Pro features.');
   };
 
   const hydratePortalState = (newPortal) => {

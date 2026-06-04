@@ -4,11 +4,12 @@
  * This file only manages: Auth state, Presence, and Route definitions.
  */
 
-import React, { useState, useEffect, Suspense, lazy } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { supabase } from './supabaseClient'
 import { ensureDeviceIsRegistered } from './utils/deviceSync'
-import { Dna, AlertTriangle, X } from 'lucide-react'
+import { SESSION_EXPIRED_EVENT } from './utils/api'
+import { Dna, AlertTriangle, X, CreditCard } from 'lucide-react'
 
 // Pages
 import Auth from './Auth'
@@ -30,6 +31,22 @@ import About from './pages/About'
 import PaperDetail from './components/PaperDetail'
 import AIReport from './components/AIReport'
 
+/**
+ * SessionExpiryRedirector — Must live inside <BrowserRouter> to access useNavigate.
+ * When a 402 fires anywhere in the app, App.jsx sets sessionExpired=true, and
+ * this component immediately navigates the user to /pricing.
+ */
+function SessionExpiryRedirector({ sessionExpired, onRedirected }) {
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (sessionExpired) {
+      navigate('/pricing', { replace: true });
+      // Don't clear the flag here — let the toast stay visible on /pricing
+    }
+  }, [sessionExpired, navigate]);
+  return null;
+}
+
 function App() {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
@@ -38,6 +55,32 @@ function App() {
   const [liveUsersCount, setLiveUsersCount] = useState(1)
   const [totalMembersCount, setTotalMembersCount] = useState(12400) // Fallback
   const [deviceLimitWarning, setDeviceLimitWarning] = useState(false)
+  const [sessionExpired, setSessionExpired] = useState(false)
+  const [expiryMessage, setExpiryMessage] = useState('')
+
+  // ─── Global 402 Session Expiry Handler ───
+  // Listens for the custom 'scholarhub:session-expired' event fired by
+  // utils/api.js apiFetch or any component calling fireSessionExpired().
+  // Immediately downgrades the global profile to 'free' and triggers redirect.
+  const handleSessionExpiry = useCallback((e) => {
+    const detail = e.detail || 'Your premium plan has expired.';
+    setExpiryMessage(detail);
+    setSessionExpired(true);
+
+    // Downgrade the global profile to free tier immediately
+    setProfile(prev => {
+      if (!prev) return prev;
+      return { ...prev, user_tier: 'free', tier: 'free' };
+    });
+
+    // Auto-dismiss expiry toast after 8 seconds
+    setTimeout(() => setSessionExpired(false), 8000);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpiry);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpiry);
+  }, [handleSessionExpiry]);
 
   // ─── Fetch Total Members ───
   useEffect(() => {
@@ -146,8 +189,27 @@ function App() {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (isMounted) setIsInitializing(true);
-      fetchAndSetProfile(session?.user ?? null);
+      // ─── CRITICAL: Only show loading spinner for meaningful auth transitions ───
+      // Supabase fires TOKEN_REFRESHED on every tab re-focus (via its internal
+      // visibilitychange listener). Showing the loading screen for that event
+      // unmounts all child components, wiping AdminPanel/ResearchPage state.
+      const isSignificantEvent = (
+        _event === 'SIGNED_IN' ||
+        _event === 'SIGNED_OUT' ||
+        _event === 'INITIAL_SESSION' ||
+        _event === 'USER_UPDATED' ||
+        _event === 'PASSWORD_RECOVERY'
+      );
+
+      if (isSignificantEvent) {
+        if (isMounted) setIsInitializing(true);
+        fetchAndSetProfile(session?.user ?? null);
+      } else {
+        // TOKEN_REFRESHED — silently update user object without flashing UI
+        if (isMounted && session?.user) {
+          setUser(session.user);
+        }
+      }
 
       // ─── Silent Background Device Sync ───
       // Triggers on SIGNED_IN (email confirm, password login) and INITIAL_SESSION
@@ -167,10 +229,26 @@ function App() {
       }
     });
 
-    // Force re-fetch every 5 minutes
+    // Background profile re-sync every 5 minutes (silent — no loading spinner)
     const intervalId = setInterval(() => {
       supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session?.user) fetchAndSetProfile(session.user);
+        if (session?.user) {
+          // Silently refresh profile without triggering isInitializing
+          const sessionUser = session.user;
+          const isFounder = sessionUser.email === 'arupbhowmikpritom@gmail.com';
+          supabase
+            .from('profiles')
+            .select('role, full_name, academic_field, status, user_tier, unlocked_portal')
+            .eq('id', sessionUser.id)
+            .maybeSingle()
+            .then(({ data, error }) => {
+              if (!isMounted) return;
+              if (!error && data && (data.academic_field || data.unlocked_portal)) {
+                setProfile({ ...data, tier: data.user_tier });
+                setIsAdmin(data.role === 'admin' || isFounder);
+              }
+            });
+        }
       });
     }, 5 * 60 * 1000);
 
@@ -245,6 +323,32 @@ function App() {
   // ─── Routes ───
   return (
     <BrowserRouter>
+      {/* ─── 402 Session Expiry Redirector ─── */}
+      <SessionExpiryRedirector sessionExpired={sessionExpired} onRedirected={() => setSessionExpired(false)} />
+
+      {/* ─── Premium Expiry Toast ─── */}
+      {sessionExpired && expiryMessage && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] max-w-md animate-in slide-in-from-top">
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-5 shadow-xl shadow-red-100/50 flex items-start gap-3">
+            <CreditCard size={18} className="text-red-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-bold text-red-800 leading-snug">
+                Premium Plan Expired
+              </p>
+              <p className="text-xs font-medium text-red-600 mt-1">
+                {expiryMessage}
+              </p>
+            </div>
+            <button
+              onClick={() => setSessionExpired(false)}
+              className="text-red-400 hover:text-red-600 transition-colors shrink-0"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ─── Device Limit Warning Toast ─── */}
       {deviceLimitWarning && (
         <div className="fixed top-4 right-4 z-[9999] max-w-sm animate-in slide-in-from-right">

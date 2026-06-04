@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, ShieldCheck, Ticket, Calendar as CalIcon, Loader2, Check, UserCheck, AlertCircle, Ban, Trash2, CreditCard, ToggleLeft, ToggleRight, Users, Zap, Radio, Bell, Megaphone, X, Key, Activity, Clock, FileText } from 'lucide-react'
+import { Search, ShieldCheck, Ticket, Calendar as CalIcon, Loader2, Check, UserCheck, AlertCircle, Ban, Trash2, CreditCard, ToggleLeft, ToggleRight, Users, Zap, Radio, Bell, Megaphone, X, Key, Activity, Clock, FileText, RefreshCcw } from 'lucide-react'
 import { supabase } from '../supabaseClient'
-import { BASE_URL } from '../utils/api'
+import { BASE_URL, fireSessionExpired } from '../utils/api'
 
 // Status Badge Component
 const StatusBadge = ({ status }) => {
@@ -100,6 +100,11 @@ const AdminPanel = ({ user, profile, liveUsersCount }) => {
       ...options,
       headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json', ...options.headers }
     })
+    if (res.status === 402) {
+      const err = await res.json().catch(() => ({}))
+      fireSessionExpired(err.detail || 'Your premium plan has expired.')
+      throw new Error(err.detail || 'Payment Required')
+    }
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       throw new Error(err.detail || `Request failed (${res.status})`)
@@ -135,20 +140,49 @@ const AdminPanel = ({ user, profile, liveUsersCount }) => {
     }
   }
 
-  // Effect manager
+  // ─── Persistent Data Flags ───
+  // Track which tabs have already been loaded to avoid re-fetching on every tab switch.
+  // Data persists in state until the admin manually clicks "Refresh" or navigates away.
+  const [loadedTabs, setLoadedTabs] = useState(new Set())
+
+  const markTabLoaded = (tabId) => {
+    setLoadedTabs(prev => {
+      const next = new Set(prev)
+      next.add(tabId)
+      return next
+    })
+  }
+
+  // Manual refresh: clears the "loaded" flag for the current tab, forcing a re-fetch
+  const handleManualRefresh = () => {
+    setLoadedTabs(prev => {
+      const next = new Set(prev)
+      next.delete(activeTab)
+      return next
+    })
+  }
+
+  // Effect manager — only fetches when a tab hasn't been loaded yet
   useEffect(() => {
     if (!authToken) return
+    if (loadedTabs.has(activeTab)) return // Already loaded — don't re-fetch
+
     if (activeTab === 'overview') {
       fetchStats()
       fetchAnnouncements()
     } else if (activeTab === 'users' || activeTab === 'expiry') {
-      fetchAllUsers()
+      if (!loadedTabs.has('users')) fetchAllUsers()
     } else if (activeTab === 'payments') {
       fetchPayments()
     } else if (activeTab === 'coupons') {
       fetchCoupons()
     }
-  }, [activeTab, authToken])
+
+    markTabLoaded(activeTab)
+    // Also mark 'expiry' when 'users' loads (they share usersList)
+    if (activeTab === 'users') markTabLoaded('expiry')
+    if (activeTab === 'expiry') markTabLoaded('users')
+  }, [activeTab, authToken, loadedTabs])
 
   // ─── Announcements Actions ───
   const handlePostAnnouncement = async (e) => {
@@ -338,7 +372,7 @@ const AdminPanel = ({ user, profile, liveUsersCount }) => {
       </div>
 
       {/* Tabs */}
-      <div className="max-w-6xl mx-auto px-6 -mt-6">
+      <div className="max-w-6xl mx-auto px-6 -mt-6 flex items-center gap-3">
         <div className="flex overflow-x-auto gap-2 bg-white rounded-2xl p-1.5 border border-slate-200 shadow-lg w-fit">
           {tabs.map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)}
@@ -346,6 +380,14 @@ const AdminPanel = ({ user, profile, liveUsersCount }) => {
             >{t.icon} {t.label}</button>
           ))}
         </div>
+        <button
+          onClick={handleManualRefresh}
+          title="Refresh current tab data"
+          className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors shadow-sm"
+        >
+          <RefreshCcw size={14} />
+          Refresh
+        </button>
       </div>
 
       <div className="max-w-6xl mx-auto px-6 mt-8">
