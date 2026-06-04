@@ -234,6 +234,7 @@ export default function SupportBot() {
     if (!text) return { __html: '' };
     let html = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
     html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="text-indigo-600 font-bold">$1</strong>');
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-indigo-600 underline font-medium hover:text-indigo-800 transition-colors">$1</a>');
     html = html.replace(/^(?:\*|\-)\s+(.*)$/gm, '<li class="ml-4 list-disc marker:text-indigo-400">$1</li>');
     html = html.replace(/\n/g, '<br/>');
     return { __html: html };
