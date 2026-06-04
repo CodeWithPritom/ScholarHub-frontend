@@ -23,6 +23,9 @@ export default function SupportBot() {
     const saved = sessionStorage.getItem('support_voice_mode');
     return saved ? JSON.parse(saved) : null;
   });
+  const [hasBeeFlown, setHasBeeFlown] = useState(() => {
+    return sessionStorage.getItem('emo_bee_flown') === 'true';
+  });
   const navigate = useNavigate();
   
   // Cooldown State
@@ -314,6 +317,35 @@ export default function SupportBot() {
 
   return (
     <>
+      {/* Intro Flying Bee Animation */}
+      <AnimatePresence>
+        {!hasBeeFlown && (
+          <motion.div
+            initial={{ left: '-10%', top: '60%', scale: 0, opacity: 0, rotate: -45 }}
+            animate={{ 
+              left: ['-10%', '40%', '70%', 'calc(100vw - 65px)'], 
+              top:  ['60%', '20%', '70%', 'calc(100vh - 90px)'],
+              scale: [0, 7, 5, 1],
+              opacity: [0, 1, 1, 1], // Never fade out at the end, wait for it to land
+              rotate: [-45, 20, -20, 0]
+            }}
+            transition={{ 
+              duration: 5, // Much slower and majestic
+              times: [0, 0.4, 0.75, 1], 
+              ease: "easeInOut"
+            }}
+            onAnimationComplete={() => {
+              setHasBeeFlown(true);
+              sessionStorage.setItem('emo_bee_flown', 'true');
+            }}
+            className="fixed z-[10000] text-5xl drop-shadow-2xl pointer-events-none"
+            style={{ transformOrigin: 'center center' }}
+          >
+            <span style={{ display: 'inline-block', transform: 'scaleX(-1)' }}>🐝</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Floating Button */}
       <AnimatePresence>
         {!isOpen && (
@@ -328,7 +360,18 @@ export default function SupportBot() {
             className="fixed bottom-6 right-6 z-[9999] w-14 h-14 bg-gradient-to-br from-indigo-500 to-indigo-700 text-white rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(79,70,229,0.4)]"
           >
             <Smile size={26} strokeWidth={2.5} />
-            <span className="absolute -top-1 -right-1 text-lg">🐝</span>
+            <AnimatePresence>
+              {hasBeeFlown && (
+                <motion.div 
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", bounce: 0.6 }}
+                  className="absolute -top-1 -right-1 text-lg"
+                >
+                  <span style={{ display: 'inline-block', transform: 'scaleX(-1)' }}>🐝</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.button>
         )}
       </AnimatePresence>
