@@ -31,7 +31,7 @@ const Navbar = ({ user, profile, liveUsersCount, onLogout, transparent = false }
     { name: 'Tutorial', path: '/#tutorial' },
     ...(user ? [{ name: 'Archive', path: '/archive' }] : []),
     { name: 'Pricing', path: '/pricing' },
-    { name: 'Support', path: '/profile#support' }
+    { name: 'Support', path: '#' }
   ]
 
   return (
@@ -76,7 +76,22 @@ const Navbar = ({ user, profile, liveUsersCount, onLogout, transparent = false }
               <nav className="flex items-center gap-4 lg:gap-6">
                 {navLinks.map(link => {
                   const isAnchor = link.path.includes('#');
-                  if (link.external) {
+                  if (link.name === 'Support') {
+                    return (
+                      <button
+                        key={link.name}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          window.dispatchEvent(new Event('toggle-support-bot'));
+                        }}
+                        className={`text-sm font-semibold transition-colors ${
+                          transparent && !isScrolled ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-blue-600'
+                        }`}
+                      >
+                        {link.name}
+                      </button>
+                    )
+                  } else if (link.external) {
                     return (
                       <a
                         key={link.name}
@@ -212,7 +227,21 @@ const Navbar = ({ user, profile, liveUsersCount, onLogout, transparent = false }
               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 px-2">Navigation</h3>
               {navLinks.map(link => {
                 const isAnchor = link.path.includes('#');
-                if (link.external) {
+                if (link.name === 'Support') {
+                  return (
+                    <button
+                      key={link.name}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setMobileMenuOpen(false);
+                        window.dispatchEvent(new Event('toggle-support-bot'));
+                      }}
+                      className="block w-full text-left px-4 py-3 rounded-xl text-base font-bold transition-colors text-slate-700 hover:bg-slate-50"
+                    >
+                      {link.name}
+                    </button>
+                  )
+                } else if (link.external) {
                   return (
                     <a
                       key={link.name}

@@ -30,6 +30,7 @@ import About from './pages/About'
 // Components
 import PaperDetail from './components/PaperDetail'
 import AIReport from './components/AIReport'
+import SupportBot from './components/SupportBot'
 
 /**
  * SessionExpiryRedirector — Must live inside <BrowserRouter> to access useNavigate.
@@ -323,6 +324,9 @@ function App() {
   // ─── Routes ───
   return (
     <BrowserRouter>
+      {/* ─── Global Support Bot ─── */}
+      <SupportBot />
+
       {/* ─── 402 Session Expiry Redirector ─── */}
       <SessionExpiryRedirector sessionExpired={sessionExpired} onRedirected={() => setSessionExpired(false)} />
 
