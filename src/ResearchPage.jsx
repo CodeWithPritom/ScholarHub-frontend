@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { BASE_URL } from './utils/api';
+import { getOrCreateDeviceId } from './utils/deviceSync';
 import Footer from './Footer';
 import AuthModal from './AuthModal';
 import Navbar from './components/Navbar';
@@ -433,7 +434,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       const sessionToken = (await supabase.auth.getSession()).data.session?.access_token;
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s timeout
-      const deviceId = localStorage.getItem('scholarhub_device_id') || '';
+      const deviceId = getOrCreateDeviceId();
       
       const response = await fetch(`${BASE_URL}/ai/gap-analysis`, {
         method: 'POST',
@@ -521,7 +522,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s timeout
 
-      const deviceId = localStorage.getItem('scholarhub_device_id') || '';
+      const deviceId = getOrCreateDeviceId();
       const response = await fetch(`${BASE_URL}/ai/literature-review`, {
         method: 'POST',
         headers: {
@@ -804,7 +805,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
         }, delay);
       });
 
-      const deviceId = localStorage.getItem('scholarhub_device_id') || '';
+      const deviceId = getOrCreateDeviceId();
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000);
       
@@ -880,7 +881,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
     setAiThinking(true);
 
     try {
-      const deviceId = localStorage.getItem('scholarhub_device_id') || '';
+      const deviceId = getOrCreateDeviceId();
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000);
       

@@ -1,0 +1,4058 @@
+# Silent Background Device Sync — Implementation Summary
+
+## Problem
+
+Users logging in via **Supabase Email Confirmation links** bypass `Auth.jsx`'s device registration flow. Their session triggers `onAuthStateChange` with a `SIGNED_IN` event, but the `user_devices` row is never created. When they hit AI features, the backend middleware rejects them with **"Unregistered device. Access denied."** (HTTP 403).
+
+## Root Cause
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Email as Email Link
+    participant Supabase
+    participant App.jsx
+    participant Auth.jsx
+    participant Backend
+
+    User->>Email: Click confirmation link
+    Email->>Supabase: Verify token
+    Supabase->>App.jsx: onAuthStateChange(SIGNED_IN)
+    Note over Auth.jsx: ❌ BYPASSED — no device registration
+    App.jsx->>App.jsx: fetchAndSetProfile() ✓
+    User->>Backend: AI Request + X-Device-ID
+    Backend->>Backend: Check user_devices ❌ NOT FOUND
+    Backend-->>User: 403 "Unregistered device"
+```
+
+## Solution Architecture
+
+Three-layer fix ensuring **zero user friction**:
+
+```mermaid
+graph TD
+    A[deviceSync.js] -->|"ensureDeviceIsRegistered()"| B[App.jsx Auth Listener]
+    A -->|"getOrCreateDeviceId()"| C[ResearchPage.jsx AI Calls]
+    B -->|"SIGNED_IN / INITIAL_SESSION"| D[Silent Insert to user_devices]
+    C -->|"Guarantees X-Device-ID header"| E[Backend rate_limiter.py]
+    D -->|"If count >= 2"| F[Warning Toast]
+```
+
+## Files Changed
+
+### 1. **NEW** — [deviceSync.js](file:///e:/Websites/NCBI/frontend/src/utils/deviceSync.js)
+Core synchronization module with two exports:
+- `getOrCreateDeviceId()` — Idempotent device ID getter (generates UUID v4 if missing)
+- `ensureDeviceIsRegistered(userId, onLimitReached)` — Checks `user_devices` table, silently inserts if under limit, fires callback if at 2/2
+
+> [!IMPORTANT]
+> This function is **idempotent** and **race-safe** — it uses a `_syncInProgress` guard and handles duplicate-key constraint errors (23505) gracefully.
+
+### 2. **MODIFIED** — [App.jsx](file:///e:/Websites/NCBI/frontend/src/App.jsx)
+```diff:App.jsx
+/**
+ * App.jsx — Routing Shell & Global State
+ * All business components live in components/ and pages/.
+ * This file only manages: Auth state, Presence, and Route definitions.
+ */
+
+import React, { useState, useEffect, Suspense, lazy } from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { supabase } from './supabaseClient'
+import { Dna } from 'lucide-react'
+
+// Pages
+import Auth from './Auth'
+import LandingPage from './pages/LandingPage'
+const ResearchPage = lazy(() => import('./ResearchPage'))
+import MyLibrary from './MyLibrary'
+import Settings from './Settings'
+import VerifyEmail from './VerifyEmail'
+import Archive from './pages/Archive'
+import Resources from './pages/Resources'
+import Pricing from './pages/Pricing'
+import AdminPanel from './pages/AdminPanel'
+import Profile from './pages/Profile'
+import PrivacyPolicy from './pages/PrivacyPolicy'
+import TermsOfService from './pages/TermsOfService'
+import About from './pages/About'
+
+// Components
+import PaperDetail from './components/PaperDetail'
+import AIReport from './components/AIReport'
+
+function App() {
+  const [user, setUser] = useState(null)
+  const [profile, setProfile] = useState(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [isInitializing, setIsInitializing] = useState(true)
+  const [liveUsersCount, setLiveUsersCount] = useState(1)
+  const [totalMembersCount, setTotalMembersCount] = useState(12400) // Fallback
+
+  // ─── Fetch Total Members ───
+  useEffect(() => {
+    const fetchTotalMembers = async () => {
+      try {
+        const { count } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+        if (count) setTotalMembersCount(count)
+      } catch (e) { /* ignore */ }
+    }
+    fetchTotalMembers()
+  }, [])
+
+  // ─── Auth State Listener & Profile Fetcher ───
+  useEffect(() => {
+    let isMounted = true;
+    
+    const fetchAndSetProfile = async (sessionUser) => {
+      if (!sessionUser) {
+        if (isMounted) {
+          setUser(null);
+          setProfile(null);
+          setIsAdmin(false);
+          setIsInitializing(false);
+        }
+        return;
+      }
+      
+      const isFounder = sessionUser.email === 'arupbhowmikpritom@gmail.com';
+      if (isMounted) setUser(sessionUser);
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role, full_name, academic_field, status, user_tier, unlocked_portal')
+          .eq('id', sessionUser.id)
+          .maybeSingle();
+          
+        if (!error && data && (data.academic_field || data.unlocked_portal)) {
+          if (isMounted) {
+            setProfile({ ...data, tier: data.user_tier });
+            setIsAdmin(data.role === 'admin' || isFounder);
+          }
+        } else {
+          // Dynamic Default Fallback for empty data
+          if (isMounted) {
+            const field = sessionUser?.user_metadata?.academic_field || 'Medicine/Bio';
+            const fieldMap = {
+              'Medicine/Bio': 'bio',
+              'Engineering/CS': 'eng',
+              'Engineering': 'eng',
+              'Physics': 'physics',
+              'Mathematics': 'math',
+              'Social Sciences': 'social',
+              'Chemistry / Pharmacy': 'chem',
+              'Law / Legal Studies': 'law'
+            };
+            const unlocked = fieldMap[field] || 'bio';
+
+            setProfile({ 
+              user_tier: 'free', 
+              tier: 'free', 
+              unlocked_portal: unlocked, 
+              academic_field: field,
+              role: 'user',
+              full_name: sessionUser?.user_metadata?.full_name || 'Academic User'
+            });
+            setIsAdmin(isFounder);
+          }
+        }
+      } catch {
+        // Fallback Profile
+        if (isMounted) {
+          const field = sessionUser?.user_metadata?.academic_field || 'Medicine/Bio';
+          const fieldMap = {
+            'Medicine/Bio': 'bio',
+            'Engineering/CS': 'eng',
+            'Engineering': 'eng',
+            'Physics': 'physics',
+            'Mathematics': 'math',
+            'Social Sciences': 'social',
+            'Chemistry / Pharmacy': 'chem',
+            'Law / Legal Studies': 'law'
+          };
+          const unlocked = fieldMap[field] || 'bio';
+
+          setProfile({ 
+            user_tier: 'free', 
+            tier: 'free', 
+            unlocked_portal: unlocked, 
+            academic_field: field,
+            role: 'user',
+            full_name: sessionUser?.user_metadata?.full_name || 'Academic User'
+          });
+          setIsAdmin(isFounder);
+        }
+      } finally {
+        if (isMounted) setIsInitializing(false);
+      }
+    };
+
+    // Initial session check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      fetchAndSetProfile(session?.user ?? null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (isMounted) setIsInitializing(true);
+      fetchAndSetProfile(session?.user ?? null);
+    });
+
+    // Force re-fetch every 5 minutes
+    const intervalId = setInterval(() => {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) fetchAndSetProfile(session.user);
+      });
+    }, 5 * 60 * 1000);
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+      clearInterval(intervalId);
+    };
+  }, [])
+
+  // ─── Realtime Presence (Live Users) ───
+  useEffect(() => {
+    const channel = supabase.channel('online-users', {
+      config: { presence: { key: user ? user.id : 'guest-' + Math.random().toString(36).substring(2, 9) } },
+    })
+
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const count = Object.keys(channel.presenceState()).length
+        setLiveUsersCount(count === 0 ? 1 : count)
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') await channel.track({ online_at: new Date().toISOString() })
+      })
+
+    return () => { supabase.removeChannel(channel) }
+  }, [user])
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    setUser(null)
+    setProfile(null)
+    setIsAdmin(false)
+    sessionStorage.clear()
+    localStorage.removeItem('sb-access-token')
+    window.location.href = '/'
+  }
+
+  // ─── Auth Loading Screen ───
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center relative overflow-hidden">
+        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-600/20 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-indigo-600/20 blur-[120px] rounded-full pointer-events-none" />
+        <div className="flex flex-col items-center gap-8 relative z-10">
+          <div className="relative flex items-center justify-center">
+            <div className="w-24 h-24 border-4 border-slate-800 border-t-blue-500 border-r-indigo-500 rounded-full animate-spin shadow-[0_0_40px_rgba(59,130,246,0.5)]"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Dna size={32} className="text-blue-400 animate-pulse" />
+            </div>
+          </div>
+          <div className="text-center space-y-2">
+            <h3 className="text-xl font-black text-white tracking-widest uppercase shadow-blue-500/50 drop-shadow-lg">
+              Authenticating <span className="text-blue-500">Researcher...</span>
+            </h3>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.3em] animate-pulse">
+              Synchronizing Secure Session
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ─── Route Protection ───
+  const ProtectedRoute = ({ children }) => {
+    if (!user) return <Navigate to="/auth" replace />
+    if (!user.email_confirmed_at) return <Navigate to="/verify-email" replace />
+    return children
+  }
+
+  // ─── Routes ───
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={user && !user.email_confirmed_at ? <Navigate to="/verify-email" replace /> : <LandingPage liveUsersCount={liveUsersCount} totalMembersCount={totalMembersCount} user={user} profile={profile} onLogout={handleLogout} />} />
+        
+        <Route path="/verify-email" element={user && !user.email_confirmed_at ? <VerifyEmail user={user} /> : <Navigate to="/" replace />} />
+        
+        <Route 
+          path="/research" 
+          element={<ProtectedRoute><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#f8fafc]"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}><ResearchPage user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense></ProtectedRoute>} 
+        />
+        
+        <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
+        
+        <Route path="/library" element={<ProtectedRoute><MyLibrary user={user} onLogout={handleLogout} /></ProtectedRoute>} />
+        
+        <Route path="/settings" element={<ProtectedRoute><Settings user={user} /></ProtectedRoute>} />
+        
+        <Route path="/archive" element={<Archive />} />
+        <Route path="/resources" element={<Resources />} />
+        <Route path="/pricing" element={<Pricing user={user} />} />
+        <Route path="/admin" element={<AdminPanel user={user} profile={profile} liveUsersCount={liveUsersCount} />} />
+        <Route path="/profile" element={<ProtectedRoute><Profile user={user} /></ProtectedRoute>} />
+        <Route path="/paper/*" element={<PaperDetail />} />
+        <Route path="/ai-report" element={<AIReport />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
+        <Route path="/about" element={<About />} />
+      </Routes>
+    </BrowserRouter>
+  )
+}
+
+export default App
+===
+/**
+ * App.jsx — Routing Shell & Global State
+ * All business components live in components/ and pages/.
+ * This file only manages: Auth state, Presence, and Route definitions.
+ */
+
+import React, { useState, useEffect, Suspense, lazy } from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { supabase } from './supabaseClient'
+import { ensureDeviceIsRegistered } from './utils/deviceSync'
+import { Dna, AlertTriangle, X } from 'lucide-react'
+
+// Pages
+import Auth from './Auth'
+import LandingPage from './pages/LandingPage'
+const ResearchPage = lazy(() => import('./ResearchPage'))
+import MyLibrary from './MyLibrary'
+import Settings from './Settings'
+import VerifyEmail from './VerifyEmail'
+import Archive from './pages/Archive'
+import Resources from './pages/Resources'
+import Pricing from './pages/Pricing'
+import AdminPanel from './pages/AdminPanel'
+import Profile from './pages/Profile'
+import PrivacyPolicy from './pages/PrivacyPolicy'
+import TermsOfService from './pages/TermsOfService'
+import About from './pages/About'
+
+// Components
+import PaperDetail from './components/PaperDetail'
+import AIReport from './components/AIReport'
+
+function App() {
+  const [user, setUser] = useState(null)
+  const [profile, setProfile] = useState(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [isInitializing, setIsInitializing] = useState(true)
+  const [liveUsersCount, setLiveUsersCount] = useState(1)
+  const [totalMembersCount, setTotalMembersCount] = useState(12400) // Fallback
+  const [deviceLimitWarning, setDeviceLimitWarning] = useState(false)
+
+  // ─── Fetch Total Members ───
+  useEffect(() => {
+    const fetchTotalMembers = async () => {
+      try {
+        const { count } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+        if (count) setTotalMembersCount(count)
+      } catch (e) { /* ignore */ }
+    }
+    fetchTotalMembers()
+  }, [])
+
+  // ─── Auth State Listener & Profile Fetcher ───
+  useEffect(() => {
+    let isMounted = true;
+    
+    const fetchAndSetProfile = async (sessionUser) => {
+      if (!sessionUser) {
+        if (isMounted) {
+          setUser(null);
+          setProfile(null);
+          setIsAdmin(false);
+          setIsInitializing(false);
+        }
+        return;
+      }
+      
+      const isFounder = sessionUser.email === 'arupbhowmikpritom@gmail.com';
+      if (isMounted) setUser(sessionUser);
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role, full_name, academic_field, status, user_tier, unlocked_portal')
+          .eq('id', sessionUser.id)
+          .maybeSingle();
+          
+        if (!error && data && (data.academic_field || data.unlocked_portal)) {
+          if (isMounted) {
+            setProfile({ ...data, tier: data.user_tier });
+            setIsAdmin(data.role === 'admin' || isFounder);
+          }
+        } else {
+          // Dynamic Default Fallback for empty data
+          if (isMounted) {
+            const field = sessionUser?.user_metadata?.academic_field || 'Medicine/Bio';
+            const fieldMap = {
+              'Medicine/Bio': 'bio',
+              'Engineering/CS': 'eng',
+              'Engineering': 'eng',
+              'Physics': 'physics',
+              'Mathematics': 'math',
+              'Social Sciences': 'social',
+              'Chemistry / Pharmacy': 'chem',
+              'Law / Legal Studies': 'law'
+            };
+            const unlocked = fieldMap[field] || 'bio';
+
+            setProfile({ 
+              user_tier: 'free', 
+              tier: 'free', 
+              unlocked_portal: unlocked, 
+              academic_field: field,
+              role: 'user',
+              full_name: sessionUser?.user_metadata?.full_name || 'Academic User'
+            });
+            setIsAdmin(isFounder);
+          }
+        }
+      } catch {
+        // Fallback Profile
+        if (isMounted) {
+          const field = sessionUser?.user_metadata?.academic_field || 'Medicine/Bio';
+          const fieldMap = {
+            'Medicine/Bio': 'bio',
+            'Engineering/CS': 'eng',
+            'Engineering': 'eng',
+            'Physics': 'physics',
+            'Mathematics': 'math',
+            'Social Sciences': 'social',
+            'Chemistry / Pharmacy': 'chem',
+            'Law / Legal Studies': 'law'
+          };
+          const unlocked = fieldMap[field] || 'bio';
+
+          setProfile({ 
+            user_tier: 'free', 
+            tier: 'free', 
+            unlocked_portal: unlocked, 
+            academic_field: field,
+            role: 'user',
+            full_name: sessionUser?.user_metadata?.full_name || 'Academic User'
+          });
+          setIsAdmin(isFounder);
+        }
+      } finally {
+        if (isMounted) setIsInitializing(false);
+      }
+    };
+
+    // Initial session check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      fetchAndSetProfile(session?.user ?? null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (isMounted) setIsInitializing(true);
+      fetchAndSetProfile(session?.user ?? null);
+
+      // ─── Silent Background Device Sync ───
+      // Triggers on SIGNED_IN (email confirm, password login) and INITIAL_SESSION
+      // to catch users who bypass Auth.jsx's manual device registration flow.
+      if (
+        (_event === 'SIGNED_IN' || _event === 'INITIAL_SESSION') &&
+        session?.user
+      ) {
+        ensureDeviceIsRegistered(
+          session.user.id,
+          () => {
+            if (isMounted) setDeviceLimitWarning(true);
+          }
+        ).catch((err) => {
+          console.warn('[App] Device sync failed silently:', err);
+        });
+      }
+    });
+
+    // Force re-fetch every 5 minutes
+    const intervalId = setInterval(() => {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) fetchAndSetProfile(session.user);
+      });
+    }, 5 * 60 * 1000);
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+      clearInterval(intervalId);
+    };
+  }, [])
+
+  // ─── Realtime Presence (Live Users) ───
+  useEffect(() => {
+    const channel = supabase.channel('online-users', {
+      config: { presence: { key: user ? user.id : 'guest-' + Math.random().toString(36).substring(2, 9) } },
+    })
+
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const count = Object.keys(channel.presenceState()).length
+        setLiveUsersCount(count === 0 ? 1 : count)
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') await channel.track({ online_at: new Date().toISOString() })
+      })
+
+    return () => { supabase.removeChannel(channel) }
+  }, [user])
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    setUser(null)
+    setProfile(null)
+    setIsAdmin(false)
+    sessionStorage.clear()
+    localStorage.removeItem('sb-access-token')
+    window.location.href = '/'
+  }
+
+  // ─── Auth Loading Screen ───
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center relative overflow-hidden">
+        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-600/20 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-indigo-600/20 blur-[120px] rounded-full pointer-events-none" />
+        <div className="flex flex-col items-center gap-8 relative z-10">
+          <div className="relative flex items-center justify-center">
+            <div className="w-24 h-24 border-4 border-slate-800 border-t-blue-500 border-r-indigo-500 rounded-full animate-spin shadow-[0_0_40px_rgba(59,130,246,0.5)]"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Dna size={32} className="text-blue-400 animate-pulse" />
+            </div>
+          </div>
+          <div className="text-center space-y-2">
+            <h3 className="text-xl font-black text-white tracking-widest uppercase shadow-blue-500/50 drop-shadow-lg">
+              Authenticating <span className="text-blue-500">Researcher...</span>
+            </h3>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.3em] animate-pulse">
+              Synchronizing Secure Session
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ─── Route Protection ───
+  const ProtectedRoute = ({ children }) => {
+    if (!user) return <Navigate to="/auth" replace />
+    if (!user.email_confirmed_at) return <Navigate to="/verify-email" replace />
+    return children
+  }
+
+  // ─── Routes ───
+  return (
+    <BrowserRouter>
+      {/* ─── Device Limit Warning Toast ─── */}
+      {deviceLimitWarning && (
+        <div className="fixed top-4 right-4 z-[9999] max-w-sm animate-in slide-in-from-right">
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 shadow-xl shadow-amber-100/50 flex items-start gap-3">
+            <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-bold text-amber-800 leading-snug">
+                Device limit reached (2/2).
+              </p>
+              <p className="text-xs font-medium text-amber-600 mt-1">
+                Manage your devices in{' '}
+                <a href="/profile" className="underline font-bold hover:text-amber-800 transition-colors">Profile</a>.
+              </p>
+            </div>
+            <button
+              onClick={() => setDeviceLimitWarning(false)}
+              className="text-amber-400 hover:text-amber-600 transition-colors shrink-0"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+      <Routes>
+        <Route path="/" element={user && !user.email_confirmed_at ? <Navigate to="/verify-email" replace /> : <LandingPage liveUsersCount={liveUsersCount} totalMembersCount={totalMembersCount} user={user} profile={profile} onLogout={handleLogout} />} />
+        
+        <Route path="/verify-email" element={user && !user.email_confirmed_at ? <VerifyEmail user={user} /> : <Navigate to="/" replace />} />
+        
+        <Route 
+          path="/research" 
+          element={<ProtectedRoute><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#f8fafc]"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}><ResearchPage user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense></ProtectedRoute>} 
+        />
+        
+        <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
+        
+        <Route path="/library" element={<ProtectedRoute><MyLibrary user={user} onLogout={handleLogout} /></ProtectedRoute>} />
+        
+        <Route path="/settings" element={<ProtectedRoute><Settings user={user} /></ProtectedRoute>} />
+        
+        <Route path="/archive" element={<Archive />} />
+        <Route path="/resources" element={<Resources />} />
+        <Route path="/pricing" element={<Pricing user={user} />} />
+        <Route path="/admin" element={<AdminPanel user={user} profile={profile} liveUsersCount={liveUsersCount} />} />
+        <Route path="/profile" element={<ProtectedRoute><Profile user={user} /></ProtectedRoute>} />
+        <Route path="/paper/*" element={<PaperDetail />} />
+        <Route path="/ai-report" element={<AIReport />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
+        <Route path="/about" element={<About />} />
+      </Routes>
+    </BrowserRouter>
+  )
+}
+
+export default App
+```
+
+**Key changes:**
+- Imports `ensureDeviceIsRegistered` and calls it inside `onAuthStateChange` for `SIGNED_IN` and `INITIAL_SESSION` events
+- Adds `deviceLimitWarning` state + dismissible amber toast when limit is reached
+- Toast links directly to `/profile` for device management
+
+### 3. **MODIFIED** — [ResearchPage.jsx](file:///e:/Websites/NCBI/frontend/src/ResearchPage.jsx)
+```diff:ResearchPage.jsx
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Dna, Activity, Library, User, ChevronDown, Settings, 
+  ShieldAlert, LogOut, LogIn, Search, Sparkles, RefreshCcw, 
+  BookOpen, ArrowUpRight, X, FileDown, Megaphone 
+} from 'lucide-react';
+import { supabase } from './supabaseClient';
+import { BASE_URL } from './utils/api';
+import Footer from './Footer';
+import AuthModal from './AuthModal';
+import Navbar from './components/Navbar';
+import { ProUpgradeModal, StarterUpgradeModal, ForceRefreshModal } from './components/UpgradeModals';
+
+import AIChatWidget from './components/AIChatWidget';
+import SearchBar from './components/SearchBar';
+import ArticleGrid from './components/ArticleGrid';
+
+const getPortalDetails = (portalId) => {
+  switch(portalId) {
+    case 'eng': return { name: 'Engineering', source: 'arXiv Engineering Hub' };
+    case 'physics': return { name: 'Physics', source: 'Physics Archive' };
+    case 'math': return { name: 'Mathematics', source: 'Math Records' };
+    case 'social': return { name: 'Social Sciences', source: 'Global Scholar Databases' };
+    case 'law': return { name: 'Legal', source: 'Global Scholar Databases' };
+    case 'chem': return { name: 'Chemistry', source: 'Chemistry Hub' };
+    case 'geb': return { name: 'GEB', source: 'Genetic Engineering Database' };
+    case 'pharma': return { name: 'Pharmacy', source: 'Pharmacology Database' };
+    default: return { name: 'GEB', source: 'Genetic Engineering Database' };
+  }
+};
+
+// Utility functions for Lit Review Modal
+const parseInline = (text) => {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i} className="font-black text-slate-900">{part.slice(2, -2)}</strong>;
+    }
+    return part;
+  });
+};
+
+const formatMarkdown = (text) => {
+  if (!text) return null;
+  const paragraphs = text.split('\n\n');
+  return paragraphs.map((para, i) => {
+    if (para.trim().startsWith('- ') || para.trim().startsWith('* ')) {
+      const items = para.split('\n').map(line => line.replace(/^[-*]\s+/, '').trim());
+      return (
+        <ul key={i} className="list-disc ml-6 mb-6 space-y-2">
+          {items.map((item, j) => <li key={j}>{parseInline(item)}</li>)}
+        </ul>
+      );
+    }
+    return <p key={i} className="mb-6 leading-relaxed">{parseInline(para)}</p>;
+  });
+};
+
+const formatMarkdownToHTML = (text) => {
+  if (!text) return '';
+  let html = text;
+  html = html.replace(/^### (.*$)/gim, '<h2>$1</h2>');
+  html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+  html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/^\s*-\s*(.*$)/gim, '<li>$1</li>');
+  
+  const paras = html.split('\n\n').map(p => {
+    const trimmed = p.trim();
+    if (trimmed.startsWith('<h') || trimmed.startsWith('<ul') || trimmed.startsWith('<li')) {
+      return trimmed;
+    }
+    return '<p>' + trimmed + '</p>';
+  });
+  return paras.join('\n');
+};
+
+const exportToPDF = (content) => {
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) return;
+  
+  let html = '<html><head><title>ScholarHub AI - Literature Review Synthesis</title>';
+  html += '<style>';
+  html += 'body { font-family: system-ui, -apple-system, sans-serif; color: #0f172a; line-height: 1.6; padding: 40px; max-width: 800px; margin: 0 auto; }';
+  html += 'h1 { font-size: 24px; font-weight: 900; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 24px; }';
+  html += 'h2 { font-size: 18px; font-weight: 800; margin-top: 32px; margin-bottom: 16px; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.05em; }';
+  html += 'p { margin-bottom: 16px; font-size: 14px; }';
+  html += 'ul { margin-bottom: 16px; padding-left: 20px; }';
+  html += 'li { margin-bottom: 8px; font-size: 14px; }';
+  html += '.footer { margin-top: 48px; border-top: 1px solid #e2e8f0; padding-top: 16px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #94a3b8; text-align: center; }';
+  html += '</style></head><body>';
+  html += '<h1>ScholarHub AI - Literature Review Synthesis</h1>';
+  html += '<div>' + content + '</div>';
+  html += '<div class="footer">Generated by ScholarHub AI Premium</div>';
+  html += '<script>window.onload = function() { window.print(); }</script>';
+  html += '</body></html>';
+  
+  printWindow.document.write(html);
+  printWindow.document.close();
+};
+
+const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
+  const navigate = useNavigate();
+  const searchAbortControllerRef = useRef(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [profileError, setProfileError] = useState(null);
+  
+  const getStorage = (key, defaultVal, isJson = false) => {
+    try {
+      const val = sessionStorage.getItem(key);
+      if (val === null) return defaultVal;
+      return isJson ? JSON.parse(val) : val;
+    } catch { return defaultVal; }
+  };
+
+  const [portal, setPortal] = useState(() => {
+    const cached = sessionStorage.getItem('active_portal');
+    if (cached) return cached;
+    
+    // Auth Sync: Fallback to user metadata
+    const fieldMap = {
+      'Genetic Eng. & Biotech (GEB)': 'geb',
+      'Pharmacy & Pharmacology': 'pharma',
+      'Engineering/CS': 'eng',
+      'Engineering': 'eng',
+      'Physics': 'physics',
+      'Mathematics': 'math',
+      'Social Sciences': 'social',
+      'Chemistry / Pharmacy': 'chem',
+      'Law / Legal Studies': 'law'
+    };
+    const metadata = user?.user_metadata || {};
+    const field = metadata.academic_field || 'Genetic Eng. & Biotech (GEB)';
+    return fieldMap[field] || 'geb';
+  });
+  
+  const [hasSearched, setHasSearched] = useState(() => {
+    const p = sessionStorage.getItem('active_portal');
+    if (!p) return false;
+    const val = sessionStorage.getItem(`hasSearched_${p}`);
+    return val ? JSON.parse(val) : false;
+  });
+  
+  const [searchTerm, setSearchTerm] = useState(() => {
+    const p = sessionStorage.getItem('active_portal');
+    if (!p) return '';
+    return sessionStorage.getItem(`searchTerm_${p}`) || '';
+  });
+  
+  const [lastSearched, setLastSearched] = useState('');
+  const [universalFallbackAlert, setUniversalFallbackAlert] = useState(null);
+  
+  const [searchCount, setSearchCount] = useState(() => getStorage('searchCount', 0, true));
+  
+  const calculateRemaining = (expiryKey) => {
+    const expiry = getStorage(expiryKey, 0, true);
+    if (!expiry) return 0;
+    const remaining = Math.ceil((expiry - Date.now()) / 1000);
+    return remaining > 0 ? remaining : 0;
+  };
+  
+  const [cooldownTime, setCooldownTime] = useState(() => calculateRemaining('cooldownExpiry'));
+  const [guestCooldown, setGuestCooldown] = useState(() => calculateRemaining('guestCooldownExpiry'));
+  
+  const [userTier, setUserTier] = useState('free');
+  const [academicField, setAcademicField] = useState('Genetic Eng. & Biotech (GEB)');
+  const [unlockedPortalState, setUnlockedPortalState] = useState(null);
+  const [bookmarkCount, setBookmarkCount] = useState(0);
+  const [usageStats, setUsageStats] = useState({ aiSummaries: 0 });
+
+  const fetchBookmarkCount = async () => {
+    if (!user) return;
+    try {
+      const { count, error } = await supabase
+        .from('bookmarks')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+      if (!error && count !== null) {
+        setBookmarkCount(count);
+      }
+    } catch (err) {
+      console.error('Error fetching bookmark count:', err);
+    }
+  };
+
+  const [announcement, setAnnouncement] = useState(null);
+
+  useEffect(() => {
+    const fetchAnnouncement = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('announcements')
+          .select('*')
+          .eq('active', true)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        
+        if (!error && data && data.length > 0) {
+          const ann = data[0];
+          const dismissedId = sessionStorage.getItem('dismissed_announcement');
+          if (dismissedId !== ann.id.toString()) {
+            setAnnouncement(ann);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching announcements:', err);
+      }
+    };
+    fetchAnnouncement();
+  }, []);
+
+  const fetchUsageStats = async () => {
+    if (!user) return;
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const { count, error } = await supabase
+        .from('usage_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('action', 'ai_summary')
+        .eq('usage_date', todayStr);
+      if (!error && count !== null) {
+        setUsageStats({ aiSummaries: count });
+      }
+    } catch (err) {
+      console.error('Error fetching usage stats:', err);
+    }
+  };
+
+  const isPortalLocked = (p) => {
+    if (userTier === 'pro') return false;
+    return p !== unlockedPortalState;
+  };
+
+  // Strict Reversion Logic: Force sync portal if user is downgraded to free
+  const prevTierRef = useRef(userTier);
+  useEffect(() => {
+    const prevTier = prevTierRef.current;
+    if ((prevTier === 'pro' || prevTier === 'starter') && userTier === 'free' && unlockedPortalState) {
+      setPortal(unlockedPortalState);
+      sessionStorage.setItem('active_portal', unlockedPortalState);
+      // Small timeout to allow state to settle
+      setTimeout(() => hydratePortalState(unlockedPortalState), 0);
+    }
+    prevTierRef.current = userTier;
+  }, [userTier, unlockedPortalState]);
+
+  useEffect(() => {
+    if (!user) {
+      setUserTier('free');
+      setAcademicField('Genetic Eng. & Biotech (GEB)');
+      setUnlockedPortalState('geb');
+      setBookmarkCount(0);
+      return;
+    }
+    const getTierAndProfile = async () => {
+      try {
+        const { data: profData, error: fetchErr } = await supabase
+          .from('profiles')
+          .select('academic_field, user_tier, unlocked_portal')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (fetchErr) throw fetchErr;
+
+        let tier = 'free';
+        let unlocked = 'geb';
+        let field = 'Genetic Eng. & Biotech (GEB)';
+
+        if (profData && (profData.academic_field || profData.unlocked_portal)) {
+          tier = (profData.user_tier || 'free').toLowerCase();
+          field = profData.academic_field || 'Genetic Eng. & Biotech (GEB)';
+          
+          const fieldMap = {
+            'Genetic Eng. & Biotech (GEB)': 'geb',
+            'Pharmacy & Pharmacology': 'pharma',
+            'Engineering/CS': 'eng',
+            'Engineering': 'eng',
+            'Physics': 'physics',
+            'Mathematics': 'math',
+            'Social Sciences': 'social',
+            'Chemistry / Pharmacy': 'chem',
+            'Law / Legal Studies': 'law'
+          };
+          
+          unlocked = profData.unlocked_portal || fieldMap[field] || 'geb';
+          
+          try {
+            const { data: subData } = await supabase
+              .from('subscriptions')
+              .select('expires_at')
+              .eq('user_id', user.id)
+              .maybeSingle();
+            
+            if (subData && subData.expires_at) {
+              const expiry = new Date(subData.expires_at);
+              if (new Date() > expiry) {
+                tier = 'free';
+              }
+            }
+          } catch (subErr) {
+            console.error("Error fetching subscription expiry:", subErr);
+          }
+
+          setUserTier(tier);
+          setUnlockedPortalState(unlocked);
+          setAcademicField(field);
+          
+          // Frontend Sync: Enforce strict string matching from the DB
+          setPortal(prev => {
+            if (tier === 'free' || tier === 'starter') {
+              if (prev !== unlocked) {
+                sessionStorage.setItem('active_portal', unlocked);
+                setTimeout(() => hydratePortalState(unlocked), 0);
+                return unlocked;
+              }
+            } else if (!prev) {
+              sessionStorage.setItem('active_portal', unlocked);
+              setTimeout(() => hydratePortalState(unlocked), 0);
+              return unlocked;
+            }
+            return prev;
+          });
+        } else {
+          // Forced Default Fallback
+          tier = 'free';
+          field = 'Engineering/CS';
+          unlocked = 'eng';
+          
+          setUserTier(tier);
+          setUnlockedPortalState(unlocked);
+          setAcademicField(field);
+          
+          setPortal(prev => {
+            if (prev !== unlocked) {
+              sessionStorage.setItem('active_portal', unlocked);
+              setTimeout(() => hydratePortalState(unlocked), 0);
+              return unlocked;
+            }
+            return prev;
+          });
+        }
+      } catch (err) {
+        console.error("Error fetching tier/profile:", err);
+        setProfileError("Database connection issue. Fallback profile loaded.");
+        
+        const metadata = user?.user_metadata || {};
+        const field = metadata.academic_field || 'Genetic Eng. & Biotech (GEB)';
+        const fieldMap = {
+          'Genetic Eng. & Biotech (GEB)': 'geb',
+          'Pharmacy & Pharmacology': 'pharma',
+          'Engineering/CS': 'eng',
+          'Engineering': 'eng',
+          'Physics': 'physics',
+          'Mathematics': 'math',
+          'Social Sciences': 'social',
+          'Chemistry / Pharmacy': 'chem',
+          'Law / Legal Studies': 'law'
+        };
+        const unlocked = fieldMap[field] || 'geb';
+        
+        setUserTier('free');
+        setAcademicField(field);
+        setUnlockedPortalState(unlocked);
+        
+        setPortal(prev => {
+          if (!prev) {
+            sessionStorage.setItem('active_portal', unlocked);
+            setTimeout(() => hydratePortalState(unlocked), 0);
+            return unlocked;
+          }
+          return prev;
+        });
+      }
+    };
+    getTierAndProfile();
+    fetchBookmarkCount();
+    fetchUsageStats();
+    
+    // Force re-fetch every 5 minutes
+    const intervalId = setInterval(() => {
+      getTierAndProfile();
+    }, 5 * 60 * 1000);
+    
+    return () => clearInterval(intervalId);
+  }, [user, navigate]);
+
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  
+  const [litReviewModalOpen, setLitReviewModalOpen] = useState(false);
+  const [litReviewLoading, setLitReviewLoading] = useState(false);
+  const [litReviewContent, setLitReviewContent] = useState('');
+  const [proUnlockModalOpen, setProUnlockModalOpen] = useState(false);
+  const [starterUnlockModalOpen, setStarterUnlockModalOpen] = useState(false);
+  const [proModalReason, setProModalReason] = useState('lit_review');
+  const [litReviewStep, setLitReviewStep] = useState('');
+  const [litReviewProgress, setLitReviewProgress] = useState(0);
+  const [litReviewTitle, setLitReviewTitle] = useState('Literature Review Synthesis');
+
+  const handleGapAnalysisClick = async () => {
+    if (userTier !== 'pro') {
+      setProModalReason('lit_review');
+      setProUnlockModalOpen(true);
+      return;
+    }
+
+    setLitReviewTitle('Research Gap Analysis');
+    setLitReviewModalOpen(true);
+    setLitReviewLoading(true);
+    setLitReviewContent('');
+    setLitReviewStep('AI is analyzing research gaps...');
+    setLitReviewProgress(10);
+
+    try {
+      const steps = [
+        { text: 'Identifying conflicting methodologies...', prog: 30, delay: 1000 },
+        { text: 'Evaluating limitations in current studies...', prog: 60, delay: 2200 },
+        { text: 'Highlighting unexplored theoretical frameworks...', prog: 85, delay: 3500 },
+        { text: 'Formulating actionable future directions...', prog: 95, delay: 4800 },
+        { text: 'AI is reading deep into the papers, please bear with us...', prog: 98, delay: 20000 }
+      ];
+
+      steps.forEach(({ text, prog, delay }) => {
+        setTimeout(() => {
+          setLitReviewStep(text);
+          setLitReviewProgress(prog);
+        }, delay);
+      });
+
+      const sessionToken = (await supabase.auth.getSession()).data.session?.access_token;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s timeout
+      const deviceId = localStorage.getItem('scholarhub_device_id') || '';
+      
+      const response = await fetch(`${BASE_URL}/ai/gap-analysis`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`,
+          'X-Device-ID': deviceId
+        },
+        body: JSON.stringify({
+          articles: articles.slice(0, 15).map(art => ({
+            title: art.title,
+            abstract: art.abstract || ''
+          })),
+          portal: portal || 'geb'
+        }),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        if (response.status === 402) {
+          handle402Expiry();
+          throw new Error('Premium session expired.');
+        }
+        let errMsg = 'Failed to generate gap analysis. Please try again.';
+        try {
+          const errData = await response.json();
+          if (errData.error) errMsg = errData.error;
+          else if (errData.detail) errMsg = errData.detail;
+          
+          if (typeof errMsg === 'string' && errMsg.includes('Device ID not registered')) {
+            errMsg = 'This device is not registered. Please manage your devices in the Profile page.';
+          }
+        } catch { /* ignore parsing errors */ }
+        throw new Error(errMsg);
+      }
+
+      const data = await response.json();
+      setLitReviewContent(data.output);
+    } catch (err) {
+      console.error(err);
+      if (err.name === 'AbortError') {
+        setLitReviewContent('Error: The AI analysis took too long (over 90 seconds). Please try again with fewer articles or later.');
+      } else {
+        setLitReviewContent('Error: ' + err.message);
+      }
+    } finally {
+      setLitReviewLoading(false);
+    }
+  };
+
+  const handleLitReviewClick = async () => {
+    if (userTier !== 'pro') {
+      setProModalReason('lit_review');
+      setProUnlockModalOpen(true);
+      return;
+    }
+
+    setLitReviewTitle('Literature Review Synthesis');
+    setLitReviewModalOpen(true);
+    setLitReviewLoading(true);
+    setLitReviewContent('');
+    setLitReviewStep('AI is synthesizing global research data...');
+    setLitReviewProgress(10);
+
+    try {
+      const steps = [
+        { text: 'Scanning methodology and design choices...', prog: 30, delay: 1000 },
+        { text: 'Comparing cohort sizes and controls...', prog: 60, delay: 2200 },
+        { text: 'Formulating critical research gap analysis...', prog: 85, delay: 3500 },
+        { text: 'Finalizing academic synthesis...', prog: 95, delay: 4800 },
+        { text: 'Synthesis is taking longer than expected. Please try with fewer papers or check your connection.', prog: 98, delay: 40000 }
+      ];
+
+      steps.forEach(({ text, prog, delay }) => {
+        setTimeout(() => {
+          setLitReviewStep(text);
+          setLitReviewProgress(prog);
+        }, delay);
+      });
+
+      const sessionToken = (await supabase.auth.getSession()).data.session?.access_token;
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s timeout
+
+      const deviceId = localStorage.getItem('scholarhub_device_id') || '';
+      const response = await fetch(`${BASE_URL}/ai/literature-review`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`,
+          'X-Device-ID': deviceId
+        },
+        body: JSON.stringify({
+          articles: articles.slice(0, 15).map(art => ({
+            title: art.title,
+            abstract: art.abstract || ''
+          })),
+          portal: portal || 'geb'
+        }),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        if (response.status === 402) {
+          handle402Expiry();
+          throw new Error('Premium session expired.');
+        }
+        let errMsg = 'Failed to generate literature review. Please try again.';
+        try {
+          const errData = await response.json();
+          if (errData.error) errMsg = errData.error;
+          else if (errData.detail) errMsg = errData.detail;
+          
+          if (typeof errMsg === 'string' && errMsg.includes('Device ID not registered')) {
+            errMsg = 'This device is not registered. Please manage your devices in the Profile page.';
+          }
+        } catch { /* ignore parsing errors */ }
+        throw new Error(errMsg);
+      }
+
+      const data = await response.json();
+      setLitReviewContent(data.output);
+    } catch (err) {
+      console.error(err);
+      if (err.name === 'AbortError') {
+        setLitReviewContent('Error: Synthesis is taking longer than expected. Please try with fewer papers or check your connection.');
+      } else {
+        setLitReviewContent('Error: ' + err.message);
+      }
+    } finally {
+      setLitReviewLoading(false);
+    }
+  };
+
+  const [articles, setArticles] = useState(() => {
+    const p = sessionStorage.getItem('active_portal');
+    if (!p) return [];
+    const val = sessionStorage.getItem(`results_${p}`);
+    return val ? JSON.parse(val) : [];
+  });
+
+  const [resultLimit, setResultLimit] = useState(() => getStorage('resultLimit', 20, true));
+  
+  const [startDate, setStartDate] = useState(() => getStorage('startDate', ''));
+  const [endDate, setEndDate] = useState(() => getStorage('endDate', ''));
+  const [sortBy, setSortBy] = useState(() => getStorage('sortBy', 'relevance'));
+  
+  const [globalLatestPaper, setGlobalLatestPaper] = useState(null);
+  const [globalLatestLoading, setGlobalLatestLoading] = useState(true);
+
+  const [aiPromptVisible, setAiPromptVisible] = useState(() => {
+    const p = sessionStorage.getItem('active_portal');
+    if (!p) return false;
+    const val = sessionStorage.getItem(`aiPromptVisible_${p}`);
+    return val ? JSON.parse(val) : false;
+  });
+  const [aiChatOpen, setAiChatOpen] = useState(() => {
+    const p = sessionStorage.getItem('active_portal');
+    if (!p) return false;
+    const val = sessionStorage.getItem(`aiChatOpen_${p}`);
+    return val ? JSON.parse(val) : false;
+  });
+  const [aiThinking, setAiThinking] = useState(false);
+  const [aiSummary, setAiSummary] = useState(() => {
+    const p = sessionStorage.getItem('active_portal');
+    if (!p) return '';
+    return sessionStorage.getItem(`aiSummary_${p}`) || '';
+  });
+  const [aiStep, setAiStep] = useState('');
+  const [aiProgress, setAiProgress] = useState(0);
+  const [aiWidgetMode, setAiWidgetMode] = useState(() => getStorage('aiWidgetMode', 'normal'));
+  const [isAiLimitReached, setIsAiLimitReached] = useState(false);
+
+  const [chatHistory, setChatHistory] = useState(() => {
+    const p = sessionStorage.getItem('active_portal');
+    if (!p) return [];
+    const val = sessionStorage.getItem(`chatHistory_${p}`);
+    return val ? JSON.parse(val) : [];
+  });
+  const [chatInput, setChatInput] = useState('');
+
+  const [showRefreshModal, setShowRefreshModal] = useState(false);
+  const [showExpiryToast, setShowExpiryToast] = useState(false);
+
+  const handle402Expiry = () => {
+    setUserTier('free');
+    sessionStorage.clear();
+    setResultLimit(20);
+    setPortal(unlockedPortalState);
+    setShowExpiryToast(true);
+    setTimeout(() => setShowExpiryToast(false), 5000);
+  };
+
+  const hydratePortalState = (newPortal) => {
+    const loadedArticles = sessionStorage.getItem(`results_${newPortal}`);
+    setArticles(loadedArticles ? JSON.parse(loadedArticles) : []);
+    
+    setSearchTerm(sessionStorage.getItem(`searchTerm_${newPortal}`) || '');
+    setAiSummary(sessionStorage.getItem(`aiSummary_${newPortal}`) || '');
+    
+    const loadedHistory = sessionStorage.getItem(`chatHistory_${newPortal}`);
+    setChatHistory(loadedHistory ? JSON.parse(loadedHistory) : []);
+    
+    const loadedSearched = sessionStorage.getItem(`hasSearched_${newPortal}`);
+    setHasSearched(loadedSearched ? JSON.parse(loadedSearched) : false);
+    
+    const loadedPrompt = sessionStorage.getItem(`aiPromptVisible_${newPortal}`);
+    setAiPromptVisible(loadedPrompt ? JSON.parse(loadedPrompt) : false);
+    
+    const loadedChat = sessionStorage.getItem(`aiChatOpen_${newPortal}`);
+    setAiChatOpen(loadedChat ? JSON.parse(loadedChat) : false);
+  };
+
+  const handlePortalSwitch = (newPortal) => {
+    // a) Save current portal's data to its specific key in sessionStorage
+    try {
+      const currentP = portal;
+      if (currentP) {
+        sessionStorage.setItem(`results_${currentP}`, JSON.stringify(articles));
+        sessionStorage.setItem(`searchTerm_${currentP}`, searchTerm);
+        sessionStorage.setItem(`aiSummary_${currentP}`, aiSummary);
+        sessionStorage.setItem(`hasSearched_${currentP}`, JSON.stringify(hasSearched));
+        sessionStorage.setItem(`aiPromptVisible_${currentP}`, JSON.stringify(aiPromptVisible));
+        sessionStorage.setItem(`aiChatOpen_${currentP}`, JSON.stringify(aiChatOpen));
+        if (chatHistory && chatHistory.length > 0) {
+          sessionStorage.setItem(`chatHistory_${currentP}`, JSON.stringify(chatHistory));
+        }
+      }
+    } catch(e) {
+      console.warn('Failed to save old portal state', e);
+    }
+
+    // b) Update the 'portal' state
+    sessionStorage.setItem('active_portal', newPortal);
+    setPortal(newPortal);
+
+    // c) Immediately load the saved data of the NEW portal from sessionStorage into the state
+    hydratePortalState(newPortal);
+  };
+
+  useEffect(() => {
+    // Sync current state to active portal cache continuously
+    try {
+      const p = portal;
+      if (!p) return;
+      sessionStorage.setItem('active_portal', p);
+      sessionStorage.setItem(`searchTerm_${p}`, searchTerm);
+      sessionStorage.setItem('searchCount', JSON.stringify(searchCount));
+      sessionStorage.setItem('resultLimit', JSON.stringify(resultLimit));
+      sessionStorage.setItem('startDate', startDate);
+      sessionStorage.setItem('endDate', endDate);
+      sessionStorage.setItem('sortBy', sortBy);
+      sessionStorage.setItem('aiWidgetMode', aiWidgetMode);
+      
+      sessionStorage.setItem(`results_${p}`, JSON.stringify(articles));
+      sessionStorage.setItem(`aiSummary_${p}`, aiSummary);
+      sessionStorage.setItem(`hasSearched_${p}`, JSON.stringify(hasSearched));
+      sessionStorage.setItem(`aiPromptVisible_${p}`, JSON.stringify(aiPromptVisible));
+      sessionStorage.setItem(`aiChatOpen_${p}`, JSON.stringify(aiChatOpen));
+      
+      if (chatHistory && chatHistory.length > 0) {
+        sessionStorage.setItem(`chatHistory_${p}`, JSON.stringify(chatHistory));
+      }
+    } catch (e) {
+      console.warn('Session storage quota exceeded while saving state. Some data may not persist on navigation.', e);
+    }
+  }, [searchTerm, lastSearched, hasSearched, searchCount, articles, resultLimit, startDate, endDate, sortBy, aiPromptVisible, aiChatOpen, aiSummary, aiWidgetMode, chatHistory, portal]);
+
+  useEffect(() => {
+    if (articles && articles.length > 0) {
+      setAiPromptVisible(true);
+      sessionStorage.setItem('aiPromptVisible', 'true');
+    }
+  }, [articles]);
+
+  const clearFilters = () => {
+    setStartDate('');
+    setEndDate('');
+    setSortBy('relevance');
+    setResultLimit(20);
+  };
+
+  const fetchGlobalLatest = async (forceRefresh = false) => {
+    const portalParam = unlockedPortalState || 'geb';
+    const CACHE_KEY = `global_latest_research_cache_${portalParam}`;
+    
+    if (!forceRefresh) {
+      const cachedStr = localStorage.getItem(CACHE_KEY);
+      if (cachedStr) {
+        try {
+          const cached = JSON.parse(cachedStr);
+          const now = Date.now();
+          const ONE_DAY = 24 * 60 * 60 * 1000;
+          
+          if (now - cached.timestamp < ONE_DAY && cached.data) {
+            setGlobalLatestPaper(cached.data);
+            setGlobalLatestLoading(false);
+            return;
+          }
+        } catch (e) {
+          // Silent catch
+        }
+      }
+    }
+
+    setGlobalLatestLoading(true);
+    try {
+      const portalParam = unlockedPortalState || 'geb';
+      const url = `${BASE_URL}/get-latest-research?portal=${portalParam}${forceRefresh ? '&force=true' : ''}`;
+      const response = await fetch(url, { method: 'GET', mode: 'cors' });
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.latest) {
+          setGlobalLatestPaper(data.latest);
+          localStorage.setItem(CACHE_KEY, JSON.stringify({
+            data: data.latest,
+            timestamp: Date.now()
+          }));
+        }
+      }
+    } catch (err) {
+      console.error("Latest research fetch failed:", err);
+    } finally {
+      setGlobalLatestLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGlobalLatest();
+  }, []);
+
+  const onSummarize = async () => {
+    if (articles.length === 0) return;
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) {
+      setShowAuthModal(true);
+      return;
+    }
+    
+    setAiPromptVisible(false);
+    setAiChatOpen(true);
+    setAiWidgetMode('normal');
+    setAiThinking(true);
+    setAiStep('Initializing Llama 3.1 Synthesis Engine...');
+    setAiProgress(10);
+    setChatHistory([]);
+    setAiSummary('');
+
+    try {
+      const pDetails = getPortalDetails(portal);
+      const steps = [
+        { text: `Cross-referencing ${pDetails.source}...`, prog: 30, delay: 800 },
+        { text: `Analyzing ${pDetails.name} Insights...`, prog: 60, delay: 1500 },
+        { text: 'Generating Executive Report...', prog: 90, delay: 2200 }
+      ];
+      
+      steps.forEach(({text, prog, delay}) => {
+        setTimeout(() => {
+          setAiStep(text);
+          setAiProgress(prog);
+        }, delay);
+      });
+
+      const deviceId = localStorage.getItem('scholarhub_device_id') || '';
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+      
+      const response = await fetch(`${BASE_URL}/ai/summarize-research`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'X-Device-ID': deviceId
+        },
+        body: JSON.stringify({
+          articles: articles.slice(0, userTier === 'pro' ? 15 : (userTier === 'starter' ? 10 : 5)).map(p => ({ title: p.title, abstract: p.abstract, url: p.url })),
+          portal: portal || 'geb'
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        if (response.status === 402) {
+          handle402Expiry();
+          return;
+        }
+        if (response.status === 429) {
+          setIsAiLimitReached(true);
+          return;
+        }
+        let errMsg = 'Failed to generate summary';
+        try {
+          const errData = await response.json();
+          const detail = errData.error || errData.detail;
+          if (typeof detail === 'string' && detail.includes('Device ID not registered')) {
+            errMsg = 'This device is not registered. Please manage your devices in the Profile page.';
+          } else if (detail) {
+            errMsg = detail;
+          }
+        } catch { /* ignore */ }
+        throw new Error(errMsg);
+      }
+      const data = await response.json();
+      fetchUsageStats();
+      
+      setAiSummary(data.output);
+      setChatHistory([{ role: 'assistant', content: 'Here is your executive summary. Feel free to ask any specific questions about these papers.' }]);
+
+    } catch (err) {
+      console.error(err);
+      setAiStep('Synthesis Failed');
+      const isTimeout = err.name === 'AbortError' || err.message?.includes('aborted');
+      const errorMsg = isTimeout 
+        ? "The AI is experiencing heavy load and timed out. Please try again." 
+        : "We encountered an error while synthesizing the research data. Please try again.";
+      setAiSummary(errorMsg);
+    } finally {
+      setAiThinking(false);
+    }
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!chatInput.trim() || aiThinking) return;
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) {
+      setShowAuthModal(true);
+      return;
+    }
+
+    const userMessage = chatInput;
+    setChatInput('');
+    setChatHistory(prev => [...prev, { role: 'user', content: userMessage }]);
+    setAiThinking(true);
+
+    try {
+      const deviceId = localStorage.getItem('scholarhub_device_id') || '';
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+      
+      const response = await fetch(`${BASE_URL}/ai/chat-with-research`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'X-Device-ID': deviceId
+        },
+        body: JSON.stringify({
+          articles: articles.slice(0, userTier === 'pro' ? 15 : (userTier === 'starter' ? 10 : 5)).map(p => ({ title: p.title, abstract: p.abstract, url: p.url })),
+          user_message: userMessage,
+          portal: portal || 'geb'
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        if (response.status === 402) {
+          handle402Expiry();
+          return;
+        }
+        if (response.status === 429) {
+          setIsAiLimitReached(true);
+          setChatHistory(prev => prev.slice(0, -1));
+          return;
+        }
+        let errMsg = 'Chat failed';
+        try {
+          const errData = await response.json();
+          const detail = errData.error || errData.detail;
+          if (typeof detail === 'string' && detail.includes('Device ID not registered')) {
+            errMsg = 'This device is not registered. Please manage your devices in the Profile page.';
+          } else if (detail) {
+            errMsg = detail;
+          }
+        } catch { /* ignore */ }
+        throw new Error(errMsg);
+      }
+      const data = await response.json();
+      fetchUsageStats();
+
+      setChatHistory(prev => [...prev, { role: 'assistant', content: data.output }]);
+    } catch (err) {
+      console.error(err);
+      const isTimeout = err.name === 'AbortError' || err.message?.includes('aborted');
+      const errorMsg = isTimeout 
+        ? "The AI is experiencing heavy load and timed out. Please try again."
+        : (err.message || 'Connection to AI server lost. Please try again.');
+      setChatHistory(prev => [...prev, { role: 'assistant', content: errorMsg }]);
+    } finally {
+      setAiThinking(false);
+    }
+  };
+
+  const isSearchBlocked = cooldownTime > 0 || guestCooldown > 0;
+
+  const cancelSearch = () => {
+    if (searchAbortControllerRef.current) {
+      searchAbortControllerRef.current.abort();
+    }
+    setLoading(false);
+    setError("Search cancelled by user.");
+  };
+
+  const searchPubMed = async (e) => {
+    if (e) e.preventDefault();
+    if (!searchTerm.trim()) return;
+
+    if (userTier === 'free' && resultLimit > 20) {
+      setStarterUnlockModalOpen(true);
+      return;
+    }
+    if (userTier === 'starter' && resultLimit > 50) {
+      setProModalReason('limit_100');
+      setProUnlockModalOpen(true);
+      return;
+    }
+    
+    if (cooldownTime > 0) return;
+    if (guestCooldown > 0) return;
+
+    if (searchCount >= 10) {
+      if (userTier !== 'pro') {
+        setCooldownTime(60);
+        sessionStorage.setItem('cooldownExpiry', JSON.stringify(Date.now() + 60000));
+        setSearchCount(0);
+        sessionStorage.setItem('searchCount', '0');
+        return;
+      } else {
+        setSearchCount(0);
+        sessionStorage.setItem('searchCount', '0');
+      }
+    }
+
+    const authorizedPortal = isPortalLocked(portal) ? unlockedPortalState : portal;
+    const queryKey = `cache_${authorizedPortal}_${searchTerm}_${resultLimit}_${startDate}_${endDate}_${sortBy}`;
+    const cachedData = sessionStorage.getItem(queryKey);
+    if (cachedData) {
+      const results = JSON.parse(cachedData);
+      setArticles(results);
+      setHasSearched(true);
+      setLastSearched(searchTerm);
+      if (results.length > 0) {
+        sessionStorage.setItem('aiPromptVisible', 'true');
+        setTimeout(() => setAiPromptVisible(true), 1500);
+      }
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setHasSearched(true);
+    setLastSearched(searchTerm);
+
+    try {
+      const newCount = searchCount + 1;
+      setSearchCount(newCount);
+      sessionStorage.setItem('searchCount', newCount.toString());
+      sessionStorage.setItem('portal', authorizedPortal);
+
+      if (userTier === 'free' || !user) {
+        setGuestCooldown(5);
+        sessionStorage.setItem('guestCooldownExpiry', JSON.stringify(Date.now() + 5000));
+      } else if (userTier === 'starter') {
+        setGuestCooldown(1);
+        sessionStorage.setItem('guestCooldownExpiry', JSON.stringify(Date.now() + 1000));
+      } else {
+        setGuestCooldown(0);
+        sessionStorage.removeItem('guestCooldownExpiry');
+      }
+
+      if (searchAbortControllerRef.current) {
+        searchAbortControllerRef.current.abort();
+      }
+      searchAbortControllerRef.current = new AbortController();
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const fetchUrl = `${BASE_URL}/api/search?portal=${authorizedPortal}&keyword=${encodeURIComponent(searchTerm)}&limit=${resultLimit}&start_date=${startDate}&end_date=${endDate}&sort_by=${sortBy}`;
+      
+      const fetchHeaders = { 'Content-Type': 'application/json' };
+      if (token) {
+        fetchHeaders['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(fetchUrl, { 
+        method: 'GET', 
+        headers: fetchHeaders,
+        mode: 'cors',
+        signal: searchAbortControllerRef.current.signal
+      });
+      if (!response.ok) {
+        if (response.status === 401) {
+          setShowAuthModal(true);
+          setLoading(false);
+          return;
+        }
+        if (response.status === 402) {
+          handle402Expiry();
+          throw new Error('Your premium session has ended.');
+        }
+        let errMsg = `Server status ${response.status}`;
+        try {
+          const errData = await response.json();
+          if (errData.detail) errMsg = errData.detail;
+        } catch { /* ignore */ }
+        throw new Error(errMsg);
+      }
+      const data = await response.json();
+      
+      if (data.error) {
+        if (data.error.includes("arXiv API is currently slow")) {
+          setError("arXiv is taking too long to respond. This sometimes happens with their servers.");
+        } else {
+          setError(data.error);
+        }
+        setArticles([]);
+        setLoading(false);
+        return;
+      }
+
+      if (data.switched_to_universal) {
+        setUniversalFallbackAlert(data.refined_query || searchTerm);
+      } else {
+        setUniversalFallbackAlert(null);
+      }
+
+      const results = data.articles || [];
+      sessionStorage.setItem(queryKey, JSON.stringify(results));
+      setArticles(results);
+      
+      if (results.length > 0) {
+        sessionStorage.setItem('aiPromptVisible', 'true');
+        setTimeout(() => setAiPromptVisible(true), 1500);
+      }
+
+      if (userTier === 'free' || !user) {
+        setGuestCooldown(5);
+        sessionStorage.setItem('guestCooldownExpiry', JSON.stringify(Date.now() + 5000));
+      } else if (userTier === 'starter') {
+        setGuestCooldown(1);
+        sessionStorage.setItem('guestCooldownExpiry', JSON.stringify(Date.now() + 1000));
+      } else {
+        setGuestCooldown(0);
+        sessionStorage.removeItem('guestCooldownExpiry');
+      }
+      setLoading(false);
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+      setError(err.message.includes('Failed to fetch') ? 'Network error. Check if FastAPI backend is running.' : err.message);
+      setLoading(false);
+    }
+  };
+
+  const handleForceRefreshClick = () => {
+    setShowRefreshModal(true);
+  };
+
+  const executeForceRefresh = () => {
+    setShowRefreshModal(false);
+    const authorizedPortal = isPortalLocked(portal) ? unlockedPortalState : portal;
+    const queryKey = `cache_${authorizedPortal}_${searchTerm}_${resultLimit}_${startDate}_${endDate}_${sortBy}`;
+    sessionStorage.removeItem(queryKey);
+    
+    sessionStorage.removeItem(`results_${authorizedPortal}`);
+    sessionStorage.removeItem(`ai_summary_${authorizedPortal}`);
+    sessionStorage.removeItem(`has_searched_${authorizedPortal}`);
+    sessionStorage.removeItem(`chat_history_${authorizedPortal}`);
+    sessionStorage.removeItem(`search_term_${authorizedPortal}`);
+    
+    setArticles([]);
+    setAiSummary('');
+    setHasSearched(false);
+    setChatHistory([]);
+    setAiPromptVisible(false);
+    
+    searchPubMed(new Event('submit'));
+  };
+
+  useEffect(() => {
+    if (cooldownTime > 0) {
+      const timer = setTimeout(() => setCooldownTime(prev => prev - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldownTime]);
+
+  useEffect(() => {
+    if (guestCooldown > 0) {
+      const timer = setTimeout(() => setGuestCooldown(prev => prev - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [guestCooldown]);
+
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestionsRef = useRef(null);
+  const debounceRef = useRef(null);
+  
+  const [isRefining, setIsRefining] = useState(false);
+  const handleAiRefine = async () => {
+    if (!searchTerm.trim()) return;
+    setIsRefining(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`${BASE_URL}/ai/refine-query`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ raw_query: searchTerm })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.refined_query) {
+          setSearchTerm(data.refined_query);
+        }
+      }
+    } catch (err) {
+      console.error('AI Refine error:', err);
+    } finally {
+      setIsRefining(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const fetchSuggestions = (query) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (query.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/suggest?q=${encodeURIComponent(query)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setSuggestions(data.suggestions || []);
+          setShowSuggestions((data.suggestions || []).length > 0);
+        }
+      } catch { /* silent */ }
+    }, 300);
+  };
+
+  const suggestionTimer = useRef(null);
+
+  const handleSearchInput = (e) => {
+    const val = e.target.value;
+    setSearchTerm(val);
+    
+    if (suggestionTimer.current) clearTimeout(suggestionTimer.current);
+    const debounceMs = userTier === 'free' ? 3000 : userTier === 'starter' ? 1000 : 0;
+    
+    suggestionTimer.current = setTimeout(() => {
+      fetchSuggestions(val);
+    }, debounceMs);
+  };
+
+  const handleSuggestionClick = (term) => {
+    setSearchTerm(term);
+    setShowSuggestions(false);
+    setSuggestions([]);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 selection:bg-blue-100 selection:text-blue-700 font-sans">
+      
+      {/* Force Refresh Modal */}
+      <ForceRefreshModal 
+        isOpen={showRefreshModal} 
+        onClose={() => setShowRefreshModal(false)} 
+        onConfirm={executeForceRefresh} 
+      />
+
+      {/* Premium Navbar */}
+      <Navbar user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={onLogout} />
+
+      {/* Global Announcement Banner */}
+      <AnimatePresence>
+        {announcement && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className={`mt-16 py-3 px-6 border-b z-40 relative flex items-center justify-between gap-3 text-sm font-bold shadow-sm overflow-hidden ${
+              announcement.type === 'warning' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+              announcement.type === 'success' ? 'bg-green-50 text-green-700 border-green-200' :
+              'bg-indigo-50 text-indigo-700 border-indigo-200'
+            }`}
+          >
+            <div className="flex items-center gap-3 flex-1 min-w-0 justify-center">
+              <Megaphone size={16} className="animate-bounce shrink-0" />
+              <span className="truncate">{announcement.message}</span>
+            </div>
+            <button 
+              onClick={() => {
+                sessionStorage.setItem('dismissed_announcement', announcement.id.toString())
+                setAnnouncement(null)
+              }} 
+              className="shrink-0 p-1 rounded-full hover:bg-black/5 transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Profile Error Banner */}
+      <AnimatePresence>
+        {profileError && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className={`py-3 px-6 border-b z-30 relative flex items-center justify-center gap-3 text-sm font-bold shadow-sm bg-red-50 text-red-700 border-red-200 ${announcement ? '' : 'mt-16'}`}
+          >
+            <ShieldAlert size={16} className="animate-pulse" />
+            <span>{profileError}</span>
+            <button onClick={() => setProfileError(null)} className="ml-2 hover:bg-red-100 rounded-full p-1 transition-colors">
+              <X size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Search Engine Section */}
+      <section className={`${announcement ? 'pt-16' : 'pt-32'} pb-16 px-6 relative overflow-hidden`}>
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black bg-blue-50 text-blue-600 mb-4 uppercase tracking-widest shadow-sm border border-blue-100">
+              <Search size={14} /> Professional Search Engine
+            </div>
+            <h2 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tight leading-[0.95] mb-6">
+              Analytical <span className="text-blue-600">Dashboard.</span>
+            </h2>
+            <p className="text-lg text-slate-500 max-w-2xl mx-auto leading-relaxed font-medium">
+              Real-time synchronization with Global Research Databases. Execute advanced queries across 7 disciplines.
+            </p>
+          </div>
+
+          <div className="grid lg:grid-cols-5 gap-16 items-start">
+            <div className="lg:col-span-3">
+              <SearchBar 
+                portal={portal}
+                setPortal={handlePortalSwitch}
+                userTier={userTier}
+                unlockedPortalState={unlockedPortalState}
+                setArticles={setArticles}
+                setHasSearched={setHasSearched}
+                suggestionsRef={suggestionsRef}
+                searchPubMed={searchPubMed}
+                setShowSuggestions={setShowSuggestions}
+                searchTerm={searchTerm}
+                handleSearchInput={handleSearchInput}
+                suggestions={suggestions}
+                loading={loading}
+                resultLimit={resultLimit}
+                setResultLimit={setResultLimit}
+                isSearchBlocked={isSearchBlocked}
+                cooldownTime={cooldownTime}
+                guestCooldown={guestCooldown}
+                handleSuggestionClick={handleSuggestionClick}
+                showSuggestions={showSuggestions}
+                startDate={startDate}
+                setStartDate={setStartDate}
+                endDate={endDate}
+                setEndDate={setEndDate}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+                clearFilters={clearFilters}
+                setStarterUnlockModalOpen={setStarterUnlockModalOpen}
+                isRefining={isRefining}
+                handleAiRefine={handleAiRefine}
+              />
+            </div>
+            
+            {/* Global Latest Research Card */}
+            <div className="lg:col-span-2 hidden lg:block">
+              <div className="relative">
+                <div className="absolute -top-20 -right-20 w-80 h-80 bg-blue-600/5 rounded-full blur-3xl"></div>
+                <div className="relative bg-white rounded-[2.5rem] p-10 border border-slate-100 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] overflow-hidden group/card">
+                  {globalLatestLoading ? (
+                    <div className="animate-pulse space-y-6">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-slate-50 rounded-2xl w-14 h-14"></div>
+                        <div className="space-y-3 flex-1">
+                          <div className="h-4 bg-slate-50 rounded w-1/3"></div>
+                          <div className="h-3 bg-slate-50 rounded w-2/3"></div>
+                        </div>
+                      </div>
+                      <div className="space-y-4 pt-4">
+                        <div className="h-3 bg-slate-50 rounded w-full"></div>
+                        <div className="h-3 bg-slate-50 rounded w-full"></div>
+                        <div className="h-3 bg-slate-50 rounded w-3/4"></div>
+                      </div>
+                    </div>
+                  ) : globalLatestPaper ? (
+                    <>
+                      <div className="flex items-center justify-between mb-8">
+                        <div className="flex items-center gap-4">
+                          <div className="p-3.5 bg-blue-600 text-white rounded-2xl shadow-lg shadow-blue-100">
+                            <Sparkles size={24} />
+                          </div>
+                          <div>
+                            <div className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-1">Live Intelligence</div>
+                            <div className="text-xs font-bold text-slate-400">
+                              Latest in {unlockedPortalState === 'eng' ? 'Engineering' : unlockedPortalState === 'physics' ? 'Physics' : unlockedPortalState === 'math' ? 'Mathematics' : unlockedPortalState === 'social' ? 'Social Sci' : unlockedPortalState === 'chem' ? 'Chemical Sci' : unlockedPortalState === 'law' ? 'Law & Legal' : unlockedPortalState === 'pharma' ? 'Pharmacy' : 'GEB'}
+                            </div>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => fetchGlobalLatest(true)}
+                          disabled={globalLatestLoading}
+                          className="w-10 h-10 rounded-2xl border border-slate-100 flex items-center justify-center text-slate-300 hover:text-blue-600 hover:bg-blue-50/50 transition-all"
+                        >
+                          <RefreshCcw size={16} className={globalLatestLoading ? 'animate-spin' : ''} />
+                        </button>
+                      </div>
+                      
+                      <div className="space-y-6">
+                        <h4 className="text-xl font-black text-slate-900 leading-tight group-hover/card:text-blue-600 transition-colors line-clamp-2">
+                          {globalLatestPaper.title || 'System Synchronizing...'}
+                        </h4>
+                        
+                        <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
+                          <BookOpen size={14} className="text-blue-500" />
+                          <span className="text-[10px] font-black text-slate-600 truncate uppercase tracking-widest">{globalLatestPaper.journal || 'Global Research Database'}</span>
+                        </div>
+
+                        {globalLatestPaper.abstract && (
+                          <p className="text-sm text-slate-500 leading-relaxed line-clamp-2 font-medium">
+                            {globalLatestPaper.abstract}
+                          </p>
+                        )}
+                        
+                        {globalLatestPaper.pmid ? (
+                          <button 
+                            onClick={() => navigate(`/paper/${encodeURIComponent(globalLatestPaper.pmid)}`, { state: { article: globalLatestPaper } })}
+                            className="w-full py-4 bg-slate-900 hover:bg-blue-600 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl shadow-slate-200 flex items-center justify-center gap-3 group/btn"
+                          >
+                            Read Full Paper
+                            <ArrowUpRight size={16} className="group-hover/btn:translate-x-1 group-hover/btn:-translate-y-1 transition-transform" />
+                          </button>
+                        ) : (
+                          <div className="text-center py-4 border-2 border-dashed border-slate-100 rounded-2xl">
+                            <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest animate-pulse">Syncing Metadata...</span>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-20">
+                      <div className="mx-auto text-slate-100 mb-6 flex justify-center">
+                         <Activity size={48} />
+                      </div>
+                      <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Network Handshake Pending</p>
+                      <button onClick={fetchGlobalLatest} className="px-6 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-600 transition-all">Retry Synchronization</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Results Workspace */}
+      <main className="max-w-7xl mx-auto px-6 pb-40">
+        
+        {universalFallbackAlert && (
+          <div className="mb-8 p-5 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-purple-100 shrink-0">
+                <Sparkles size={20} className="text-purple-600" />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-slate-900 tracking-tight">No results found in your niche. Displaying results from the Universal Database.</h4>
+                <p className="text-xs font-bold text-purple-600/70 uppercase tracking-widest mt-1">Search optimized to: <span className="text-purple-700">{universalFallbackAlert}</span></p>
+              </div>
+            </div>
+            <button onClick={() => setUniversalFallbackAlert(null)} className="p-2.5 bg-white hover:bg-purple-100 text-purple-400 hover:text-purple-700 rounded-xl border border-purple-100 transition-all shadow-sm">
+              <X size={16} />
+            </button>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center justify-between gap-6 mb-12 border-b border-slate-200 pb-10">
+          <div className="flex items-center gap-4">
+            <h3 className="text-3xl font-black text-slate-900 tracking-tight">
+              {hasSearched ? 'Analysis Results' : 'Research Feed'}
+            </h3>
+            {hasSearched && !loading && articles.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="px-4 py-1.5 rounded-full bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest">
+                  {articles.length} Papers
+                </span>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
+                  Top {resultLimit} Analysis
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-4">
+            {hasSearched && !loading && articles.length > 0 && userTier === 'pro' && (
+              <>
+                <button 
+                  onClick={handleLitReviewClick}
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md shadow-orange-100/50"
+                >
+                  <Sparkles size={12} />
+                  Generate Lit Review
+                </button>
+                <button 
+                  onClick={handleGapAnalysisClick}
+                  className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[10px] font-black border border-slate-700 uppercase tracking-widest transition-all shadow-sm"
+                >
+                  <Sparkles size={12} className="text-amber-500" />
+                  Research Gap Analysis
+                </button>
+              </>
+            )}
+            <button 
+              onClick={handleForceRefreshClick}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white rounded-xl text-[10px] font-black border border-blue-100 uppercase tracking-widest transition-all shadow-sm"
+            >
+              <RefreshCcw size={12} className={loading ? "animate-spin" : ""} />
+              Refresh for latest data
+            </button>
+            <div className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-xl text-[10px] font-black border border-green-100 uppercase tracking-widest">
+              <Activity size={12} className="animate-pulse" />
+              Cached Session
+            </div>
+          </div>
+        </div>
+
+        <ArticleGrid 
+          articles={articles}
+          hasSearched={hasSearched}
+          clearFilters={clearFilters}
+          user={user}
+          userTier={userTier}
+          bookmarkCount={bookmarkCount}
+          fetchBookmarkCount={fetchBookmarkCount}
+          setShowAuthModal={setShowAuthModal}
+          loading={loading}
+          error={error}
+          searchPubMed={searchPubMed}
+          cancelSearch={cancelSearch}
+        />
+      </main>
+
+      {/* AI Assistant Elements */}
+      <AIChatWidget 
+        aiPromptVisible={aiPromptVisible}
+        setAiPromptVisible={setAiPromptVisible}
+        onSummarize={onSummarize}
+        aiChatOpen={aiChatOpen}
+        setAiChatOpen={setAiChatOpen}
+        aiWidgetMode={aiWidgetMode}
+        setAiWidgetMode={setAiWidgetMode}
+        aiThinking={aiThinking}
+        aiStep={aiStep}
+        aiProgress={aiProgress}
+        aiSummary={aiSummary}
+        isAiLimitReached={isAiLimitReached}
+        setIsAiLimitReached={setIsAiLimitReached}
+        userTier={userTier}
+        lastSearched={lastSearched}
+        chatHistory={chatHistory}
+        chatInput={chatInput}
+        setChatInput={setChatInput}
+        handleSendMessage={handleSendMessage}
+      />
+
+      {/* Literature Review Generation Overlay */}
+      <AnimatePresence>
+        {litReviewModalOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => !litReviewLoading && setLitReviewModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+            />
+            
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative w-full max-w-4xl bg-white rounded-[3rem] shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[85vh] z-10"
+            >
+              {/* Header */}
+              <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-amber-200">
+                    <Sparkles size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900 leading-none">{litReviewTitle}</h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Llama 3.1 PRO Synthesis</p>
+                  </div>
+                </div>
+                {!litReviewLoading && (
+                  <button 
+                    onClick={() => setLitReviewModalOpen(false)}
+                    className="w-10 h-10 rounded-xl hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                )}
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto p-10 min-h-[300px]">
+                {litReviewLoading ? (
+                  <div className="flex flex-col items-center justify-center py-20 space-y-8">
+                    <div className="relative w-20 h-20 flex items-center justify-center">
+                      <div className="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
+                      <motion.div 
+                        className="absolute inset-0 border-4 border-transparent border-t-amber-500 rounded-full"
+                        animate={{ rotate: 360 }}
+                        transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                      />
+                      <Sparkles size={28} className="text-amber-500 animate-pulse" />
+                    </div>
+                    <div className="text-center space-y-3">
+                      <p className="text-sm font-black text-slate-700 uppercase tracking-wider">{litReviewStep}</p>
+                      <div className="w-64 h-2 bg-slate-100 rounded-full overflow-hidden mx-auto">
+                        <motion.div 
+                          className="h-full bg-amber-500"
+                          initial={{ width: '0%' }}
+                          animate={{ width: `${litReviewProgress}%` }}
+                          transition={{ duration: 0.5 }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="prose prose-slate max-w-none">
+                    <div 
+                      className="font-serif text-slate-700 leading-relaxed text-sm space-y-6" 
+                      style={{ fontFamily: "'Merriweather', serif" }}
+                    >
+                      {formatMarkdown(litReviewContent)}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer Actions */}
+              {!litReviewLoading && (
+                <div className="p-8 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => {
+                        const formattedHTML = formatMarkdownToHTML(litReviewContent);
+                        exportToPDF(formattedHTML);
+                      }}
+                      className="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-blue-200 flex items-center gap-2"
+                    >
+                      <FileDown size={14} />
+                      Export to PDF
+                    </button>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(litReviewContent);
+                          alert('Literature review copied to clipboard!');
+                        } catch (err) {
+                          console.error(err);
+                        }
+                      }}
+                      className="px-6 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-black uppercase tracking-widest rounded-xl transition-all"
+                    >
+                      Copy Markdown
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setLitReviewModalOpen(false)}
+                    className="px-6 py-3.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all"
+                  >
+                    Close Review
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* PRO Upgrade Warning Modal */}
+      <ProUpgradeModal 
+        isOpen={proUnlockModalOpen} 
+        onClose={() => setProUnlockModalOpen(false)} 
+        navigate={navigate} 
+        reason={proModalReason} 
+      />
+
+      {/* STARTER Upgrade Warning Modal */}
+      <StarterUpgradeModal 
+        isOpen={starterUnlockModalOpen} 
+        onClose={() => setStarterUnlockModalOpen(false)} 
+        navigate={navigate} 
+      />
+
+      <Footer user={user} onAuthRequired={() => setShowAuthModal(true)} />
+      
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+      
+      {/* Expiry Toast */}
+      <AnimatePresence>
+        {showExpiryToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] border border-slate-700 flex items-center gap-4"
+          >
+            <div className="w-10 h-10 bg-red-500/20 rounded-xl flex items-center justify-center text-red-400">
+              <ShieldAlert size={20} />
+            </div>
+            <div>
+              <div className="text-sm font-black tracking-tight">Premium Session Ended</div>
+              <div className="text-xs font-medium text-slate-400">Reverting to your assigned Free portal.</div>
+            </div>
+            <button onClick={() => setShowExpiryToast(false)} className="ml-4 p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all">
+              <X size={16} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+export default ResearchPage;
+===
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Dna, Activity, Library, User, ChevronDown, Settings, 
+  ShieldAlert, LogOut, LogIn, Search, Sparkles, RefreshCcw, 
+  BookOpen, ArrowUpRight, X, FileDown, Megaphone 
+} from 'lucide-react';
+import { supabase } from './supabaseClient';
+import { BASE_URL } from './utils/api';
+import { getOrCreateDeviceId } from './utils/deviceSync';
+import Footer from './Footer';
+import AuthModal from './AuthModal';
+import Navbar from './components/Navbar';
+import { ProUpgradeModal, StarterUpgradeModal, ForceRefreshModal } from './components/UpgradeModals';
+
+import AIChatWidget from './components/AIChatWidget';
+import SearchBar from './components/SearchBar';
+import ArticleGrid from './components/ArticleGrid';
+
+const getPortalDetails = (portalId) => {
+  switch(portalId) {
+    case 'eng': return { name: 'Engineering', source: 'arXiv Engineering Hub' };
+    case 'physics': return { name: 'Physics', source: 'Physics Archive' };
+    case 'math': return { name: 'Mathematics', source: 'Math Records' };
+    case 'social': return { name: 'Social Sciences', source: 'Global Scholar Databases' };
+    case 'law': return { name: 'Legal', source: 'Global Scholar Databases' };
+    case 'chem': return { name: 'Chemistry', source: 'Chemistry Hub' };
+    case 'geb': return { name: 'GEB', source: 'Genetic Engineering Database' };
+    case 'pharma': return { name: 'Pharmacy', source: 'Pharmacology Database' };
+    default: return { name: 'GEB', source: 'Genetic Engineering Database' };
+  }
+};
+
+// Utility functions for Lit Review Modal
+const parseInline = (text) => {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i} className="font-black text-slate-900">{part.slice(2, -2)}</strong>;
+    }
+    return part;
+  });
+};
+
+const formatMarkdown = (text) => {
+  if (!text) return null;
+  const paragraphs = text.split('\n\n');
+  return paragraphs.map((para, i) => {
+    if (para.trim().startsWith('- ') || para.trim().startsWith('* ')) {
+      const items = para.split('\n').map(line => line.replace(/^[-*]\s+/, '').trim());
+      return (
+        <ul key={i} className="list-disc ml-6 mb-6 space-y-2">
+          {items.map((item, j) => <li key={j}>{parseInline(item)}</li>)}
+        </ul>
+      );
+    }
+    return <p key={i} className="mb-6 leading-relaxed">{parseInline(para)}</p>;
+  });
+};
+
+const formatMarkdownToHTML = (text) => {
+  if (!text) return '';
+  let html = text;
+  html = html.replace(/^### (.*$)/gim, '<h2>$1</h2>');
+  html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+  html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/^\s*-\s*(.*$)/gim, '<li>$1</li>');
+  
+  const paras = html.split('\n\n').map(p => {
+    const trimmed = p.trim();
+    if (trimmed.startsWith('<h') || trimmed.startsWith('<ul') || trimmed.startsWith('<li')) {
+      return trimmed;
+    }
+    return '<p>' + trimmed + '</p>';
+  });
+  return paras.join('\n');
+};
+
+const exportToPDF = (content) => {
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) return;
+  
+  let html = '<html><head><title>ScholarHub AI - Literature Review Synthesis</title>';
+  html += '<style>';
+  html += 'body { font-family: system-ui, -apple-system, sans-serif; color: #0f172a; line-height: 1.6; padding: 40px; max-width: 800px; margin: 0 auto; }';
+  html += 'h1 { font-size: 24px; font-weight: 900; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 24px; }';
+  html += 'h2 { font-size: 18px; font-weight: 800; margin-top: 32px; margin-bottom: 16px; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.05em; }';
+  html += 'p { margin-bottom: 16px; font-size: 14px; }';
+  html += 'ul { margin-bottom: 16px; padding-left: 20px; }';
+  html += 'li { margin-bottom: 8px; font-size: 14px; }';
+  html += '.footer { margin-top: 48px; border-top: 1px solid #e2e8f0; padding-top: 16px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #94a3b8; text-align: center; }';
+  html += '</style></head><body>';
+  html += '<h1>ScholarHub AI - Literature Review Synthesis</h1>';
+  html += '<div>' + content + '</div>';
+  html += '<div class="footer">Generated by ScholarHub AI Premium</div>';
+  html += '<script>window.onload = function() { window.print(); }</script>';
+  html += '</body></html>';
+  
+  printWindow.document.write(html);
+  printWindow.document.close();
+};
+
+const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
+  const navigate = useNavigate();
+  const searchAbortControllerRef = useRef(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [profileError, setProfileError] = useState(null);
+  
+  const getStorage = (key, defaultVal, isJson = false) => {
+    try {
+      const val = sessionStorage.getItem(key);
+      if (val === null) return defaultVal;
+      return isJson ? JSON.parse(val) : val;
+    } catch { return defaultVal; }
+  };
+
+  const [portal, setPortal] = useState(() => {
+    const cached = sessionStorage.getItem('active_portal');
+    if (cached) return cached;
+    
+    // Auth Sync: Fallback to user metadata
+    const fieldMap = {
+      'Genetic Eng. & Biotech (GEB)': 'geb',
+      'Pharmacy & Pharmacology': 'pharma',
+      'Engineering/CS': 'eng',
+      'Engineering': 'eng',
+      'Physics': 'physics',
+      'Mathematics': 'math',
+      'Social Sciences': 'social',
+      'Chemistry / Pharmacy': 'chem',
+      'Law / Legal Studies': 'law'
+    };
+    const metadata = user?.user_metadata || {};
+    const field = metadata.academic_field || 'Genetic Eng. & Biotech (GEB)';
+    return fieldMap[field] || 'geb';
+  });
+  
+  const [hasSearched, setHasSearched] = useState(() => {
+    const p = sessionStorage.getItem('active_portal');
+    if (!p) return false;
+    const val = sessionStorage.getItem(`hasSearched_${p}`);
+    return val ? JSON.parse(val) : false;
+  });
+  
+  const [searchTerm, setSearchTerm] = useState(() => {
+    const p = sessionStorage.getItem('active_portal');
+    if (!p) return '';
+    return sessionStorage.getItem(`searchTerm_${p}`) || '';
+  });
+  
+  const [lastSearched, setLastSearched] = useState('');
+  const [universalFallbackAlert, setUniversalFallbackAlert] = useState(null);
+  
+  const [searchCount, setSearchCount] = useState(() => getStorage('searchCount', 0, true));
+  
+  const calculateRemaining = (expiryKey) => {
+    const expiry = getStorage(expiryKey, 0, true);
+    if (!expiry) return 0;
+    const remaining = Math.ceil((expiry - Date.now()) / 1000);
+    return remaining > 0 ? remaining : 0;
+  };
+  
+  const [cooldownTime, setCooldownTime] = useState(() => calculateRemaining('cooldownExpiry'));
+  const [guestCooldown, setGuestCooldown] = useState(() => calculateRemaining('guestCooldownExpiry'));
+  
+  const [userTier, setUserTier] = useState('free');
+  const [academicField, setAcademicField] = useState('Genetic Eng. & Biotech (GEB)');
+  const [unlockedPortalState, setUnlockedPortalState] = useState(null);
+  const [bookmarkCount, setBookmarkCount] = useState(0);
+  const [usageStats, setUsageStats] = useState({ aiSummaries: 0 });
+
+  const fetchBookmarkCount = async () => {
+    if (!user) return;
+    try {
+      const { count, error } = await supabase
+        .from('bookmarks')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+      if (!error && count !== null) {
+        setBookmarkCount(count);
+      }
+    } catch (err) {
+      console.error('Error fetching bookmark count:', err);
+    }
+  };
+
+  const [announcement, setAnnouncement] = useState(null);
+
+  useEffect(() => {
+    const fetchAnnouncement = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('announcements')
+          .select('*')
+          .eq('active', true)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        
+        if (!error && data && data.length > 0) {
+          const ann = data[0];
+          const dismissedId = sessionStorage.getItem('dismissed_announcement');
+          if (dismissedId !== ann.id.toString()) {
+            setAnnouncement(ann);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching announcements:', err);
+      }
+    };
+    fetchAnnouncement();
+  }, []);
+
+  const fetchUsageStats = async () => {
+    if (!user) return;
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const { count, error } = await supabase
+        .from('usage_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('action', 'ai_summary')
+        .eq('usage_date', todayStr);
+      if (!error && count !== null) {
+        setUsageStats({ aiSummaries: count });
+      }
+    } catch (err) {
+      console.error('Error fetching usage stats:', err);
+    }
+  };
+
+  const isPortalLocked = (p) => {
+    if (userTier === 'pro') return false;
+    return p !== unlockedPortalState;
+  };
+
+  // Strict Reversion Logic: Force sync portal if user is downgraded to free
+  const prevTierRef = useRef(userTier);
+  useEffect(() => {
+    const prevTier = prevTierRef.current;
+    if ((prevTier === 'pro' || prevTier === 'starter') && userTier === 'free' && unlockedPortalState) {
+      setPortal(unlockedPortalState);
+      sessionStorage.setItem('active_portal', unlockedPortalState);
+      // Small timeout to allow state to settle
+      setTimeout(() => hydratePortalState(unlockedPortalState), 0);
+    }
+    prevTierRef.current = userTier;
+  }, [userTier, unlockedPortalState]);
+
+  useEffect(() => {
+    if (!user) {
+      setUserTier('free');
+      setAcademicField('Genetic Eng. & Biotech (GEB)');
+      setUnlockedPortalState('geb');
+      setBookmarkCount(0);
+      return;
+    }
+    const getTierAndProfile = async () => {
+      try {
+        const { data: profData, error: fetchErr } = await supabase
+          .from('profiles')
+          .select('academic_field, user_tier, unlocked_portal')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (fetchErr) throw fetchErr;
+
+        let tier = 'free';
+        let unlocked = 'geb';
+        let field = 'Genetic Eng. & Biotech (GEB)';
+
+        if (profData && (profData.academic_field || profData.unlocked_portal)) {
+          tier = (profData.user_tier || 'free').toLowerCase();
+          field = profData.academic_field || 'Genetic Eng. & Biotech (GEB)';
+          
+          const fieldMap = {
+            'Genetic Eng. & Biotech (GEB)': 'geb',
+            'Pharmacy & Pharmacology': 'pharma',
+            'Engineering/CS': 'eng',
+            'Engineering': 'eng',
+            'Physics': 'physics',
+            'Mathematics': 'math',
+            'Social Sciences': 'social',
+            'Chemistry / Pharmacy': 'chem',
+            'Law / Legal Studies': 'law'
+          };
+          
+          unlocked = profData.unlocked_portal || fieldMap[field] || 'geb';
+          
+          try {
+            const { data: subData } = await supabase
+              .from('subscriptions')
+              .select('expires_at')
+              .eq('user_id', user.id)
+              .maybeSingle();
+            
+            if (subData && subData.expires_at) {
+              const expiry = new Date(subData.expires_at);
+              if (new Date() > expiry) {
+                tier = 'free';
+              }
+            }
+          } catch (subErr) {
+            console.error("Error fetching subscription expiry:", subErr);
+          }
+
+          setUserTier(tier);
+          setUnlockedPortalState(unlocked);
+          setAcademicField(field);
+          
+          // Frontend Sync: Enforce strict string matching from the DB
+          setPortal(prev => {
+            if (tier === 'free' || tier === 'starter') {
+              if (prev !== unlocked) {
+                sessionStorage.setItem('active_portal', unlocked);
+                setTimeout(() => hydratePortalState(unlocked), 0);
+                return unlocked;
+              }
+            } else if (!prev) {
+              sessionStorage.setItem('active_portal', unlocked);
+              setTimeout(() => hydratePortalState(unlocked), 0);
+              return unlocked;
+            }
+            return prev;
+          });
+        } else {
+          // Forced Default Fallback
+          tier = 'free';
+          field = 'Engineering/CS';
+          unlocked = 'eng';
+          
+          setUserTier(tier);
+          setUnlockedPortalState(unlocked);
+          setAcademicField(field);
+          
+          setPortal(prev => {
+            if (prev !== unlocked) {
+              sessionStorage.setItem('active_portal', unlocked);
+              setTimeout(() => hydratePortalState(unlocked), 0);
+              return unlocked;
+            }
+            return prev;
+          });
+        }
+      } catch (err) {
+        console.error("Error fetching tier/profile:", err);
+        setProfileError("Database connection issue. Fallback profile loaded.");
+        
+        const metadata = user?.user_metadata || {};
+        const field = metadata.academic_field || 'Genetic Eng. & Biotech (GEB)';
+        const fieldMap = {
+          'Genetic Eng. & Biotech (GEB)': 'geb',
+          'Pharmacy & Pharmacology': 'pharma',
+          'Engineering/CS': 'eng',
+          'Engineering': 'eng',
+          'Physics': 'physics',
+          'Mathematics': 'math',
+          'Social Sciences': 'social',
+          'Chemistry / Pharmacy': 'chem',
+          'Law / Legal Studies': 'law'
+        };
+        const unlocked = fieldMap[field] || 'geb';
+        
+        setUserTier('free');
+        setAcademicField(field);
+        setUnlockedPortalState(unlocked);
+        
+        setPortal(prev => {
+          if (!prev) {
+            sessionStorage.setItem('active_portal', unlocked);
+            setTimeout(() => hydratePortalState(unlocked), 0);
+            return unlocked;
+          }
+          return prev;
+        });
+      }
+    };
+    getTierAndProfile();
+    fetchBookmarkCount();
+    fetchUsageStats();
+    
+    // Force re-fetch every 5 minutes
+    const intervalId = setInterval(() => {
+      getTierAndProfile();
+    }, 5 * 60 * 1000);
+    
+    return () => clearInterval(intervalId);
+  }, [user, navigate]);
+
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  
+  const [litReviewModalOpen, setLitReviewModalOpen] = useState(false);
+  const [litReviewLoading, setLitReviewLoading] = useState(false);
+  const [litReviewContent, setLitReviewContent] = useState('');
+  const [proUnlockModalOpen, setProUnlockModalOpen] = useState(false);
+  const [starterUnlockModalOpen, setStarterUnlockModalOpen] = useState(false);
+  const [proModalReason, setProModalReason] = useState('lit_review');
+  const [litReviewStep, setLitReviewStep] = useState('');
+  const [litReviewProgress, setLitReviewProgress] = useState(0);
+  const [litReviewTitle, setLitReviewTitle] = useState('Literature Review Synthesis');
+
+  const handleGapAnalysisClick = async () => {
+    if (userTier !== 'pro') {
+      setProModalReason('lit_review');
+      setProUnlockModalOpen(true);
+      return;
+    }
+
+    setLitReviewTitle('Research Gap Analysis');
+    setLitReviewModalOpen(true);
+    setLitReviewLoading(true);
+    setLitReviewContent('');
+    setLitReviewStep('AI is analyzing research gaps...');
+    setLitReviewProgress(10);
+
+    try {
+      const steps = [
+        { text: 'Identifying conflicting methodologies...', prog: 30, delay: 1000 },
+        { text: 'Evaluating limitations in current studies...', prog: 60, delay: 2200 },
+        { text: 'Highlighting unexplored theoretical frameworks...', prog: 85, delay: 3500 },
+        { text: 'Formulating actionable future directions...', prog: 95, delay: 4800 },
+        { text: 'AI is reading deep into the papers, please bear with us...', prog: 98, delay: 20000 }
+      ];
+
+      steps.forEach(({ text, prog, delay }) => {
+        setTimeout(() => {
+          setLitReviewStep(text);
+          setLitReviewProgress(prog);
+        }, delay);
+      });
+
+      const sessionToken = (await supabase.auth.getSession()).data.session?.access_token;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s timeout
+      const deviceId = getOrCreateDeviceId();
+      
+      const response = await fetch(`${BASE_URL}/ai/gap-analysis`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`,
+          'X-Device-ID': deviceId
+        },
+        body: JSON.stringify({
+          articles: articles.slice(0, 15).map(art => ({
+            title: art.title,
+            abstract: art.abstract || ''
+          })),
+          portal: portal || 'geb'
+        }),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        if (response.status === 402) {
+          handle402Expiry();
+          throw new Error('Premium session expired.');
+        }
+        let errMsg = 'Failed to generate gap analysis. Please try again.';
+        try {
+          const errData = await response.json();
+          if (errData.error) errMsg = errData.error;
+          else if (errData.detail) errMsg = errData.detail;
+          
+          if (typeof errMsg === 'string' && errMsg.includes('Device ID not registered')) {
+            errMsg = 'This device is not registered. Please manage your devices in the Profile page.';
+          }
+        } catch { /* ignore parsing errors */ }
+        throw new Error(errMsg);
+      }
+
+      const data = await response.json();
+      setLitReviewContent(data.output);
+    } catch (err) {
+      console.error(err);
+      if (err.name === 'AbortError') {
+        setLitReviewContent('Error: The AI analysis took too long (over 90 seconds). Please try again with fewer articles or later.');
+      } else {
+        setLitReviewContent('Error: ' + err.message);
+      }
+    } finally {
+      setLitReviewLoading(false);
+    }
+  };
+
+  const handleLitReviewClick = async () => {
+    if (userTier !== 'pro') {
+      setProModalReason('lit_review');
+      setProUnlockModalOpen(true);
+      return;
+    }
+
+    setLitReviewTitle('Literature Review Synthesis');
+    setLitReviewModalOpen(true);
+    setLitReviewLoading(true);
+    setLitReviewContent('');
+    setLitReviewStep('AI is synthesizing global research data...');
+    setLitReviewProgress(10);
+
+    try {
+      const steps = [
+        { text: 'Scanning methodology and design choices...', prog: 30, delay: 1000 },
+        { text: 'Comparing cohort sizes and controls...', prog: 60, delay: 2200 },
+        { text: 'Formulating critical research gap analysis...', prog: 85, delay: 3500 },
+        { text: 'Finalizing academic synthesis...', prog: 95, delay: 4800 },
+        { text: 'Synthesis is taking longer than expected. Please try with fewer papers or check your connection.', prog: 98, delay: 40000 }
+      ];
+
+      steps.forEach(({ text, prog, delay }) => {
+        setTimeout(() => {
+          setLitReviewStep(text);
+          setLitReviewProgress(prog);
+        }, delay);
+      });
+
+      const sessionToken = (await supabase.auth.getSession()).data.session?.access_token;
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s timeout
+
+      const deviceId = getOrCreateDeviceId();
+      const response = await fetch(`${BASE_URL}/ai/literature-review`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`,
+          'X-Device-ID': deviceId
+        },
+        body: JSON.stringify({
+          articles: articles.slice(0, 15).map(art => ({
+            title: art.title,
+            abstract: art.abstract || ''
+          })),
+          portal: portal || 'geb'
+        }),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        if (response.status === 402) {
+          handle402Expiry();
+          throw new Error('Premium session expired.');
+        }
+        let errMsg = 'Failed to generate literature review. Please try again.';
+        try {
+          const errData = await response.json();
+          if (errData.error) errMsg = errData.error;
+          else if (errData.detail) errMsg = errData.detail;
+          
+          if (typeof errMsg === 'string' && errMsg.includes('Device ID not registered')) {
+            errMsg = 'This device is not registered. Please manage your devices in the Profile page.';
+          }
+        } catch { /* ignore parsing errors */ }
+        throw new Error(errMsg);
+      }
+
+      const data = await response.json();
+      setLitReviewContent(data.output);
+    } catch (err) {
+      console.error(err);
+      if (err.name === 'AbortError') {
+        setLitReviewContent('Error: Synthesis is taking longer than expected. Please try with fewer papers or check your connection.');
+      } else {
+        setLitReviewContent('Error: ' + err.message);
+      }
+    } finally {
+      setLitReviewLoading(false);
+    }
+  };
+
+  const [articles, setArticles] = useState(() => {
+    const p = sessionStorage.getItem('active_portal');
+    if (!p) return [];
+    const val = sessionStorage.getItem(`results_${p}`);
+    return val ? JSON.parse(val) : [];
+  });
+
+  const [resultLimit, setResultLimit] = useState(() => getStorage('resultLimit', 20, true));
+  
+  const [startDate, setStartDate] = useState(() => getStorage('startDate', ''));
+  const [endDate, setEndDate] = useState(() => getStorage('endDate', ''));
+  const [sortBy, setSortBy] = useState(() => getStorage('sortBy', 'relevance'));
+  
+  const [globalLatestPaper, setGlobalLatestPaper] = useState(null);
+  const [globalLatestLoading, setGlobalLatestLoading] = useState(true);
+
+  const [aiPromptVisible, setAiPromptVisible] = useState(() => {
+    const p = sessionStorage.getItem('active_portal');
+    if (!p) return false;
+    const val = sessionStorage.getItem(`aiPromptVisible_${p}`);
+    return val ? JSON.parse(val) : false;
+  });
+  const [aiChatOpen, setAiChatOpen] = useState(() => {
+    const p = sessionStorage.getItem('active_portal');
+    if (!p) return false;
+    const val = sessionStorage.getItem(`aiChatOpen_${p}`);
+    return val ? JSON.parse(val) : false;
+  });
+  const [aiThinking, setAiThinking] = useState(false);
+  const [aiSummary, setAiSummary] = useState(() => {
+    const p = sessionStorage.getItem('active_portal');
+    if (!p) return '';
+    return sessionStorage.getItem(`aiSummary_${p}`) || '';
+  });
+  const [aiStep, setAiStep] = useState('');
+  const [aiProgress, setAiProgress] = useState(0);
+  const [aiWidgetMode, setAiWidgetMode] = useState(() => getStorage('aiWidgetMode', 'normal'));
+  const [isAiLimitReached, setIsAiLimitReached] = useState(false);
+
+  const [chatHistory, setChatHistory] = useState(() => {
+    const p = sessionStorage.getItem('active_portal');
+    if (!p) return [];
+    const val = sessionStorage.getItem(`chatHistory_${p}`);
+    return val ? JSON.parse(val) : [];
+  });
+  const [chatInput, setChatInput] = useState('');
+
+  const [showRefreshModal, setShowRefreshModal] = useState(false);
+  const [showExpiryToast, setShowExpiryToast] = useState(false);
+
+  const handle402Expiry = () => {
+    setUserTier('free');
+    sessionStorage.clear();
+    setResultLimit(20);
+    setPortal(unlockedPortalState);
+    setShowExpiryToast(true);
+    setTimeout(() => setShowExpiryToast(false), 5000);
+  };
+
+  const hydratePortalState = (newPortal) => {
+    const loadedArticles = sessionStorage.getItem(`results_${newPortal}`);
+    setArticles(loadedArticles ? JSON.parse(loadedArticles) : []);
+    
+    setSearchTerm(sessionStorage.getItem(`searchTerm_${newPortal}`) || '');
+    setAiSummary(sessionStorage.getItem(`aiSummary_${newPortal}`) || '');
+    
+    const loadedHistory = sessionStorage.getItem(`chatHistory_${newPortal}`);
+    setChatHistory(loadedHistory ? JSON.parse(loadedHistory) : []);
+    
+    const loadedSearched = sessionStorage.getItem(`hasSearched_${newPortal}`);
+    setHasSearched(loadedSearched ? JSON.parse(loadedSearched) : false);
+    
+    const loadedPrompt = sessionStorage.getItem(`aiPromptVisible_${newPortal}`);
+    setAiPromptVisible(loadedPrompt ? JSON.parse(loadedPrompt) : false);
+    
+    const loadedChat = sessionStorage.getItem(`aiChatOpen_${newPortal}`);
+    setAiChatOpen(loadedChat ? JSON.parse(loadedChat) : false);
+  };
+
+  const handlePortalSwitch = (newPortal) => {
+    // a) Save current portal's data to its specific key in sessionStorage
+    try {
+      const currentP = portal;
+      if (currentP) {
+        sessionStorage.setItem(`results_${currentP}`, JSON.stringify(articles));
+        sessionStorage.setItem(`searchTerm_${currentP}`, searchTerm);
+        sessionStorage.setItem(`aiSummary_${currentP}`, aiSummary);
+        sessionStorage.setItem(`hasSearched_${currentP}`, JSON.stringify(hasSearched));
+        sessionStorage.setItem(`aiPromptVisible_${currentP}`, JSON.stringify(aiPromptVisible));
+        sessionStorage.setItem(`aiChatOpen_${currentP}`, JSON.stringify(aiChatOpen));
+        if (chatHistory && chatHistory.length > 0) {
+          sessionStorage.setItem(`chatHistory_${currentP}`, JSON.stringify(chatHistory));
+        }
+      }
+    } catch(e) {
+      console.warn('Failed to save old portal state', e);
+    }
+
+    // b) Update the 'portal' state
+    sessionStorage.setItem('active_portal', newPortal);
+    setPortal(newPortal);
+
+    // c) Immediately load the saved data of the NEW portal from sessionStorage into the state
+    hydratePortalState(newPortal);
+  };
+
+  useEffect(() => {
+    // Sync current state to active portal cache continuously
+    try {
+      const p = portal;
+      if (!p) return;
+      sessionStorage.setItem('active_portal', p);
+      sessionStorage.setItem(`searchTerm_${p}`, searchTerm);
+      sessionStorage.setItem('searchCount', JSON.stringify(searchCount));
+      sessionStorage.setItem('resultLimit', JSON.stringify(resultLimit));
+      sessionStorage.setItem('startDate', startDate);
+      sessionStorage.setItem('endDate', endDate);
+      sessionStorage.setItem('sortBy', sortBy);
+      sessionStorage.setItem('aiWidgetMode', aiWidgetMode);
+      
+      sessionStorage.setItem(`results_${p}`, JSON.stringify(articles));
+      sessionStorage.setItem(`aiSummary_${p}`, aiSummary);
+      sessionStorage.setItem(`hasSearched_${p}`, JSON.stringify(hasSearched));
+      sessionStorage.setItem(`aiPromptVisible_${p}`, JSON.stringify(aiPromptVisible));
+      sessionStorage.setItem(`aiChatOpen_${p}`, JSON.stringify(aiChatOpen));
+      
+      if (chatHistory && chatHistory.length > 0) {
+        sessionStorage.setItem(`chatHistory_${p}`, JSON.stringify(chatHistory));
+      }
+    } catch (e) {
+      console.warn('Session storage quota exceeded while saving state. Some data may not persist on navigation.', e);
+    }
+  }, [searchTerm, lastSearched, hasSearched, searchCount, articles, resultLimit, startDate, endDate, sortBy, aiPromptVisible, aiChatOpen, aiSummary, aiWidgetMode, chatHistory, portal]);
+
+  useEffect(() => {
+    if (articles && articles.length > 0) {
+      setAiPromptVisible(true);
+      sessionStorage.setItem('aiPromptVisible', 'true');
+    }
+  }, [articles]);
+
+  const clearFilters = () => {
+    setStartDate('');
+    setEndDate('');
+    setSortBy('relevance');
+    setResultLimit(20);
+  };
+
+  const fetchGlobalLatest = async (forceRefresh = false) => {
+    const portalParam = unlockedPortalState || 'geb';
+    const CACHE_KEY = `global_latest_research_cache_${portalParam}`;
+    
+    if (!forceRefresh) {
+      const cachedStr = localStorage.getItem(CACHE_KEY);
+      if (cachedStr) {
+        try {
+          const cached = JSON.parse(cachedStr);
+          const now = Date.now();
+          const ONE_DAY = 24 * 60 * 60 * 1000;
+          
+          if (now - cached.timestamp < ONE_DAY && cached.data) {
+            setGlobalLatestPaper(cached.data);
+            setGlobalLatestLoading(false);
+            return;
+          }
+        } catch (e) {
+          // Silent catch
+        }
+      }
+    }
+
+    setGlobalLatestLoading(true);
+    try {
+      const portalParam = unlockedPortalState || 'geb';
+      const url = `${BASE_URL}/get-latest-research?portal=${portalParam}${forceRefresh ? '&force=true' : ''}`;
+      const response = await fetch(url, { method: 'GET', mode: 'cors' });
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.latest) {
+          setGlobalLatestPaper(data.latest);
+          localStorage.setItem(CACHE_KEY, JSON.stringify({
+            data: data.latest,
+            timestamp: Date.now()
+          }));
+        }
+      }
+    } catch (err) {
+      console.error("Latest research fetch failed:", err);
+    } finally {
+      setGlobalLatestLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGlobalLatest();
+  }, []);
+
+  const onSummarize = async () => {
+    if (articles.length === 0) return;
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) {
+      setShowAuthModal(true);
+      return;
+    }
+    
+    setAiPromptVisible(false);
+    setAiChatOpen(true);
+    setAiWidgetMode('normal');
+    setAiThinking(true);
+    setAiStep('Initializing Llama 3.1 Synthesis Engine...');
+    setAiProgress(10);
+    setChatHistory([]);
+    setAiSummary('');
+
+    try {
+      const pDetails = getPortalDetails(portal);
+      const steps = [
+        { text: `Cross-referencing ${pDetails.source}...`, prog: 30, delay: 800 },
+        { text: `Analyzing ${pDetails.name} Insights...`, prog: 60, delay: 1500 },
+        { text: 'Generating Executive Report...', prog: 90, delay: 2200 }
+      ];
+      
+      steps.forEach(({text, prog, delay}) => {
+        setTimeout(() => {
+          setAiStep(text);
+          setAiProgress(prog);
+        }, delay);
+      });
+
+      const deviceId = getOrCreateDeviceId();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+      
+      const response = await fetch(`${BASE_URL}/ai/summarize-research`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'X-Device-ID': deviceId
+        },
+        body: JSON.stringify({
+          articles: articles.slice(0, userTier === 'pro' ? 15 : (userTier === 'starter' ? 10 : 5)).map(p => ({ title: p.title, abstract: p.abstract, url: p.url })),
+          portal: portal || 'geb'
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        if (response.status === 402) {
+          handle402Expiry();
+          return;
+        }
+        if (response.status === 429) {
+          setIsAiLimitReached(true);
+          return;
+        }
+        let errMsg = 'Failed to generate summary';
+        try {
+          const errData = await response.json();
+          const detail = errData.error || errData.detail;
+          if (typeof detail === 'string' && detail.includes('Device ID not registered')) {
+            errMsg = 'This device is not registered. Please manage your devices in the Profile page.';
+          } else if (detail) {
+            errMsg = detail;
+          }
+        } catch { /* ignore */ }
+        throw new Error(errMsg);
+      }
+      const data = await response.json();
+      fetchUsageStats();
+      
+      setAiSummary(data.output);
+      setChatHistory([{ role: 'assistant', content: 'Here is your executive summary. Feel free to ask any specific questions about these papers.' }]);
+
+    } catch (err) {
+      console.error(err);
+      setAiStep('Synthesis Failed');
+      const isTimeout = err.name === 'AbortError' || err.message?.includes('aborted');
+      const errorMsg = isTimeout 
+        ? "The AI is experiencing heavy load and timed out. Please try again." 
+        : "We encountered an error while synthesizing the research data. Please try again.";
+      setAiSummary(errorMsg);
+    } finally {
+      setAiThinking(false);
+    }
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!chatInput.trim() || aiThinking) return;
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) {
+      setShowAuthModal(true);
+      return;
+    }
+
+    const userMessage = chatInput;
+    setChatInput('');
+    setChatHistory(prev => [...prev, { role: 'user', content: userMessage }]);
+    setAiThinking(true);
+
+    try {
+      const deviceId = getOrCreateDeviceId();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+      
+      const response = await fetch(`${BASE_URL}/ai/chat-with-research`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'X-Device-ID': deviceId
+        },
+        body: JSON.stringify({
+          articles: articles.slice(0, userTier === 'pro' ? 15 : (userTier === 'starter' ? 10 : 5)).map(p => ({ title: p.title, abstract: p.abstract, url: p.url })),
+          user_message: userMessage,
+          portal: portal || 'geb'
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        if (response.status === 402) {
+          handle402Expiry();
+          return;
+        }
+        if (response.status === 429) {
+          setIsAiLimitReached(true);
+          setChatHistory(prev => prev.slice(0, -1));
+          return;
+        }
+        let errMsg = 'Chat failed';
+        try {
+          const errData = await response.json();
+          const detail = errData.error || errData.detail;
+          if (typeof detail === 'string' && detail.includes('Device ID not registered')) {
+            errMsg = 'This device is not registered. Please manage your devices in the Profile page.';
+          } else if (detail) {
+            errMsg = detail;
+          }
+        } catch { /* ignore */ }
+        throw new Error(errMsg);
+      }
+      const data = await response.json();
+      fetchUsageStats();
+
+      setChatHistory(prev => [...prev, { role: 'assistant', content: data.output }]);
+    } catch (err) {
+      console.error(err);
+      const isTimeout = err.name === 'AbortError' || err.message?.includes('aborted');
+      const errorMsg = isTimeout 
+        ? "The AI is experiencing heavy load and timed out. Please try again."
+        : (err.message || 'Connection to AI server lost. Please try again.');
+      setChatHistory(prev => [...prev, { role: 'assistant', content: errorMsg }]);
+    } finally {
+      setAiThinking(false);
+    }
+  };
+
+  const isSearchBlocked = cooldownTime > 0 || guestCooldown > 0;
+
+  const cancelSearch = () => {
+    if (searchAbortControllerRef.current) {
+      searchAbortControllerRef.current.abort();
+    }
+    setLoading(false);
+    setError("Search cancelled by user.");
+  };
+
+  const searchPubMed = async (e) => {
+    if (e) e.preventDefault();
+    if (!searchTerm.trim()) return;
+
+    if (userTier === 'free' && resultLimit > 20) {
+      setStarterUnlockModalOpen(true);
+      return;
+    }
+    if (userTier === 'starter' && resultLimit > 50) {
+      setProModalReason('limit_100');
+      setProUnlockModalOpen(true);
+      return;
+    }
+    
+    if (cooldownTime > 0) return;
+    if (guestCooldown > 0) return;
+
+    if (searchCount >= 10) {
+      if (userTier !== 'pro') {
+        setCooldownTime(60);
+        sessionStorage.setItem('cooldownExpiry', JSON.stringify(Date.now() + 60000));
+        setSearchCount(0);
+        sessionStorage.setItem('searchCount', '0');
+        return;
+      } else {
+        setSearchCount(0);
+        sessionStorage.setItem('searchCount', '0');
+      }
+    }
+
+    const authorizedPortal = isPortalLocked(portal) ? unlockedPortalState : portal;
+    const queryKey = `cache_${authorizedPortal}_${searchTerm}_${resultLimit}_${startDate}_${endDate}_${sortBy}`;
+    const cachedData = sessionStorage.getItem(queryKey);
+    if (cachedData) {
+      const results = JSON.parse(cachedData);
+      setArticles(results);
+      setHasSearched(true);
+      setLastSearched(searchTerm);
+      if (results.length > 0) {
+        sessionStorage.setItem('aiPromptVisible', 'true');
+        setTimeout(() => setAiPromptVisible(true), 1500);
+      }
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setHasSearched(true);
+    setLastSearched(searchTerm);
+
+    try {
+      const newCount = searchCount + 1;
+      setSearchCount(newCount);
+      sessionStorage.setItem('searchCount', newCount.toString());
+      sessionStorage.setItem('portal', authorizedPortal);
+
+      if (userTier === 'free' || !user) {
+        setGuestCooldown(5);
+        sessionStorage.setItem('guestCooldownExpiry', JSON.stringify(Date.now() + 5000));
+      } else if (userTier === 'starter') {
+        setGuestCooldown(1);
+        sessionStorage.setItem('guestCooldownExpiry', JSON.stringify(Date.now() + 1000));
+      } else {
+        setGuestCooldown(0);
+        sessionStorage.removeItem('guestCooldownExpiry');
+      }
+
+      if (searchAbortControllerRef.current) {
+        searchAbortControllerRef.current.abort();
+      }
+      searchAbortControllerRef.current = new AbortController();
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const fetchUrl = `${BASE_URL}/api/search?portal=${authorizedPortal}&keyword=${encodeURIComponent(searchTerm)}&limit=${resultLimit}&start_date=${startDate}&end_date=${endDate}&sort_by=${sortBy}`;
+      
+      const fetchHeaders = { 'Content-Type': 'application/json' };
+      if (token) {
+        fetchHeaders['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(fetchUrl, { 
+        method: 'GET', 
+        headers: fetchHeaders,
+        mode: 'cors',
+        signal: searchAbortControllerRef.current.signal
+      });
+      if (!response.ok) {
+        if (response.status === 401) {
+          setShowAuthModal(true);
+          setLoading(false);
+          return;
+        }
+        if (response.status === 402) {
+          handle402Expiry();
+          throw new Error('Your premium session has ended.');
+        }
+        let errMsg = `Server status ${response.status}`;
+        try {
+          const errData = await response.json();
+          if (errData.detail) errMsg = errData.detail;
+        } catch { /* ignore */ }
+        throw new Error(errMsg);
+      }
+      const data = await response.json();
+      
+      if (data.error) {
+        if (data.error.includes("arXiv API is currently slow")) {
+          setError("arXiv is taking too long to respond. This sometimes happens with their servers.");
+        } else {
+          setError(data.error);
+        }
+        setArticles([]);
+        setLoading(false);
+        return;
+      }
+
+      if (data.switched_to_universal) {
+        setUniversalFallbackAlert(data.refined_query || searchTerm);
+      } else {
+        setUniversalFallbackAlert(null);
+      }
+
+      const results = data.articles || [];
+      sessionStorage.setItem(queryKey, JSON.stringify(results));
+      setArticles(results);
+      
+      if (results.length > 0) {
+        sessionStorage.setItem('aiPromptVisible', 'true');
+        setTimeout(() => setAiPromptVisible(true), 1500);
+      }
+
+      if (userTier === 'free' || !user) {
+        setGuestCooldown(5);
+        sessionStorage.setItem('guestCooldownExpiry', JSON.stringify(Date.now() + 5000));
+      } else if (userTier === 'starter') {
+        setGuestCooldown(1);
+        sessionStorage.setItem('guestCooldownExpiry', JSON.stringify(Date.now() + 1000));
+      } else {
+        setGuestCooldown(0);
+        sessionStorage.removeItem('guestCooldownExpiry');
+      }
+      setLoading(false);
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+      setError(err.message.includes('Failed to fetch') ? 'Network error. Check if FastAPI backend is running.' : err.message);
+      setLoading(false);
+    }
+  };
+
+  const handleForceRefreshClick = () => {
+    setShowRefreshModal(true);
+  };
+
+  const executeForceRefresh = () => {
+    setShowRefreshModal(false);
+    const authorizedPortal = isPortalLocked(portal) ? unlockedPortalState : portal;
+    const queryKey = `cache_${authorizedPortal}_${searchTerm}_${resultLimit}_${startDate}_${endDate}_${sortBy}`;
+    sessionStorage.removeItem(queryKey);
+    
+    sessionStorage.removeItem(`results_${authorizedPortal}`);
+    sessionStorage.removeItem(`ai_summary_${authorizedPortal}`);
+    sessionStorage.removeItem(`has_searched_${authorizedPortal}`);
+    sessionStorage.removeItem(`chat_history_${authorizedPortal}`);
+    sessionStorage.removeItem(`search_term_${authorizedPortal}`);
+    
+    setArticles([]);
+    setAiSummary('');
+    setHasSearched(false);
+    setChatHistory([]);
+    setAiPromptVisible(false);
+    
+    searchPubMed(new Event('submit'));
+  };
+
+  useEffect(() => {
+    if (cooldownTime > 0) {
+      const timer = setTimeout(() => setCooldownTime(prev => prev - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldownTime]);
+
+  useEffect(() => {
+    if (guestCooldown > 0) {
+      const timer = setTimeout(() => setGuestCooldown(prev => prev - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [guestCooldown]);
+
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestionsRef = useRef(null);
+  const debounceRef = useRef(null);
+  
+  const [isRefining, setIsRefining] = useState(false);
+  const handleAiRefine = async () => {
+    if (!searchTerm.trim()) return;
+    setIsRefining(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`${BASE_URL}/ai/refine-query`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ raw_query: searchTerm })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.refined_query) {
+          setSearchTerm(data.refined_query);
+        }
+      }
+    } catch (err) {
+      console.error('AI Refine error:', err);
+    } finally {
+      setIsRefining(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const fetchSuggestions = (query) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (query.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/suggest?q=${encodeURIComponent(query)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setSuggestions(data.suggestions || []);
+          setShowSuggestions((data.suggestions || []).length > 0);
+        }
+      } catch { /* silent */ }
+    }, 300);
+  };
+
+  const suggestionTimer = useRef(null);
+
+  const handleSearchInput = (e) => {
+    const val = e.target.value;
+    setSearchTerm(val);
+    
+    if (suggestionTimer.current) clearTimeout(suggestionTimer.current);
+    const debounceMs = userTier === 'free' ? 3000 : userTier === 'starter' ? 1000 : 0;
+    
+    suggestionTimer.current = setTimeout(() => {
+      fetchSuggestions(val);
+    }, debounceMs);
+  };
+
+  const handleSuggestionClick = (term) => {
+    setSearchTerm(term);
+    setShowSuggestions(false);
+    setSuggestions([]);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 selection:bg-blue-100 selection:text-blue-700 font-sans">
+      
+      {/* Force Refresh Modal */}
+      <ForceRefreshModal 
+        isOpen={showRefreshModal} 
+        onClose={() => setShowRefreshModal(false)} 
+        onConfirm={executeForceRefresh} 
+      />
+
+      {/* Premium Navbar */}
+      <Navbar user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={onLogout} />
+
+      {/* Global Announcement Banner */}
+      <AnimatePresence>
+        {announcement && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className={`mt-16 py-3 px-6 border-b z-40 relative flex items-center justify-between gap-3 text-sm font-bold shadow-sm overflow-hidden ${
+              announcement.type === 'warning' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+              announcement.type === 'success' ? 'bg-green-50 text-green-700 border-green-200' :
+              'bg-indigo-50 text-indigo-700 border-indigo-200'
+            }`}
+          >
+            <div className="flex items-center gap-3 flex-1 min-w-0 justify-center">
+              <Megaphone size={16} className="animate-bounce shrink-0" />
+              <span className="truncate">{announcement.message}</span>
+            </div>
+            <button 
+              onClick={() => {
+                sessionStorage.setItem('dismissed_announcement', announcement.id.toString())
+                setAnnouncement(null)
+              }} 
+              className="shrink-0 p-1 rounded-full hover:bg-black/5 transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Profile Error Banner */}
+      <AnimatePresence>
+        {profileError && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className={`py-3 px-6 border-b z-30 relative flex items-center justify-center gap-3 text-sm font-bold shadow-sm bg-red-50 text-red-700 border-red-200 ${announcement ? '' : 'mt-16'}`}
+          >
+            <ShieldAlert size={16} className="animate-pulse" />
+            <span>{profileError}</span>
+            <button onClick={() => setProfileError(null)} className="ml-2 hover:bg-red-100 rounded-full p-1 transition-colors">
+              <X size={14} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Search Engine Section */}
+      <section className={`${announcement ? 'pt-16' : 'pt-32'} pb-16 px-6 relative overflow-hidden`}>
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black bg-blue-50 text-blue-600 mb-4 uppercase tracking-widest shadow-sm border border-blue-100">
+              <Search size={14} /> Professional Search Engine
+            </div>
+            <h2 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tight leading-[0.95] mb-6">
+              Analytical <span className="text-blue-600">Dashboard.</span>
+            </h2>
+            <p className="text-lg text-slate-500 max-w-2xl mx-auto leading-relaxed font-medium">
+              Real-time synchronization with Global Research Databases. Execute advanced queries across 7 disciplines.
+            </p>
+          </div>
+
+          <div className="grid lg:grid-cols-5 gap-16 items-start">
+            <div className="lg:col-span-3">
+              <SearchBar 
+                portal={portal}
+                setPortal={handlePortalSwitch}
+                userTier={userTier}
+                unlockedPortalState={unlockedPortalState}
+                setArticles={setArticles}
+                setHasSearched={setHasSearched}
+                suggestionsRef={suggestionsRef}
+                searchPubMed={searchPubMed}
+                setShowSuggestions={setShowSuggestions}
+                searchTerm={searchTerm}
+                handleSearchInput={handleSearchInput}
+                suggestions={suggestions}
+                loading={loading}
+                resultLimit={resultLimit}
+                setResultLimit={setResultLimit}
+                isSearchBlocked={isSearchBlocked}
+                cooldownTime={cooldownTime}
+                guestCooldown={guestCooldown}
+                handleSuggestionClick={handleSuggestionClick}
+                showSuggestions={showSuggestions}
+                startDate={startDate}
+                setStartDate={setStartDate}
+                endDate={endDate}
+                setEndDate={setEndDate}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+                clearFilters={clearFilters}
+                setStarterUnlockModalOpen={setStarterUnlockModalOpen}
+                isRefining={isRefining}
+                handleAiRefine={handleAiRefine}
+              />
+            </div>
+            
+            {/* Global Latest Research Card */}
+            <div className="lg:col-span-2 hidden lg:block">
+              <div className="relative">
+                <div className="absolute -top-20 -right-20 w-80 h-80 bg-blue-600/5 rounded-full blur-3xl"></div>
+                <div className="relative bg-white rounded-[2.5rem] p-10 border border-slate-100 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] overflow-hidden group/card">
+                  {globalLatestLoading ? (
+                    <div className="animate-pulse space-y-6">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-slate-50 rounded-2xl w-14 h-14"></div>
+                        <div className="space-y-3 flex-1">
+                          <div className="h-4 bg-slate-50 rounded w-1/3"></div>
+                          <div className="h-3 bg-slate-50 rounded w-2/3"></div>
+                        </div>
+                      </div>
+                      <div className="space-y-4 pt-4">
+                        <div className="h-3 bg-slate-50 rounded w-full"></div>
+                        <div className="h-3 bg-slate-50 rounded w-full"></div>
+                        <div className="h-3 bg-slate-50 rounded w-3/4"></div>
+                      </div>
+                    </div>
+                  ) : globalLatestPaper ? (
+                    <>
+                      <div className="flex items-center justify-between mb-8">
+                        <div className="flex items-center gap-4">
+                          <div className="p-3.5 bg-blue-600 text-white rounded-2xl shadow-lg shadow-blue-100">
+                            <Sparkles size={24} />
+                          </div>
+                          <div>
+                            <div className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-1">Live Intelligence</div>
+                            <div className="text-xs font-bold text-slate-400">
+                              Latest in {unlockedPortalState === 'eng' ? 'Engineering' : unlockedPortalState === 'physics' ? 'Physics' : unlockedPortalState === 'math' ? 'Mathematics' : unlockedPortalState === 'social' ? 'Social Sci' : unlockedPortalState === 'chem' ? 'Chemical Sci' : unlockedPortalState === 'law' ? 'Law & Legal' : unlockedPortalState === 'pharma' ? 'Pharmacy' : 'GEB'}
+                            </div>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => fetchGlobalLatest(true)}
+                          disabled={globalLatestLoading}
+                          className="w-10 h-10 rounded-2xl border border-slate-100 flex items-center justify-center text-slate-300 hover:text-blue-600 hover:bg-blue-50/50 transition-all"
+                        >
+                          <RefreshCcw size={16} className={globalLatestLoading ? 'animate-spin' : ''} />
+                        </button>
+                      </div>
+                      
+                      <div className="space-y-6">
+                        <h4 className="text-xl font-black text-slate-900 leading-tight group-hover/card:text-blue-600 transition-colors line-clamp-2">
+                          {globalLatestPaper.title || 'System Synchronizing...'}
+                        </h4>
+                        
+                        <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
+                          <BookOpen size={14} className="text-blue-500" />
+                          <span className="text-[10px] font-black text-slate-600 truncate uppercase tracking-widest">{globalLatestPaper.journal || 'Global Research Database'}</span>
+                        </div>
+
+                        {globalLatestPaper.abstract && (
+                          <p className="text-sm text-slate-500 leading-relaxed line-clamp-2 font-medium">
+                            {globalLatestPaper.abstract}
+                          </p>
+                        )}
+                        
+                        {globalLatestPaper.pmid ? (
+                          <button 
+                            onClick={() => navigate(`/paper/${encodeURIComponent(globalLatestPaper.pmid)}`, { state: { article: globalLatestPaper } })}
+                            className="w-full py-4 bg-slate-900 hover:bg-blue-600 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl shadow-slate-200 flex items-center justify-center gap-3 group/btn"
+                          >
+                            Read Full Paper
+                            <ArrowUpRight size={16} className="group-hover/btn:translate-x-1 group-hover/btn:-translate-y-1 transition-transform" />
+                          </button>
+                        ) : (
+                          <div className="text-center py-4 border-2 border-dashed border-slate-100 rounded-2xl">
+                            <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest animate-pulse">Syncing Metadata...</span>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-20">
+                      <div className="mx-auto text-slate-100 mb-6 flex justify-center">
+                         <Activity size={48} />
+                      </div>
+                      <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Network Handshake Pending</p>
+                      <button onClick={fetchGlobalLatest} className="px-6 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-600 transition-all">Retry Synchronization</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Results Workspace */}
+      <main className="max-w-7xl mx-auto px-6 pb-40">
+        
+        {universalFallbackAlert && (
+          <div className="mb-8 p-5 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-purple-100 shrink-0">
+                <Sparkles size={20} className="text-purple-600" />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-slate-900 tracking-tight">No results found in your niche. Displaying results from the Universal Database.</h4>
+                <p className="text-xs font-bold text-purple-600/70 uppercase tracking-widest mt-1">Search optimized to: <span className="text-purple-700">{universalFallbackAlert}</span></p>
+              </div>
+            </div>
+            <button onClick={() => setUniversalFallbackAlert(null)} className="p-2.5 bg-white hover:bg-purple-100 text-purple-400 hover:text-purple-700 rounded-xl border border-purple-100 transition-all shadow-sm">
+              <X size={16} />
+            </button>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center justify-between gap-6 mb-12 border-b border-slate-200 pb-10">
+          <div className="flex items-center gap-4">
+            <h3 className="text-3xl font-black text-slate-900 tracking-tight">
+              {hasSearched ? 'Analysis Results' : 'Research Feed'}
+            </h3>
+            {hasSearched && !loading && articles.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="px-4 py-1.5 rounded-full bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest">
+                  {articles.length} Papers
+                </span>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
+                  Top {resultLimit} Analysis
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-4">
+            {hasSearched && !loading && articles.length > 0 && userTier === 'pro' && (
+              <>
+                <button 
+                  onClick={handleLitReviewClick}
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md shadow-orange-100/50"
+                >
+                  <Sparkles size={12} />
+                  Generate Lit Review
+                </button>
+                <button 
+                  onClick={handleGapAnalysisClick}
+                  className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[10px] font-black border border-slate-700 uppercase tracking-widest transition-all shadow-sm"
+                >
+                  <Sparkles size={12} className="text-amber-500" />
+                  Research Gap Analysis
+                </button>
+              </>
+            )}
+            <button 
+              onClick={handleForceRefreshClick}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white rounded-xl text-[10px] font-black border border-blue-100 uppercase tracking-widest transition-all shadow-sm"
+            >
+              <RefreshCcw size={12} className={loading ? "animate-spin" : ""} />
+              Refresh for latest data
+            </button>
+            <div className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-xl text-[10px] font-black border border-green-100 uppercase tracking-widest">
+              <Activity size={12} className="animate-pulse" />
+              Cached Session
+            </div>
+          </div>
+        </div>
+
+        <ArticleGrid 
+          articles={articles}
+          hasSearched={hasSearched}
+          clearFilters={clearFilters}
+          user={user}
+          userTier={userTier}
+          bookmarkCount={bookmarkCount}
+          fetchBookmarkCount={fetchBookmarkCount}
+          setShowAuthModal={setShowAuthModal}
+          loading={loading}
+          error={error}
+          searchPubMed={searchPubMed}
+          cancelSearch={cancelSearch}
+        />
+      </main>
+
+      {/* AI Assistant Elements */}
+      <AIChatWidget 
+        aiPromptVisible={aiPromptVisible}
+        setAiPromptVisible={setAiPromptVisible}
+        onSummarize={onSummarize}
+        aiChatOpen={aiChatOpen}
+        setAiChatOpen={setAiChatOpen}
+        aiWidgetMode={aiWidgetMode}
+        setAiWidgetMode={setAiWidgetMode}
+        aiThinking={aiThinking}
+        aiStep={aiStep}
+        aiProgress={aiProgress}
+        aiSummary={aiSummary}
+        isAiLimitReached={isAiLimitReached}
+        setIsAiLimitReached={setIsAiLimitReached}
+        userTier={userTier}
+        lastSearched={lastSearched}
+        chatHistory={chatHistory}
+        chatInput={chatInput}
+        setChatInput={setChatInput}
+        handleSendMessage={handleSendMessage}
+      />
+
+      {/* Literature Review Generation Overlay */}
+      <AnimatePresence>
+        {litReviewModalOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => !litReviewLoading && setLitReviewModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+            />
+            
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative w-full max-w-4xl bg-white rounded-[3rem] shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[85vh] z-10"
+            >
+              {/* Header */}
+              <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-amber-200">
+                    <Sparkles size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900 leading-none">{litReviewTitle}</h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Llama 3.1 PRO Synthesis</p>
+                  </div>
+                </div>
+                {!litReviewLoading && (
+                  <button 
+                    onClick={() => setLitReviewModalOpen(false)}
+                    className="w-10 h-10 rounded-xl hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                )}
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto p-10 min-h-[300px]">
+                {litReviewLoading ? (
+                  <div className="flex flex-col items-center justify-center py-20 space-y-8">
+                    <div className="relative w-20 h-20 flex items-center justify-center">
+                      <div className="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
+                      <motion.div 
+                        className="absolute inset-0 border-4 border-transparent border-t-amber-500 rounded-full"
+                        animate={{ rotate: 360 }}
+                        transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                      />
+                      <Sparkles size={28} className="text-amber-500 animate-pulse" />
+                    </div>
+                    <div className="text-center space-y-3">
+                      <p className="text-sm font-black text-slate-700 uppercase tracking-wider">{litReviewStep}</p>
+                      <div className="w-64 h-2 bg-slate-100 rounded-full overflow-hidden mx-auto">
+                        <motion.div 
+                          className="h-full bg-amber-500"
+                          initial={{ width: '0%' }}
+                          animate={{ width: `${litReviewProgress}%` }}
+                          transition={{ duration: 0.5 }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="prose prose-slate max-w-none">
+                    <div 
+                      className="font-serif text-slate-700 leading-relaxed text-sm space-y-6" 
+                      style={{ fontFamily: "'Merriweather', serif" }}
+                    >
+                      {formatMarkdown(litReviewContent)}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer Actions */}
+              {!litReviewLoading && (
+                <div className="p-8 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => {
+                        const formattedHTML = formatMarkdownToHTML(litReviewContent);
+                        exportToPDF(formattedHTML);
+                      }}
+                      className="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-blue-200 flex items-center gap-2"
+                    >
+                      <FileDown size={14} />
+                      Export to PDF
+                    </button>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(litReviewContent);
+                          alert('Literature review copied to clipboard!');
+                        } catch (err) {
+                          console.error(err);
+                        }
+                      }}
+                      className="px-6 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-black uppercase tracking-widest rounded-xl transition-all"
+                    >
+                      Copy Markdown
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setLitReviewModalOpen(false)}
+                    className="px-6 py-3.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all"
+                  >
+                    Close Review
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* PRO Upgrade Warning Modal */}
+      <ProUpgradeModal 
+        isOpen={proUnlockModalOpen} 
+        onClose={() => setProUnlockModalOpen(false)} 
+        navigate={navigate} 
+        reason={proModalReason} 
+      />
+
+      {/* STARTER Upgrade Warning Modal */}
+      <StarterUpgradeModal 
+        isOpen={starterUnlockModalOpen} 
+        onClose={() => setStarterUnlockModalOpen(false)} 
+        navigate={navigate} 
+      />
+
+      <Footer user={user} onAuthRequired={() => setShowAuthModal(true)} />
+      
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+      
+      {/* Expiry Toast */}
+      <AnimatePresence>
+        {showExpiryToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] border border-slate-700 flex items-center gap-4"
+          >
+            <div className="w-10 h-10 bg-red-500/20 rounded-xl flex items-center justify-center text-red-400">
+              <ShieldAlert size={20} />
+            </div>
+            <div>
+              <div className="text-sm font-black tracking-tight">Premium Session Ended</div>
+              <div className="text-xs font-medium text-slate-400">Reverting to your assigned Free portal.</div>
+            </div>
+            <button onClick={() => setShowExpiryToast(false)} className="ml-4 p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all">
+              <X size={16} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+export default ResearchPage;
+```
+
+**Key changes:**
+- Imports `getOrCreateDeviceId` from the new module
+- All 4 AI fetch call sites (`gap-analysis`, `literature-review`, `summarize-research`, `chat-with-research`) now use `getOrCreateDeviceId()` instead of `localStorage.getItem(...) || ''`
+- This ensures `X-Device-ID` is **never empty** — if localStorage is cleared, a fresh UUID is generated on the spot
+
+## Flow After Fix
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Email as Email Link
+    participant Supabase
+    participant App.jsx
+    participant deviceSync
+    participant Backend
+
+    User->>Email: Click confirmation link
+    Email->>Supabase: Verify token
+    Supabase->>App.jsx: onAuthStateChange(SIGNED_IN)
+    App.jsx->>deviceSync: ensureDeviceIsRegistered(userId)
+    deviceSync->>Supabase: SELECT from user_devices
+    alt Device not found & count < 2
+        deviceSync->>Supabase: INSERT into user_devices ✓
+    else count >= 2
+        deviceSync->>App.jsx: onDeviceLimitReached() → Toast
+    end
+    User->>Backend: AI Request + X-Device-ID (guaranteed)
+    Backend->>Backend: Check user_devices ✅ FOUND
+    Backend-->>User: 200 AI Response
+```
+
+## No Backend Changes Required
+
+The existing `rate_limiter.py` middleware ([check_ai_limit](file:///e:/Websites/NCBI/backend/middleware/rate_limiter.py#L207-L288)) already correctly validates device IDs. The fix is entirely frontend-side — we're ensuring the registration happens **before** the first AI call, not **only** during manual login.
+
+## Build Status
+
+✅ `vite build` — **0 errors**, all modules transformed successfully.

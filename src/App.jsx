@@ -7,7 +7,8 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './supabaseClient'
-import { Dna } from 'lucide-react'
+import { ensureDeviceIsRegistered } from './utils/deviceSync'
+import { Dna, AlertTriangle, X } from 'lucide-react'
 
 // Pages
 import Auth from './Auth'
@@ -36,6 +37,7 @@ function App() {
   const [isInitializing, setIsInitializing] = useState(true)
   const [liveUsersCount, setLiveUsersCount] = useState(1)
   const [totalMembersCount, setTotalMembersCount] = useState(12400) // Fallback
+  const [deviceLimitWarning, setDeviceLimitWarning] = useState(false)
 
   // ─── Fetch Total Members ───
   useEffect(() => {
@@ -146,6 +148,23 @@ function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (isMounted) setIsInitializing(true);
       fetchAndSetProfile(session?.user ?? null);
+
+      // ─── Silent Background Device Sync ───
+      // Triggers on SIGNED_IN (email confirm, password login) and INITIAL_SESSION
+      // to catch users who bypass Auth.jsx's manual device registration flow.
+      if (
+        (_event === 'SIGNED_IN' || _event === 'INITIAL_SESSION') &&
+        session?.user
+      ) {
+        ensureDeviceIsRegistered(
+          session.user.id,
+          () => {
+            if (isMounted) setDeviceLimitWarning(true);
+          }
+        ).catch((err) => {
+          console.warn('[App] Device sync failed silently:', err);
+        });
+      }
     });
 
     // Force re-fetch every 5 minutes
@@ -226,6 +245,29 @@ function App() {
   // ─── Routes ───
   return (
     <BrowserRouter>
+      {/* ─── Device Limit Warning Toast ─── */}
+      {deviceLimitWarning && (
+        <div className="fixed top-4 right-4 z-[9999] max-w-sm animate-in slide-in-from-right">
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 shadow-xl shadow-amber-100/50 flex items-start gap-3">
+            <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-bold text-amber-800 leading-snug">
+                Device limit reached (2/2).
+              </p>
+              <p className="text-xs font-medium text-amber-600 mt-1">
+                Manage your devices in{' '}
+                <a href="/profile" className="underline font-bold hover:text-amber-800 transition-colors">Profile</a>.
+              </p>
+            </div>
+            <button
+              onClick={() => setDeviceLimitWarning(false)}
+              className="text-amber-400 hover:text-amber-600 transition-colors shrink-0"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
       <Routes>
         <Route path="/" element={user && !user.email_confirmed_at ? <Navigate to="/verify-email" replace /> : <LandingPage liveUsersCount={liveUsersCount} totalMembersCount={totalMembersCount} user={user} profile={profile} onLogout={handleLogout} />} />
         
