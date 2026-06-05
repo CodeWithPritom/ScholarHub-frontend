@@ -26,6 +26,18 @@ By marrying cutting-edge semantic search algorithms with state-of-the-art open-s
 
 ---
 
+## 🌟 Academic Recognition & Feedback
+
+ScholarHub AI has been reviewed by **Prof. Dr. Ahmed Wasif Reza** (Dean, Faculty of Sciences and Engineering, East West University).
+
+**The Recognition:**
+> "The platform looks very promising... I am truly happy to see your progress and would like to congratulate you on this impressive achievement. Your dedication and innovation are clearly reflected in the platform."
+
+**The Strategic Roadmap:**
+Following the Dean's valuable feedback, we are currently analyzing the service gaps in platforms like ResearchGate and Research Square to make ScholarHub AI even more impactful for the global academic community.
+
+---
+
 ## Architecture Visualization
 
 <img width="1672" height="941" alt="architecture" src="https://github.com/user-attachments/assets/d0ae9de7-d7ab-4b03-b772-4003b7e558d2" />
