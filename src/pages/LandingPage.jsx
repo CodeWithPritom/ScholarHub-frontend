@@ -354,7 +354,8 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
                 The platform looks very promising... I am truly happy to see your progress and would like to congratulate you on this impressive achievement. Your dedication and innovation are clearly reflected in the platform.
               </p>
             </div>
-            <div className="flex items-center gap-4 mt-8 pt-6 border-t border-slate-100">
+            <div className="flex items-center gap-5 mt-8 pt-6 border-t border-slate-100">
+              <img src="/dean.jpg" alt="Prof. Dr. Ahmed Wasif Reza" className="w-16 h-16 rounded-full object-cover border-2 border-slate-200 shadow-sm shrink-0" />
               <div>
                 <h4 className="font-black text-slate-900 text-lg">Prof. Dr. Ahmed Wasif Reza</h4>
                 <p className="text-sm font-medium text-slate-500">Dean, Faculty of Sciences and Engineering, East West University</p>
