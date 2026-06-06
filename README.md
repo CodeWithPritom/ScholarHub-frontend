@@ -243,6 +243,39 @@ sequenceDiagram
     Backend-->>User: Formatted Unified Results
 ```
 
+---
+
+## 🛡️ Zero-Downtime Client-Side Fallback Architecture
+
+To guarantee absolute reliability, we engineered a global API interceptor directly into the React client. It actively monitors the health of the primary cloud backend (Render) and seamlessly reroutes traffic to a localized backup server (Tailscale VPN) in the event of a catastrophic failure—completely invisible to the user.
+
+```mermaid
+sequenceDiagram
+    participant ReactClient as React Frontend
+    participant Interceptor as window.fetch Interceptor
+    participant Primary as Primary Cloud Server (Render)
+    participant Backup as Backup VPN Server (Tailscale)
+
+    ReactClient->>Interceptor: fetch('/api/search')
+    Interceptor->>Primary: Forwards Request
+    
+    alt Primary Server Online
+        Primary-->>Interceptor: 200 OK (Data)
+        Interceptor-->>ReactClient: Returns Data
+    else Primary Server Crashes (502/503/504 or Timeout)
+        Primary--XInterceptor: 502 Bad Gateway
+        Note over Interceptor: Catches 5xx Error.<br/>Rewrites URL on the fly.
+        Interceptor->>Backup: Retries Request on Backup Server
+        Backup-->>Interceptor: 200 OK (Data)
+        Interceptor-->>ReactClient: Returns Data (Invisible to User)
+    end
+```
+
+### How It Works:
+- **Global Override:** By overriding the native `window.fetch` API at initialization (`utils/api.js`), we ensure that *every single* backend call across the entire app is protected without needing to refactor individual components.
+- **Smart Filtering:** The interceptor explicitly verifies that the outgoing request is targeting our primary domain before attempting a retry, ensuring that third-party services (like Supabase Auth or Cloudflare Turnstile) are never accidentally rewritten.
+- **Fail-Safe UX:** Users never see a "Server Offline" or "502 Bad Gateway" message. They experience a slight delay while the system falls back, but the research data is delivered successfully.
+
 ### The 8 Specialized Portals
 The system actively routes queries to optimized endpoints based on the selected portal:
 - **GEB (Genetic Eng. & Biotech)** → NCBI PubMed
