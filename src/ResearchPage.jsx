@@ -1347,7 +1347,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
             </div>
             
             {/* Global Latest Research Card */}
-            <div className="lg:col-span-2 hidden lg:block">
+            <div className="lg:col-span-2 w-full mt-10 lg:mt-0">
               <div className="relative">
                 <div className="absolute -top-20 -right-20 w-80 h-80 bg-blue-600/5 rounded-full blur-3xl"></div>
                 <div className="relative bg-white rounded-[2.5rem] p-10 border border-slate-100 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] overflow-hidden group/card">
@@ -1456,8 +1456,8 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
           </div>
         )}
 
-        <div className="flex flex-wrap items-center justify-between gap-6 mb-12 border-b border-slate-200 pb-10">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-4">
+          <div className="flex items-center gap-4 flex-wrap justify-center md:justify-start">
             <h3 className="text-3xl font-black text-slate-900 tracking-tight">
               {hasSearched ? 'Analysis Results' : 'Research Feed'}
             </h3>
@@ -1473,25 +1473,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
             )}
           </div>
 
-          <div className="flex items-center gap-4">
-            {hasSearched && !loading && articles.length > 0 && userTier === 'pro' && (
-              <>
-                <button 
-                  onClick={handleLitReviewClick}
-                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md shadow-orange-100/50"
-                >
-                  <Sparkles size={12} />
-                  Generate Lit Review
-                </button>
-                <button 
-                  onClick={handleGapAnalysisClick}
-                  className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[10px] font-black border border-slate-700 uppercase tracking-widest transition-all shadow-sm"
-                >
-                  <Sparkles size={12} className="text-amber-500" />
-                  Research Gap Analysis
-                </button>
-              </>
-            )}
+          <div className="flex items-center justify-center gap-4 flex-wrap">
             <button 
               onClick={handleForceRefreshClick}
               className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white rounded-xl text-[10px] font-black border border-blue-100 uppercase tracking-widest transition-all shadow-sm"
@@ -1505,6 +1487,25 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
             </div>
           </div>
         </div>
+
+        {hasSearched && !loading && articles.length > 0 && userTier === 'pro' && (
+          <div className="flex flex-col sm:flex-row gap-3 justify-center items-center my-6">
+            <button 
+              onClick={handleLitReviewClick}
+              className="w-full sm:w-auto flex justify-center items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all shadow-md shadow-orange-100/50"
+            >
+              <Sparkles size={14} />
+              Generate Lit Review
+            </button>
+            <button 
+              onClick={handleGapAnalysisClick}
+              className="w-full sm:w-auto flex justify-center items-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[10px] sm:text-xs font-black border border-slate-700 uppercase tracking-widest transition-all shadow-sm"
+            >
+              <Sparkles size={14} className="text-amber-500" />
+              Research Gap Analysis
+            </button>
+          </div>
+        )}
 
         <ArticleGrid 
           articles={articles}
@@ -1548,7 +1549,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       {/* Literature Review Generation Overlay */}
       <AnimatePresence>
         {litReviewModalOpen && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
+          <div className="fixed inset-0 z-[90] pt-20 md:pt-24 flex items-center justify-center p-6">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

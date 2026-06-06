@@ -37,7 +37,7 @@ const Navbar = ({ user, profile, liveUsersCount, onLogout, transparent = false }
   return (
     <>
       <header 
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 ${
           isScrolled || !transparent || mobileMenuOpen
             ? 'bg-white/80 backdrop-blur-xl shadow-sm border-b border-slate-200 py-3' 
             : 'bg-transparent py-4 md:py-6'

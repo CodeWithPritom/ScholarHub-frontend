@@ -76,7 +76,7 @@ const AIChatWidget = ({
             initial={{ y: 100, opacity: 0, scale: 0.8 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 100, opacity: 0, scale: 0.8 }}
-            className="fixed bottom-0 left-0 right-0 md:bottom-10 md:left-auto md:right-10 z-[100] w-full md:w-[340px] px-4 md:px-0 pb-4 md:pb-0"
+            className="fixed bottom-0 left-0 right-0 md:bottom-10 md:left-auto md:right-10 z-[90] w-full md:w-[340px] px-4 md:px-0 pb-4 md:pb-0"
           >
             <div className="bg-white p-8 rounded-[2.5rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.15)] border border-blue-50 relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -124,14 +124,14 @@ const AIChatWidget = ({
             }}
             transition={{ type: 'spring', damping: 20, stiffness: 100 }}
             exit={{ y: 100, opacity: 0 }}
-            className={`fixed inset-x-0 bottom-0 md:bottom-10 md:left-auto md:right-10 z-[101] bg-white shadow-[0_48px_96px_-16px_rgba(0,0,0,0.25)] md:border border-slate-100 overflow-hidden flex flex-col w-full ${
+            className={`fixed inset-x-0 bottom-0 md:bottom-10 md:left-auto md:right-10 z-[90] bg-white shadow-[0_48px_96px_-16px_rgba(0,0,0,0.25)] md:border border-slate-100 overflow-hidden flex flex-col w-full ${
               aiWidgetMode === 'maximized' 
                 ? 'md:w-[min(1200px,90vw)] rounded-t-[2.5rem] md:rounded-[3rem] h-[100dvh] md:h-auto' 
                 : aiWidgetMode === 'minimized'
                 ? 'md:w-[300px] rounded-t-[2rem] md:rounded-[2.5rem]'
                 : 'md:w-[450px] rounded-t-[2rem] md:rounded-[2.5rem] h-[85dvh] md:h-auto'
             }`}
-            style={{ maxHeight: aiWidgetMode === 'maximized' ? '100dvh' : aiWidgetMode === 'minimized' ? '70px' : '85dvh' }}
+            style={{ maxHeight: aiWidgetMode === 'maximized' ? 'calc(100dvh - 80px)' : aiWidgetMode === 'minimized' ? '70px' : 'calc(85dvh - 80px)' }}
           >
             {/* Chat Header */}
             <div className={`p-6 bg-slate-900 text-white flex items-center justify-between transition-all ${aiWidgetMode === 'minimized' ? 'h-full' : ''}`}>

@@ -56,7 +56,7 @@ const SearchBar = ({
       {/* Portal Selector */}
       <div className="w-full mb-8 relative">
         {userTier !== 'pro' ? (
-          <div className="flex overflow-x-auto whitespace-nowrap scrollbar-hide gap-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="flex flex-wrap justify-center gap-2 pb-2">
             <div className={`inline-flex items-center gap-2 px-4 py-2.5 border rounded-2xl shadow-sm ${getPortalTheme(portal).bg} ${getPortalTheme(portal).border}`}>
               <span className="text-sm">
                 {getPortalDetails(portal).icon}
@@ -121,7 +121,7 @@ const SearchBar = ({
             </div>
 
             {/* Mobile Swipeable List */}
-            <div className="md:hidden flex overflow-x-auto whitespace-nowrap scrollbar-hide gap-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="md:hidden flex flex-wrap justify-center gap-2 pb-2">
               {['geb', 'pharma', 'eng', 'physics', 'math', 'social', 'law', 'chem'].map(pId => {
                 const details = getPortalDetails(pId);
                 const theme = getPortalTheme(pId);
@@ -147,7 +147,7 @@ const SearchBar = ({
       </div>
 
       {/* Search Console */}
-      <div className="w-full" ref={suggestionsRef}>
+      <div className="w-full min-h-[140px] md:min-h-[100px] relative" ref={suggestionsRef}>
         <form onSubmit={(e) => { searchPubMed(e); setShowSuggestions(false); }} className="relative group mb-4">
           <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
             <Search size={22} />
@@ -162,20 +162,20 @@ const SearchBar = ({
             disabled={loading}
             autoComplete="off"
           />
-          <div className="relative md:absolute md:right-2 md:inset-y-0 mt-3 md:mt-0 flex flex-col md:flex-row items-stretch md:items-center gap-2 w-full md:w-auto">
+          <div className="relative md:absolute md:right-2 md:inset-y-0 mt-3 md:mt-0 flex flex-row items-stretch md:items-center gap-2 w-full md:w-auto">
             <button
               type="button"
               onClick={handleAiRefine}
               disabled={isRefining || !searchTerm.trim() || loading}
               title="Optimize query with AI"
-              className="w-full md:w-auto p-4 md:p-3 text-amber-500 hover:text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-2xl transition-all shadow-sm border border-amber-100 disabled:opacity-50 flex items-center justify-center"
+              className="w-auto md:w-auto px-4 py-4 md:p-3 shrink-0 text-amber-500 hover:text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-2xl transition-all shadow-sm border border-amber-100 disabled:opacity-50 flex items-center justify-center"
             >
               <Sparkles size={18} className={isRefining ? "animate-pulse" : ""} />
             </button>
             <select 
               value={resultLimit}
               onChange={(e) => setResultLimit(Number(e.target.value))}
-              className="w-full md:w-auto appearance-none bg-slate-50 border border-slate-100 text-slate-600 text-xs font-black px-4 py-4 md:py-3 rounded-2xl outline-none hover:border-blue-200 transition-colors cursor-pointer"
+              className="flex-1 md:w-auto appearance-none bg-slate-50 border border-slate-100 text-slate-600 text-xs font-black px-3 py-4 md:py-3 rounded-2xl outline-none hover:border-blue-200 transition-colors cursor-pointer"
             >
               <option value="10">10</option>
               <option value="20">20</option>
@@ -189,7 +189,7 @@ const SearchBar = ({
             <button 
               type="submit"
               disabled={loading || !searchTerm.trim() || isSearchBlocked}
-              className="w-full md:w-auto px-6 py-4 md:py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-black rounded-2xl transition-all shadow-lg shadow-blue-300 disabled:opacity-50 flex items-center gap-2 min-w-[100px] justify-center"
+              className="flex-[2] md:flex-none md:w-auto px-4 py-4 md:py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-black rounded-2xl transition-all shadow-lg shadow-blue-300 disabled:opacity-50 flex items-center gap-2 justify-center shrink-0"
             >
               {loading ? (
                 <Loader2 size={18} className="animate-spin" />
