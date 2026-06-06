@@ -113,16 +113,16 @@ Processing highly complex academic texts via LLMs easily risks triggering HTTP 4
 
 ```mermaid
 flowchart LR
-    Frontend[User Requests Summary] --> Backend[FastAPI AI Router]
-    Backend --> Extractor[Extract Abstract Text from Top 15 Papers]
-    Extractor --> CharLimit{Total Length > 15,000 chars?}
-    CharLimit -- Yes --> Truncate[Truncate to 15,000 chars<br>Append '[Content truncated]']
-    CharLimit -- No --> BuildPrompt[Build System & User Prompts]
+    Frontend["User Requests Summary"] --> Backend["FastAPI AI Router"]
+    Backend --> Extractor["Extract Abstract Text from Top 15 Papers"]
+    Extractor --> CharLimit{"Total Length > 15,000 chars?"}
+    CharLimit -- Yes --> Truncate["Truncate to 15,000 chars<br>(Content truncated)"]
+    CharLimit -- No --> BuildPrompt["Build System & User Prompts"]
     Truncate --> BuildPrompt
-    BuildPrompt --> Groq[Groq LPU Engine at 800 tokens/sec]
-    Groq -- Success --> Response[Format AI Sections: Synthesis & Gaps]
-    Groq -- Rate Limit / Error --> Intercept[Frontend Interceptor Catches Error]
-    Intercept --> UIMessage[Display Friendly Optimization Message]
+    BuildPrompt --> Groq["Groq LPU Engine at 800 tokens/sec"]
+    Groq -- Success --> Response["Format AI Sections: Synthesis & Gaps"]
+    Groq -- Rate Limit / Error --> Intercept["Frontend Interceptor Catches Error"]
+    Intercept --> UIMessage["Display Friendly Optimization Message"]
 ```
 
 By safely capping the total string payload to 15,000 characters (approximately 3,500 - 4,000 tokens), the system strictly obeys the 6,000 TPM limit set by our LLM provider, guaranteeing stability even for high-volume PRO users.
