@@ -13,7 +13,7 @@
 
 import { supabase } from '../supabaseClient';
 
-export const PRIMARY_URL = 'https://scholarhub-backend-jjt3.onrender.com';
+export const PRIMARY_URL = 'https://fake-scholarhub-backend-jjt3.onrender.com';
 export const BACKUP_URL = 'https://arup-vivobook-asuslaptop-x509dj-d509dj.taila8249c.ts.net';
 export const BASE_URL = import.meta.env.VITE_API_URL || PRIMARY_URL;
 
