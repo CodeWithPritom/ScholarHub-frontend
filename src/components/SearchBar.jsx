@@ -54,7 +54,7 @@ const SearchBar = ({
   return (
     <>
       {/* Portal Selector */}
-      <div className="w-full mb-8 relative">
+      <div className="w-full mb-8 relative z-[100]">
         {userTier !== 'pro' ? (
           <div className="flex overflow-x-auto whitespace-nowrap scrollbar-hide gap-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
             <div className={`inline-flex items-center gap-2 px-4 py-2.5 border rounded-2xl shadow-sm ${getPortalTheme(portal).bg} ${getPortalTheme(portal).border}`}>
@@ -89,7 +89,7 @@ const SearchBar = ({
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className="absolute left-0 mt-2 w-56 rounded-2xl bg-white shadow-2xl border border-slate-100 z-50 overflow-hidden"
+                    className="absolute left-0 mt-2 w-56 rounded-2xl bg-white shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-slate-200 z-[100] max-h-[350px] overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full"
                   >
                     <div className="p-2 space-y-1">
                       {['geb', 'pharma', 'eng', 'physics', 'math', 'social', 'law', 'chem'].map(pId => {
