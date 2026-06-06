@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="frontend/src/assets/images/logo.png" alt="ScholarHub AI Logo" width="150"/>
+  <img width="256" height="256" alt="Untitled design (4)" src="https://github.com/user-attachments/assets/2b25eb61-0c7f-487c-8418-297848007e7c" />
 
   <h1>ScholarHub AI</h1>
   <p><em>The Enterprise-Grade, AI-Powered Discovery Hub for Global Researchers.</em></p>
