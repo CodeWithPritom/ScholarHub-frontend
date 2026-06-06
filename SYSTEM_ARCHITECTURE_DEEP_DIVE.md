@@ -129,7 +129,27 @@ By safely capping the total string payload to 15,000 characters (approximately 3
 
 ---
 
-## 5. Security & SaaS Integrity Fortress
+## 5. EMo: The Intelligent Support Assistant
+
+ScholarHub AI features **EMo**, a dedicated, highly context-aware AI support bot designed to assist users with platform navigation, subscription tiers, and troubleshooting.
+
+```mermaid
+flowchart TD
+    Widget["EMo Floating Widget (React)"] -->|"User Question"| SupportRouter["Dedicated Support Router<br>(/api/support/chat)"]
+    SupportRouter --> ContextInjector["Inject Platform-Specific Context<br>(How to use, Tiers, Troubleshooting)"]
+    ContextInjector --> Groq["Groq LPU Engine<br>(Llama 3.1)"]
+    Groq --> Response["Format Polite Support Answer"]
+    Response --> Widget
+```
+
+### Architectural Distinction: EMo vs. Research AI
+While both AI assistants are powered by the same underlying Llama 3.1 infrastructure, their grounding methodologies are strictly separated:
+- **The Research AI** (`/ai/summarize-research`) is dynamically grounded **only** in the academic papers retrieved during the user's current search session. It acts as an objective, academic scientist and refuses to answer questions outside of the provided literature.
+- **EMo Support Bot** (`/api/support/chat`) is statically grounded in **platform documentation**. It is injected with a persistent system prompt detailing ScholarHub's portal logic, SaaS pricing models, error codes (like 413 or 502), and UI features. EMo acts as a friendly, empathetic customer success agent guiding the user through the application.
+
+---
+
+## 6. Security & SaaS Integrity Fortress
 
 Security is woven into the foundation of the platform to protect API endpoints and subscription revenue.
 
@@ -152,7 +172,7 @@ flowchart TD
 
 ---
 
-## 6. Database Schema Entity-Relationship (ER) Diagram
+## 7. Database Schema Entity-Relationship (ER) Diagram
 
 The architecture relies heavily on strict relational integrity and foreign key cascading within Supabase.
 
@@ -192,7 +212,7 @@ erDiagram
 
 ---
 
-## 7. Future Roadmap
+## 8. Future Roadmap
 
 Our infrastructure is highly modular, enabling rapid integration of complex future technologies.
 
