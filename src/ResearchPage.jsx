@@ -1296,7 +1296,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       </AnimatePresence>
 
       {/* Search Engine Section */}
-      <section className={`${announcement ? 'pt-16' : 'pt-32'} pb-16 px-6 relative overflow-hidden`}>
+      <section className={`${announcement ? 'pt-16' : 'pt-32'} pb-16 px-6 relative z-[60]`}>
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black bg-blue-50 text-blue-600 mb-4 uppercase tracking-widest shadow-sm border border-blue-100">
