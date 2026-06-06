@@ -89,7 +89,7 @@ const SearchBar = ({
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className="absolute left-0 mt-2 w-56 rounded-2xl bg-white shadow-2xl border border-slate-100 z-50 overflow-hidden"
+                    className="absolute left-0 mt-2 w-56 rounded-2xl bg-white shadow-2xl shadow-slate-200 border border-slate-200 z-[100] overflow-y-auto max-h-80 scrollbar-hide"
                   >
                     <div className="p-2 space-y-1">
                       {['geb', 'pharma', 'eng', 'physics', 'math', 'social', 'law', 'chem'].map(pId => {
