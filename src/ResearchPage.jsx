@@ -479,6 +479,8 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       console.error(err);
       if (err.name === 'AbortError') {
         setLitReviewContent('Error: The AI analysis took too long (over 90 seconds). Please try again with fewer articles or later.');
+      } else if (err.message?.toLowerCase().includes('rate limit') || err.message?.toLowerCase().includes('token') || err.message?.includes('413')) {
+        setLitReviewContent('The selected research papers contain too much data. Please try again, and our system will auto-optimize the content.');
       } else {
         setLitReviewContent('Error: ' + err.message);
       }
@@ -566,6 +568,8 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       console.error(err);
       if (err.name === 'AbortError') {
         setLitReviewContent('Error: Synthesis is taking longer than expected. Please try with fewer papers or check your connection.');
+      } else if (err.message?.toLowerCase().includes('rate limit') || err.message?.toLowerCase().includes('token') || err.message?.includes('413')) {
+        setLitReviewContent('The selected research papers contain too much data. Please try again, and our system will auto-optimize the content.');
       } else {
         setLitReviewContent('Error: ' + err.message);
       }
@@ -858,8 +862,11 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       console.error(err);
       setAiStep('Synthesis Failed');
       const isTimeout = err.name === 'AbortError' || err.message?.includes('aborted');
+      const isRateLimit = err.message?.toLowerCase().includes('rate limit') || err.message?.toLowerCase().includes('token') || err.message?.includes('413');
       const errorMsg = isTimeout 
         ? "The AI is experiencing heavy load and timed out. Please try again." 
+        : isRateLimit
+        ? "The selected research papers contain too much data. Please try again, and our system will auto-optimize the content."
         : "We encountered an error while synthesizing the research data. Please try again.";
       setAiSummary(errorMsg);
     } finally {
@@ -933,8 +940,11 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
     } catch (err) {
       console.error(err);
       const isTimeout = err.name === 'AbortError' || err.message?.includes('aborted');
+      const isRateLimit = err.message?.toLowerCase().includes('rate limit') || err.message?.toLowerCase().includes('token') || err.message?.includes('413');
       const errorMsg = isTimeout 
         ? "The AI is experiencing heavy load and timed out. Please try again."
+        : isRateLimit
+        ? "The selected research papers contain too much data. Please try again, and our system will auto-optimize the content."
         : (err.message || 'Connection to AI server lost. Please try again.');
       setChatHistory(prev => [...prev, { role: 'assistant', content: errorMsg }]);
     } finally {

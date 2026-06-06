@@ -13,7 +13,47 @@
 
 import { supabase } from '../supabaseClient';
 
-export const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+export const PRIMARY_URL = 'https://fake-scholarhub-backend-jjt3.onrender.com';
+export const BACKUP_URL = 'https://arup-vivobook-asuslaptop-x509dj-d509dj.taila8249c.ts.net';
+export const BASE_URL = import.meta.env.VITE_API_URL || PRIMARY_URL;
+
+// ─── Auto-Fallback Fetch Interceptor ───
+// Overrides the native window.fetch to provide seamless failover
+const originalFetch = window.fetch;
+window.fetch = async function(resource, config) {
+  let urlStr = typeof resource === 'string' ? resource : (resource instanceof Request ? resource.url : String(resource));
+  
+  try {
+    const res = await originalFetch(resource, config);
+    // If the primary server is down (502, 503, 504), throw an error to trigger the catch block fallback
+    if (res && (res.status === 502 || res.status === 503 || res.status === 504)) {
+      throw new Error(`Server Error: ${res.status}`);
+    }
+    return res;
+  } catch (error) {
+    // Only attempt fallback if the request was targeting our backend
+    if (urlStr && (urlStr.startsWith(PRIMARY_URL) || urlStr.startsWith(BASE_URL))) {
+      console.warn(`[Auto-Fallback] Connection to Primary API failed. Retrying on Backup API...`);
+      
+      let newUrlStr = urlStr.replace(PRIMARY_URL, BACKUP_URL);
+      if (urlStr.startsWith(BASE_URL) && BASE_URL !== PRIMARY_URL) {
+        newUrlStr = urlStr.replace(BASE_URL, BACKUP_URL);
+      }
+
+      let newResource = resource;
+      if (typeof resource === 'string') {
+        newResource = newUrlStr;
+      } else if (resource instanceof Request) {
+        newResource = new Request(newUrlStr, resource);
+      }
+
+      // Return the backup fetch promise, executing seamlessly
+      return await originalFetch(newResource, config);
+    }
+    // Not a backend request or another error, throw normally
+    throw error;
+  }
+};
 
 /**
  * Custom event name for 402 session expiry.
