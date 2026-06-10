@@ -397,7 +397,7 @@ function App() {
         <Route path="/pricing" element={<Pricing user={user} />} />
         <Route path="/admin" element={<AdminPanel user={user} profile={profile} liveUsersCount={liveUsersCount} />} />
         <Route path="/profile" element={<ProtectedRoute><Profile user={user} /></ProtectedRoute>} />
-        <Route path="/paper/*" element={<PaperDetail />} />
+        <Route path="/paper/*" element={<PaperDetail user={user} profile={profile} />} />
         <Route path="/ai-report" element={<AIReport />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsOfService />} />

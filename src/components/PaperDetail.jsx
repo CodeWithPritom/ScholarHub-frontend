@@ -6,13 +6,14 @@ import { BASE_URL } from '../utils/api'
 import CopyButton from './CopyButton'
 import CitationModal from './CitationModal'
 import Footer from '../Footer'
+import { supabase } from '../supabaseClient'
 import {
   ArrowLeft, ExternalLink, ArrowUpRight, Quote,
   Tag, Globe, BookOpen, Calendar, Users, Activity,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, Lock, Mail, Search, Sparkles, Copy, Check
 } from 'lucide-react'
 
-const PaperDetail = () => {
+const PaperDetail = ({ user, profile }) => {
   const params = useParams()
   const pmid = params['*'] || params.pmid
   const location = useLocation()
@@ -25,6 +26,63 @@ const PaperDetail = () => {
   const [copied, setCopied] = useState(false)
   const [citationOpen, setCitationOpen] = useState(false)
   const [showAllAuthors, setShowAllAuthors] = useState(false)
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [upgradeModalMessage, setUpgradeModalMessage] = useState('')
+
+  const [outreachEmail, setOutreachEmail] = useState('')
+  const [generatingOutreach, setGeneratingOutreach] = useState(false)
+  const [outreachError, setOutreachError] = useState('')
+  const [outreachCopied, setOutreachCopied] = useState(false)
+
+  // Immediate Unlock: Map the user's tier instantly from the App level profile
+  const userTier = profile?.user_tier?.toLowerCase() || profile?.tier?.toLowerCase() || 'free'
+
+  const handleGenerateOutreach = async () => {
+    if (userTier === 'free') {
+      setUpgradeModalMessage('Generic emails get ignored by professors. Use our AI Outreach Architect to write personalized, high-conversion emails based on this paper’s specific methodology. Available for Starter and Pro members.')
+      setShowUpgradeModal(true)
+      return
+    }
+    
+    setGeneratingOutreach(true)
+    setOutreachError('')
+    
+    try {
+      const deviceId = localStorage.getItem('scholarhub_device_id');
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData?.session?.access_token
+      
+      if (!token) throw new Error("Authentication required. Please log in.")
+      if (!deviceId) throw new Error("Device ID missing. Please refresh the page or register your device.")
+      
+      const res = await fetch(`${BASE_URL}/ai/generate-outreach`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'X-Device-ID': deviceId || ''
+        },
+        body: JSON.stringify({
+          paper_title: article.title,
+          abstract: article.abstract || '',
+          author_name: article.full_authors?.[0] || article.authors?.split(',')[0] || 'Author'
+        })
+      })
+      
+      if (!res.ok) {
+        const errData = await res.json()
+        throw new Error(errData.detail || 'Failed to generate outreach')
+      }
+      
+      const data = await res.json()
+      setOutreachEmail(data.output)
+      
+    } catch (err) {
+      setOutreachError(err.message)
+    } finally {
+      setGeneratingOutreach(false)
+    }
+  }
 
   const handleCopyCitation = async () => {
     if (!article) return
@@ -133,9 +191,41 @@ const PaperDetail = () => {
 
   if (!article) return null
 
+  console.log('Article Data:', article)
+
   return (
     <div className="min-h-screen bg-white selection:bg-blue-100 selection:text-blue-700 font-sans">
       <CitationModal article={article} isOpen={citationOpen} onClose={() => setCitationOpen(false)} />
+
+      {/* Mentorship Upgrade Modal */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowUpgradeModal(false)} />
+          <div className="relative bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center border border-slate-100">
+            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-blue-100">
+              <Users size={32} />
+            </div>
+            <h3 className="text-2xl font-black text-slate-900 tracking-tight mb-3">Mentorship Network</h3>
+            <p className="text-sm font-medium text-slate-500 leading-relaxed mb-8">
+              {upgradeModalMessage || "Mentorship & Direct Contact features are reserved for Starter and Pro members. Upgrade your plan to connect with global researchers."}
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowUpgradeModal(false)}
+                className="flex-1 py-3 px-4 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold rounded-xl text-sm transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => navigate('/pricing')}
+                className="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest rounded-xl text-xs transition-colors shadow-lg shadow-blue-500/30"
+              >
+                Upgrade Plan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Top Bar (Sticky Header) */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-100 shadow-sm">
@@ -308,6 +398,122 @@ const PaperDetail = () => {
                     )
                   })()}
                 </div>
+              </div>
+
+              {/* AI Outreach Architect */}
+              <div className="pt-4 border-t border-slate-200/60 pb-2">
+                <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <Sparkles size={12} className="text-indigo-400" /> AI Outreach Architect
+                </h5>
+                
+                {!outreachEmail ? (
+                  <button
+                    onClick={handleGenerateOutreach}
+                    disabled={generatingOutreach}
+                    className="w-full relative group overflow-hidden rounded-xl p-[1px] transition-all hover:scale-[1.01]"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 via-purple-500 to-violet-500 rounded-xl opacity-80 group-hover:opacity-100 transition-opacity" />
+                    <div className="relative bg-white/10 backdrop-blur-sm px-4 py-3 rounded-xl flex items-center justify-center gap-2 text-white text-xs font-bold shadow-lg">
+                      {generatingOutreach ? (
+                        <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Drafting Email...</>
+                      ) : (
+                        <><Sparkles size={14} /> Generate High-Impact Outreach Email</>
+                      )}
+                    </div>
+                  </button>
+                ) : (
+                  <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 mt-2">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Drafted Message</span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(outreachEmail)
+                          setOutreachCopied(true)
+                          setTimeout(() => setOutreachCopied(false), 2000)
+                        }}
+                        className="text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-100/50 hover:bg-indigo-200/50 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+                      >
+                        {outreachCopied ? <Check size={14} /> : <Copy size={14} />} 
+                        {outreachCopied ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
+                    <div className="text-xs text-slate-700 whitespace-pre-wrap font-medium leading-relaxed bg-white p-3 rounded-lg border border-indigo-50/50 max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-indigo-200">
+                      {outreachEmail}
+                    </div>
+                  </div>
+                )}
+                {outreachError && (
+                  <p className="text-xs font-medium text-red-500 mt-2 text-center">{outreachError}</p>
+                )}
+              </div>
+
+              {/* Mentorship & Contact */}
+              <div className="pt-4 border-t border-slate-200/60">
+                <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  🎓 Research Mentorship & Contact
+                </h5>
+                <div 
+                  className="space-y-2 relative"
+                  onClick={() => {
+                    if (userTier === 'free') {
+                      setUpgradeModalMessage("Mentorship & Direct Contact features are reserved for Starter and Pro members. Upgrade your plan to connect with global researchers.")
+                      setShowUpgradeModal(true)
+                    }
+                  }}
+                >
+                  <button 
+                    disabled={userTier === 'free'}
+                    onClick={() => {
+                      if (userTier !== 'free') {
+                        if (article.corresponding_email) {
+                          window.location.href = `mailto:${article.corresponding_email}`
+                        } else {
+                          const authorQuery = article.full_authors?.[0] || article.authors?.split(',')[0] || ''
+                          window.open(`https://google.com/search?q=${encodeURIComponent(authorQuery + ' university email contact')}`, '_blank')
+                        }
+                      }
+                    }}
+                    className={`w-full flex items-center justify-center gap-2 py-3 md:py-2.5 rounded-xl text-xs font-bold transition-all ${
+                      userTier === 'free' 
+                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed blur-[2px]' 
+                        : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
+                    }`}
+                  >
+                    {userTier === 'free' ? (
+                      <><Lock size={14} /> Contact Professor</>
+                    ) : article.corresponding_email ? (
+                      <><Mail size={14} /> Contact Professor</>
+                    ) : (
+                      <><Search size={14} /> Find Professor on Google</>
+                    )}
+                  </button>
+                  <button 
+                    disabled={userTier === 'free'}
+                    onClick={() => {
+                      if (userTier !== 'free' && article.author_orcid) {
+                        window.open(`https://orcid.org/${article.author_orcid}`, '_blank')
+                      }
+                    }}
+                    className={`w-full flex items-center justify-center gap-2 py-3 md:py-2.5 rounded-xl text-xs font-bold transition-all ${
+                      userTier === 'free' 
+                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed blur-[2px]' 
+                        : (!article.author_orcid ? 'hidden' : 'bg-slate-800 hover:bg-slate-900 text-white shadow-sm')
+                    }`}
+                  >
+                    {userTier === 'free' ? (
+                      <><Lock size={14} /> View Detailed Profile</>
+                    ) : (
+                      <><Globe size={14} /> View Detailed Profile (ORCID)</>
+                    )}
+                  </button>
+                  
+                  {userTier === 'free' && (
+                    <div className="absolute inset-0 z-10 cursor-pointer" />
+                  )}
+                </div>
+                <p className="text-[9px] font-medium text-slate-400 mt-3 text-center px-2">
+                  Emails are extracted from publicly available metadata in the original publication.
+                </p>
               </div>
 
               {/* Identifiers */}

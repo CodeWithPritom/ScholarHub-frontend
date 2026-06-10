@@ -21,8 +21,8 @@ const Profile = ({ user }) => {
 
   const limits = {
     free: { ai: 3, portals: 1, name: 'Free Plan', searchDelay: '5s delay', papers: '20 papers' },
-    starter: { ai: 30, portals: 1, name: 'Starter Plan', searchDelay: '1s debounce', papers: 'Unlimited' },
-    pro: { ai: 300, portals: 4, name: 'Pro Plan', searchDelay: 'Instant', papers: 'Unlimited' }
+    starter: { ai: 50, portals: 1, name: 'Starter Plan', searchDelay: '1s debounce', papers: 'Unlimited' },
+    pro: { ai: 100, portals: 4, name: 'Pro Plan', searchDelay: 'Instant', papers: 'Unlimited' }
   }
 
   useEffect(() => {
@@ -455,9 +455,9 @@ const Profile = ({ user }) => {
                 </div>
 
                 <div className="text-center mt-6">
-                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">AI Summaries (Today)</div>
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total AI Uses (Today)</div>
                   <div className="text-xs text-slate-300 font-semibold">
-                    {currentLimit.ai - usageStats.aiSummaries} daily summaries remaining
+                    {currentLimit.ai - usageStats.aiSummaries} AI uses remaining for today
                   </div>
                 </div>
               </div>

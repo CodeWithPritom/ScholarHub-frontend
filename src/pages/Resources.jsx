@@ -50,12 +50,12 @@ const Resources = () => {
       content: "Enter keywords, molecular structures, genes, or author names. The platform proxies queries directly to their corresponding APIs and structures the results into our unified clean metadata view."
     },
     {
-      title: "3. Generating AI Summaries",
+      title: "3. Using AI Features",
       content: "Select research papers via checkboxes, then trigger the 'Summarize' drawer. Our Groq-powered AI reads the abstract data to produce key trends, outcomes, and future possibilities instantly."
     },
     {
       title: "4. Subscription & Usage Limits",
-      content: "Free users get 3 summaries/day. Starter allows 30 summaries and unlocks the Engineering portal. Pro is our premium plan allowing 300 daily summaries and unrestricted Universal Search."
+      content: "Free users get 3 AI uses/day. Starter allows 50 AI uses and unlocks the Engineering portal. Pro is our premium plan allowing 100 daily AI uses and unrestricted Universal Search."
     }
   ]
 

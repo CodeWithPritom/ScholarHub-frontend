@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../utils/api';
 import { getOrCreateDeviceId } from '../utils/deviceSync';
+import emoImage from '../assets/images/EMO.png';
 
 export default function SupportBot() {
   const [isOpen, setIsOpen] = useState(false);
@@ -17,6 +18,7 @@ export default function SupportBot() {
   });
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(true);
   const [showEmergency, setShowEmergency] = useState(false);
   const [isMicActive, setIsMicActive] = useState(false);
   const [voiceMode, setVoiceMode] = useState(() => {
@@ -318,21 +320,53 @@ export default function SupportBot() {
     <>
       {/* Bee Animation Removed for Performance */}
 
-      {/* Floating Button */}
+      {/* Floating Button and Tooltip */}
       <AnimatePresence>
         {!isOpen && (
-          <motion.button
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            whileHover={{ scale: 1.05 }}
-            transition={{ type: "spring", stiffness: 400, damping: 10 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setIsOpen(true)}
-            className="fixed bottom-6 right-6 z-[9999] w-14 h-14 bg-gradient-to-br from-indigo-500 to-indigo-700 text-white rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow"
-          >
-            <Smile size={26} strokeWidth={2.5} />
-          </motion.button>
+          <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9999] flex flex-col items-end gap-2 sm:gap-3">
+            
+            {/* Tooltip */}
+            <AnimatePresence>
+              {showTooltip && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8, y: 10 }}
+                  className="bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-xl border border-indigo-100 flex items-center gap-2 relative"
+                >
+                  <p className="text-[13px] font-bold text-slate-700 tracking-wide whitespace-nowrap">Need help? 🤖</p>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setShowTooltip(false); }}
+                    className="p-1 rounded-full hover:bg-slate-100 text-slate-400 hover:text-rose-500 transition-colors ml-1"
+                  >
+                    <X size={14} strokeWidth={3} />
+                  </button>
+                  {/* Pointer arrow */}
+                  <div className="absolute right-6 -bottom-1.5 w-3 h-3 bg-white border-r border-b border-indigo-100 rotate-45"></div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* EMO Button */}
+            <motion.button
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              whileHover={{ scale: 1.05 }}
+              transition={{ type: "spring", stiffness: 400, damping: 10 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => { setIsOpen(true); setShowTooltip(false); }}
+              className="relative w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center rounded-full border-[3px] border-indigo-400/30 bg-white/50 backdrop-blur-md shadow-[0_0_20px_rgba(99,102,241,0.25)] hover:shadow-[0_0_30px_rgba(99,102,241,0.4)] hover:border-indigo-400/50 transition-all"
+            >
+              <motion.img 
+                src={emoImage} 
+                alt="EMO" 
+                className="w-14 h-14 sm:w-[70px] sm:h-[70px] object-contain drop-shadow-xl"
+                animate={{ scale: [1, 1.05, 1], y: [0, -3, 0] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+              />
+            </motion.button>
+          </div>
         )}
       </AnimatePresence>
 
@@ -347,14 +381,13 @@ export default function SupportBot() {
           >
             {/* Glassmorphism Header */}
             <div className="flex items-center justify-between p-4 bg-indigo-600/90 backdrop-blur-md text-white shrink-0 shadow-sm relative z-10 border-b border-indigo-500/50">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center border border-white/30 relative">
-                  <Smile size={18} className="text-indigo-100" />
-                  <span className="absolute -bottom-1 -right-1 text-xs drop-shadow-sm">🐝</span>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center border-2 border-indigo-200/50 relative shadow-sm overflow-hidden">
+                  <img src={emoImage} alt="EMO" className="w-7 h-7 object-contain drop-shadow-sm" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black tracking-wide leading-tight">Emo ✨</h3>
-                  <p className="text-[10px] text-indigo-200 font-medium tracking-wider uppercase">AI Guardian</p>
+                  <h3 className="text-[15px] font-black tracking-wide leading-tight">EMO</h3>
+                  <p className="text-[10px] text-indigo-200 font-bold tracking-widest uppercase">AI Guardian</p>
                 </div>
               </div>
               <div className="flex items-center gap-1">
@@ -416,11 +449,11 @@ export default function SupportBot() {
                   <div className="bg-white/90 backdrop-blur-sm border border-slate-200/60 p-3 rounded-2xl rounded-bl-none shadow-sm flex flex-col gap-2">
                     <div className="flex items-center gap-3">
                       <motion.div 
-                        animate={{ x: [0, 5, -5, 5, 0], y: [0, -3, 3, -3, 0] }} 
-                        transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-                        className="text-xl drop-shadow-sm"
+                        animate={{ scale: [1, 1.15, 1], rotate: [-5, 5, -5] }} 
+                        transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+                        className="w-5 h-5 drop-shadow-md flex items-center justify-center"
                       >
-                        🐝
+                        <img src={emoImage} alt="EMO" className="w-full h-full object-contain" />
                       </motion.div>
                       <motion.div 
                         animate={{ opacity: [0.4, 1, 0.4] }}

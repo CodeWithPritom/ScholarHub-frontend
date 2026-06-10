@@ -225,12 +225,13 @@ const Pricing = ({ user }) => {
       description: 'Perfect for starting your specific niche research.',
       features: [
         { name: user ? `Access to ${activePortalName}` : "Access to 1 Specialized Portal", included: true },
-        { name: '3 AI Summaries / day', included: true },
+        { name: '3 AI Power-Uses / Day', included: true },
+        { name: '5-Paper Deep Analysis Limit', included: true },
         { name: '20 Saved Papers Limit', included: true },
-        { name: '5s Search Delay', included: true },
-        { name: 'General Contact via Email', included: true },
-        { name: 'Direct Support Access', included: false },
-        { name: 'Universal Portal Access', included: false }
+        { name: 'Basic Search Speed (5s Delay)', included: true },
+        { name: 'AI-Powered Email Outreach to Authors', included: false },
+        { name: 'Automated Literature Review Synthesis', included: false },
+        { name: 'AI Research Gap Detection', included: false }
       ],
       color: 'slate',
       buttonText: user ? (userTier === 'free' ? 'Current Plan' : 'Free Tier') : 'Register & Start Researching',
@@ -246,11 +247,14 @@ const Pricing = ({ user }) => {
       savings: billingCycle === 'yearly' ? '2500' : '250',
       description: 'Higher limits for the same assigned portal.',
       features: [
-        { name: 'Enhanced Power for Your Portal', included: true },
-        { name: '30 AI Summaries / day', included: true },
+        { name: user ? `Access to ${activePortalName}` : "Access to 1 Specialized Portal", included: true },
+        { name: '50 AI Power-Uses / Day', included: true },
+        { name: '10-Paper Deep Analysis Limit', included: true },
         { name: 'Unlimited Saved Papers', included: true },
-        { name: '1s Search Speed', included: true },
-        { name: 'AI Citation Generator', included: true },
+        { name: 'High-Speed Search (1s Delay)', included: true },
+        { name: 'AI-Powered Email Outreach to Authors', included: true },
+        { name: 'Automated Literature Review Synthesis', included: false },
+        { name: 'AI Research Gap Detection', included: false },
         { name: 'Priority Private Discord Support', included: true }
       ],
       color: 'blue',
@@ -268,11 +272,14 @@ const Pricing = ({ user }) => {
       period: billingCycle === 'yearly' ? '/yr' : '/mo',
       description: 'For power researchers demanding unlimited AI potential.',
       features: [
-        { name: 'Universal Access: ALL Portals Unlocked', included: true },
-        { name: 'Access Bio, Eng, & Universal simultaneously', included: true },
-        { name: '300+ AI Summaries / day', included: true },
-        { name: 'Literature Review Gen', included: true },
-        { name: 'Research Gap Detection', included: true },
+        { name: 'Universal Access: ALL 7 Portals Unlocked', included: true },
+        { name: '100 Premium AI Power-Uses / Day', included: true },
+        { name: '15-Paper Deep Analysis Limit', included: true },
+        { name: 'Unlimited Saved Papers', included: true },
+        { name: 'Instant Search Speed (Zero Delay)', included: true },
+        { name: 'AI-Powered Email Outreach to Authors', included: true },
+        { name: 'Automated Literature Review Synthesis', included: true },
+        { name: 'AI Research Gap Detection', included: true },
         { name: 'Priority Private Discord Support', included: true }
       ],
       color: 'amber',
@@ -303,16 +310,16 @@ const Pricing = ({ user }) => {
       </nav>
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-6 pt-20 pb-32">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 pb-48">
         {/* Banner if Guest */}
         {!user && (
           <motion.div 
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-12 p-5 bg-blue-50 border border-blue-200 rounded-[2rem] flex items-center justify-between flex-wrap gap-4"
+            className="mb-12 p-5 bg-blue-50 border border-blue-200 rounded-[2rem] flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left"
           >
-            <div className="flex items-center gap-3">
-              <AlertCircle className="text-blue-600" size={24} />
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <AlertCircle className="text-blue-600 shrink-0" size={24} />
               <p className="text-sm font-bold text-blue-900">You must create a free account to activate and manage subscription plans.</p>
             </div>
             <button 
@@ -325,9 +332,9 @@ const Pricing = ({ user }) => {
         )}
 
         {/* Header */}
-        <div className="text-center mb-20">
-          <h1 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter mb-6 leading-tight">
-            ScholarHub AI Pricing: <br/><span className="text-blue-600">Supercharge your Research</span>
+        <div className="text-center mb-12 sm:mb-20">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight mb-4 sm:mb-6 leading-tight">
+            ScholarHub AI Pricing: <br className="hidden sm:block" /><span className="text-blue-600">Supercharge your Research</span>
           </h1>
           <p className="text-lg text-slate-500 font-medium max-w-2xl mx-auto mb-10 leading-relaxed">
             Unlock multi-disciplinary AI models, bypass rate limits, and discover breakthroughs faster than ever before.
@@ -371,11 +378,11 @@ const Pricing = ({ user }) => {
         </div>
 
         {/* Billing Toggle */}
-        <div className="flex justify-center mb-16 relative z-20">
-          <div className="bg-slate-200/50 p-1.5 rounded-full flex items-center relative gap-1 border border-slate-200">
+        <div className="flex justify-center mb-16 relative z-20 w-full overflow-x-auto pb-4">
+          <div className="bg-slate-200/50 p-1.5 rounded-full flex items-center relative gap-1 border border-slate-200 min-w-max">
             <button
               onClick={() => setBillingCycle('monthly')}
-              className={`relative px-8 py-3 text-xs font-black uppercase tracking-widest rounded-full transition-colors`}
+              className={`relative px-6 sm:px-8 py-2.5 sm:py-3 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-full transition-colors`}
             >
               {billingCycle === 'monthly' && (
                 <motion.div
@@ -389,7 +396,7 @@ const Pricing = ({ user }) => {
             
             <button
               onClick={() => setBillingCycle('yearly')}
-              className={`relative px-8 py-3 text-xs font-black uppercase tracking-widest rounded-full transition-colors flex items-center gap-2`}
+              className={`relative px-6 sm:px-8 py-2.5 sm:py-3 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-full transition-colors flex items-center gap-2`}
             >
               {billingCycle === 'yearly' && (
                 <motion.div
@@ -409,25 +416,25 @@ const Pricing = ({ user }) => {
         </div>
 
         {/* Pricing Grid */}
-        <div className="grid md:grid-cols-3 gap-8 items-stretch">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-stretch w-full mx-auto">
           {plans.map((plan, idx) => (
             <div 
               key={idx} 
-              className={`relative bg-white rounded-[2.5rem] p-8 border flex flex-col justify-between transition-all duration-300 hover:-translate-y-2 ${
+              className={`relative bg-white rounded-[2rem] p-6 md:p-5 lg:p-8 border flex flex-col justify-between transition-all duration-300 hover:-translate-y-2 ${
                 plan.premium 
-                  ? 'border-2 border-amber-500 shadow-2xl shadow-amber-100 scale-105 z-10 bg-gradient-to-b from-amber-50/[0.2] to-transparent' 
+                  ? 'border-2 border-amber-500 shadow-2xl shadow-amber-100 md:scale-105 z-10 bg-gradient-to-b from-amber-50/[0.2] to-transparent' 
                   : plan.popular 
-                  ? 'border-2 border-blue-500 shadow-2xl shadow-blue-100 scale-105 z-10 bg-gradient-to-b from-blue-50/[0.2] to-transparent'
+                  ? 'border-2 border-blue-500 shadow-2xl shadow-blue-100 md:scale-105 z-10 bg-gradient-to-b from-blue-50/[0.2] to-transparent'
                   : 'border-slate-200 shadow-lg shadow-slate-100'
               }`}
             >
               {plan.premium && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[10px] font-black uppercase tracking-[0.2em] px-5 py-1.5 rounded-full shadow-lg shadow-amber-200 flex items-center gap-1.5">
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[10px] font-black uppercase tracking-[0.2em] px-5 py-1.5 rounded-full shadow-lg shadow-amber-200 flex items-center gap-1.5 whitespace-nowrap">
                   <Zap size={12} /> UNIVERSAL ACCESS
                 </div>
               )}
               {plan.popular && !plan.premium && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-[0.2em] px-5 py-1.5 rounded-full shadow-lg shadow-blue-200 flex items-center gap-1.5">
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-[0.2em] px-5 py-1.5 rounded-full shadow-lg shadow-blue-200 flex items-center gap-1.5 whitespace-nowrap">
                   <Sparkles size={12} /> MOST POPULAR
                 </div>
               )}
@@ -440,20 +447,20 @@ const Pricing = ({ user }) => {
                     {plan.name}
                   </h3>
                   <div className="flex flex-col mb-4">
-                    <div className="flex items-baseline gap-1">
+                    <div className="flex items-baseline gap-1 flex-wrap">
                       {couponStatus?.success && plan.isUpgrade && (couponStatus?.applicable_tier === 'both' || couponStatus?.applicable_tier === plan.name.toLowerCase()) ? (
                         <>
-                          <span className="text-3xl font-bold text-slate-400 line-through mr-2">{plan.price}</span>
-                          <span className="text-5xl font-black text-slate-900 tracking-tighter">
-                            {couponStatus.discount === 100 ? '৳0' : `৳${Math.floor(plan.basePriceNum * (1 - couponStatus.discount / 100))}`}
+                          <span className="text-2xl sm:text-3xl font-bold text-slate-400 line-through mr-2">{plan.price}</span>
+                          <span className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight">
+                            {couponStatus.discount === 100 ? '৳ 0' : `৳ ${Math.floor(plan.basePriceNum * (1 - couponStatus.discount / 100))}`}
                           </span>
                         </>
                       ) : (
                         <>
                           {plan.originalPrice && (
-                            <span className="text-3xl font-bold text-slate-400 line-through mr-2">{plan.originalPrice}</span>
+                            <span className="text-2xl sm:text-3xl font-bold text-slate-400 line-through mr-2">{plan.originalPrice}</span>
                           )}
-                          <span className="text-5xl font-black text-slate-900 tracking-tighter">{plan.price}</span>
+                          <span className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight">{plan.price.replace('৳', '৳ ')}</span>
                         </>
                       )}
                       {plan.period && <span className="text-slate-500 font-bold">{plan.period}</span>}
@@ -539,7 +546,7 @@ const Pricing = ({ user }) => {
               </div>
               <button
                 onClick={() => setStudentModalOpen(true)}
-                className="shrink-0 px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-indigo-200 transition-all hover:-translate-y-1"
+                className="shrink-0 w-full md:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-indigo-200 transition-all hover:-translate-y-1"
               >
                 Claim Free Year
               </button>

@@ -379,7 +379,7 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
               <div className="text-4xl font-black mb-6">৳0<span className="text-sm text-slate-500 font-medium">/forever</span></div>
               <ul className="space-y-4 mb-8 flex-1 text-sm font-medium text-slate-300 text-left">
                 <li className="flex gap-3"><CheckCircle2 className="text-blue-400 shrink-0" size={18} /> Access to 1 Specialized Portal</li>
-                <li className="flex gap-3"><CheckCircle2 className="text-blue-400 shrink-0" size={18} /> 3 AI Summaries / day</li>
+                <li className="flex gap-3"><CheckCircle2 className="text-blue-400 shrink-0" size={18} /> 3 AI Power-Uses / day</li>
                 <li className="flex gap-3"><CheckCircle2 className="text-blue-400 shrink-0" size={18} /> 20 Saved Papers Limit</li>
               </ul>
             </div>
@@ -389,7 +389,7 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
               <div className="text-4xl font-black mb-6">৳250<span className="text-sm text-slate-500 font-medium">/mo</span></div>
               <ul className="space-y-4 mb-8 flex-1 text-sm font-medium text-slate-300 text-left">
                 <li className="flex gap-3"><CheckCircle2 className="text-blue-400 shrink-0" size={18} /> Enhanced Power for Your Portal</li>
-                <li className="flex gap-3"><CheckCircle2 className="text-blue-400 shrink-0" size={18} /> 30 AI Summaries / day</li>
+                <li className="flex gap-3"><CheckCircle2 className="text-blue-400 shrink-0" size={18} /> 50 AI Power-Uses / day</li>
                 <li className="flex gap-3"><CheckCircle2 className="text-blue-400 shrink-0" size={18} /> Zero Search Delay</li>
               </ul>
             </div>
@@ -398,7 +398,7 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
               <div className="text-4xl font-black mb-6">৳1000<span className="text-sm text-slate-500 font-medium">/mo</span></div>
               <ul className="space-y-4 mb-8 flex-1 text-sm font-medium text-slate-300 text-left">
                 <li className="flex gap-3"><CheckCircle2 className="text-amber-400 shrink-0" size={18} /> ALL Portals Unlocked</li>
-                <li className="flex gap-3"><CheckCircle2 className="text-amber-400 shrink-0" size={18} /> 300+ AI Summaries / day</li>
+                <li className="flex gap-3"><CheckCircle2 className="text-amber-400 shrink-0" size={18} /> 100 AI Power-Uses / day</li>
                 <li className="flex gap-3"><CheckCircle2 className="text-amber-400 shrink-0" size={18} /> Priority Discord Support</li>
               </ul>
             </div>
