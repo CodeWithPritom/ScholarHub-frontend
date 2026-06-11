@@ -7,7 +7,7 @@ import Footer from '../Footer'
 import { BASE_URL } from '../utils/api'
 import logo from '../assets/images/logo.png'
 
-const Pricing = ({ user }) => {
+const Pricing = ({ user, profile }) => {
   const navigate = useNavigate()
   const [couponCode, setCouponCode] = useState(() => sessionStorage.getItem('active_coupon_code') || '')
   const [couponStatus, setCouponStatus] = useState(() => {
@@ -17,8 +17,11 @@ const Pricing = ({ user }) => {
     } catch { return null }
   }) // { loading, error, success, discount, applicable_tier }
   const [isRedeeming, setIsRedeeming] = useState(false)
-  const [academicField, setAcademicField] = useState('Genetic Eng. & Biotech (GEB)')
-  const [userTier, setUserTier] = useState('free')
+  
+  // Use local state for immediate UI updates, falling back to global profile
+  const [localTier, setLocalTier] = useState(null)
+  const userTier = localTier || profile?.tier || 'free'
+  const dynamicPortalString = `Access to ${profile?.academic_field || 'Your Chosen Niche'} Portal`
   const [billingCycle, setBillingCycle] = useState('monthly')
   const [isStudentModalOpen, setStudentModalOpen] = useState(false)
   const [isConfirmModalOpen, setConfirmModalOpen] = useState(false)
@@ -54,46 +57,10 @@ const Pricing = ({ user }) => {
 
   useEffect(() => {
     if (!user) {
-      setUserTier('free')
+      setLocalTier('free')
       return
     }
-    const fetchProfileAndSubscription = async () => {
-      try {
-        const { data: profData } = await supabase
-          .from('profiles')
-          .select('academic_field')
-          .eq('id', user.id)
-          .maybeSingle()
-        if (profData && profData.academic_field) {
-          setAcademicField(profData.academic_field)
-        }
-
-        const { data: subData } = await supabase
-          .from('subscriptions')
-          .select('tier')
-          .eq('user_id', user.id)
-          .maybeSingle()
-        if (subData && subData.tier) {
-          setUserTier(subData.tier.toLowerCase())
-        } else {
-          setUserTier('free')
-        }
-      } catch (err) {
-        console.error("Error loading pricing profile data:", err)
-      }
-    }
-    fetchProfileAndSubscription()
   }, [user])
-
-  const getPortalDisplayName = (field) => {
-    if (field === 'Engineering/CS') return 'Engineering/CS Portal'
-    if (field === 'Social Sciences') return 'Social Sciences Portal'
-    if (field === 'Law / Legal Studies') return 'Law & Legal Portal'
-    if (field === 'Physics') return 'Physics Portal'
-    if (field === 'Mathematics') return 'Mathematics Portal'
-    if (field === 'Chemistry / Pharmacy') return 'Chemistry Portal'
-    return 'GEB Portal' // Default
-  }
 
   const handleApplyCoupon = () => {
     if (!couponCode.trim()) return
@@ -174,7 +141,7 @@ const Pricing = ({ user }) => {
           throw new Error(errData.detail || 'Failed to auto-upgrade.')
         }
 
-        setUserTier(tierName.toLowerCase())
+        setLocalTier(tierName.toLowerCase())
         setUpgradedTierText(tierName.toUpperCase())
         setCelebrationModalOpen(true)
       } catch (err) {
@@ -216,15 +183,13 @@ const Pricing = ({ user }) => {
     window.open(whatsappUrl, '_blank')
   }
 
-  const activePortalName = getPortalDisplayName(academicField)
-
   const plans = [
     {
       name: 'FREE',
       price: '৳0',
       description: 'Perfect for starting your specific niche research.',
       features: [
-        { name: user ? `Access to ${activePortalName}` : "Access to 1 Specialized Portal", included: true },
+        { name: user ? dynamicPortalString : "Access to 1 Specialized Portal", included: true },
         { name: '3 AI Power-Uses / Day', included: true },
         { name: '5-Paper Deep Analysis Limit', included: true },
         { name: '20 Saved Papers Limit', included: true },
@@ -247,7 +212,7 @@ const Pricing = ({ user }) => {
       savings: billingCycle === 'yearly' ? '2500' : '250',
       description: 'Higher limits for the same assigned portal.',
       features: [
-        { name: user ? `Access to ${activePortalName}` : "Access to 1 Specialized Portal", included: true },
+        { name: user ? dynamicPortalString : "Access to 1 Specialized Portal", included: true },
         { name: '50 AI Power-Uses / Day', included: true },
         { name: '10-Paper Deep Analysis Limit', included: true },
         { name: 'Unlimited Saved Papers', included: true },

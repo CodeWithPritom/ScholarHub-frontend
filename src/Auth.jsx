@@ -29,7 +29,7 @@ const Auth = () => {
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [academicField, setAcademicField] = useState('Genetic Eng. & Biotech (GEB)')
-  const [academicStatus, setAcademicStatus] = useState('Undergrad')
+  const [academicStatus, setAcademicStatus] = useState('Undergrad');
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
@@ -155,26 +155,18 @@ const Auth = () => {
         }
       } else {
         console.log('Sending metadata:', { fullName, academicField, academicStatus })
-        const fieldToPortal = {
-          'Genetic Eng. & Biotech (GEB)': 'geb',
-          'Pharmacy & Pharmacology': 'pharma',
-          'Engineering/CS': 'eng',
-          'Physics': 'physics',
-          'Mathematics': 'math',
-          'Social Sciences': 'social',
-          'Chemistry / Pharmacy': 'chem',
-          'Law / Legal Studies': 'law'
-        };
         
         const { error } = await supabase.auth.signUp({ 
           email, 
           password,
           options: {
             data: {
-              full_name: fullName,
+              fullName: fullName,
+              full_name: fullName, 
+              academicField: academicField,
               academic_field: academicField,
-              academic_status: academicStatus,
-              unlocked_portal: fieldToPortal[academicField] || 'geb'
+              academicStatus: academicStatus,
+              academic_status: academicStatus
             },
             captchaToken: captchaToken
           }

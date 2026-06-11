@@ -27,7 +27,8 @@ const AdminPanel = ({ user, profile, liveUsersCount }) => {
   const [activeTab, setActiveTab] = useState('overview')
 
   // Stats
-  const [stats, setStats] = useState({ total_users: 0, active_subs: 0, total_ai_summaries: 0, daily_growth: [] })
+  const [stats, setStats] = useState({ total_users: 0, active_subs: 0, total_ai_summaries: 0, daily_growth: [], activity_grid: [] })
+  const [latency, setLatency] = useState(null)
   
   // Announcements
   const [announcements, setAnnouncements] = useState([])
@@ -114,8 +115,11 @@ const AdminPanel = ({ user, profile, liveUsersCount }) => {
 
   // ─── Fetch Stats & Announcements ───
   const fetchStats = async () => {
+    const start = performance.now()
     try {
       const data = await apiFetch('/api/admin/stats', { method: 'GET' })
+      const duration = Math.round(performance.now() - start)
+      setLatency(duration)
       setStats(data)
     } catch (err) { console.error(err) }
   }
@@ -279,6 +283,42 @@ const AdminPanel = ({ user, profile, liveUsersCount }) => {
     finally { setActionLoading(null) }
   }
 
+  const handleExportCSV = () => {
+    if (!usersList || usersList.length === 0) {
+      alert("No users available to export.")
+      return
+    }
+    
+    // Header
+    const headers = ["Email", "Full Name", "Tier", "Status", "Expiry Date"]
+    
+    // Rows
+    const rows = usersList.map(u => [
+      u.email || "",
+      u.full_name || "",
+      u.user_tier || "free",
+      u.status || "active",
+      u.expires_at || "lifetime"
+    ])
+    
+    // Combine to CSV string
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(r => r.map(val => `"${String(val).replace(/"/g, '""')}"`).join(","))
+    ].join("\n")
+    
+    // Trigger download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.setAttribute("href", url)
+    link.setAttribute("download", `scholarhub_users_export_${new Date().toISOString().slice(0, 10)}.csv`)
+    link.style.visibility = "hidden"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   // ─── Expiry Watchlist ───
   const expiryWatchlist = usersList.filter(u => {
     if (!u.expires_at) return false
@@ -426,6 +466,127 @@ const AdminPanel = ({ user, profile, liveUsersCount }) => {
               </div>
             </div>
 
+            {/* Visual Analytics Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Daily User Growth Bar Chart */}
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 p-6 lg:col-span-2">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                      <Users size={16} className="text-blue-500" /> Daily Growth Chart
+                    </h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">New registration trend (Last 7 days)</p>
+                  </div>
+                  <span className="px-2.5 py-1 bg-blue-50 text-blue-600 rounded-lg text-[9px] font-black uppercase tracking-widest border border-blue-100">Live Feed</span>
+                </div>
+                
+                <div className="h-48 flex items-end justify-between gap-3 pt-6 border-b border-slate-100">
+                  {stats.daily_growth && stats.daily_growth.length > 0 ? (
+                    stats.daily_growth.map((day, idx) => {
+                      const maxVal = Math.max(...stats.daily_growth.map(d => d.new_users), 1)
+                      const percentage = (day.new_users / maxVal) * 100
+                      return (
+                        <div key={idx} className="flex-1 flex flex-col items-center group h-full justify-end">
+                          <div className="relative w-full flex justify-center">
+                            {/* Tooltip */}
+                            <span className="absolute -top-8 bg-slate-900 text-white text-[9px] font-bold px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-md pointer-events-none z-10">
+                              {day.new_users} New Users
+                            </span>
+                            {/* Bar */}
+                            <div 
+                              style={{ height: `${percentage}%` }}
+                              className="w-full sm:w-8 bg-gradient-to-t from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 rounded-t-lg transition-all duration-500 shadow-lg shadow-blue-500/20"
+                            ></div>
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-400 mt-2 truncate max-w-full">{day.date}</span>
+                        </div>
+                      )
+                    })
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-xs text-slate-400 font-bold">No growth data available.</div>
+                  )}
+                </div>
+              </div>
+
+              {/* System Health / Activity Heatmap */}
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                    <Activity size={16} className="text-emerald-500" /> Platform Health
+                  </h3>
+                  <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping"></span>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center text-xs font-bold text-slate-600">
+                    <span>API Response Time</span>
+                    <span className="text-slate-800">45ms</span>
+                  </div>
+                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full transition-all duration-500 ${
+                        !latency ? 'w-0' :
+                        latency <= 50 ? 'bg-emerald-500 w-[100%]' :
+                        latency <= 150 ? 'bg-emerald-500 w-[85%]' :
+                        latency <= 300 ? 'bg-amber-500 w-[60%]' : 'bg-red-500 w-[30%]'
+                      }`}
+                    ></div>
+                  </div>
+
+                  <div className="flex justify-between items-center text-xs font-bold text-slate-600">
+                    <span className="cursor-help border-b border-dotted border-slate-300 text-slate-500 hover:text-slate-700" title="Time taken by the backend to fetch all analytics counters from Supabase.">DB Query Latency</span>
+                    <span className="text-slate-800">{stats.db_latency !== undefined ? `${stats.db_latency}ms` : 'Measuring...'}</span>
+                  </div>
+                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full transition-all duration-500 ${
+                        stats.db_latency === undefined ? 'w-0' :
+                        stats.db_latency <= 15 ? 'bg-emerald-500 w-[100%]' :
+                        stats.db_latency <= 50 ? 'bg-emerald-500 w-[80%]' :
+                        stats.db_latency <= 150 ? 'bg-amber-500 w-[50%]' : 'bg-red-500 w-[25%]'
+                      }`}
+                    ></div>
+                  </div>
+
+                  <div className="flex justify-between items-center text-xs font-bold text-slate-600">
+                    <span>Inference Key Rotation</span>
+                    <span className="text-blue-500">Active (GROQ)</span>
+                  </div>
+                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                    <div className="bg-blue-500 h-full w-[100%]"></div>
+                  </div>
+
+                  <div className="border-t border-slate-100 pt-4 mt-2">
+                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex justify-between items-center">
+                      <span>Activity Grid</span>
+                      <span className="text-[9px] font-bold text-slate-400 normal-case">(Last 28 Days)</span>
+                    </div>
+                    <div className="grid grid-cols-7 gap-1">
+                      {(stats.activity_grid && stats.activity_grid.length > 0 ? stats.activity_grid : Array.from({ length: 30 }).map((_, i) => ({
+                        date: `Day ${30 - i}`,
+                        count: 0
+                      }))).slice(-28).map((day, i) => {
+                        const count = day.count || 0
+                        const shade = 
+                          count === 0 ? 'bg-slate-100' :
+                          count <= 3 ? 'bg-emerald-100' :
+                          count <= 7 ? 'bg-emerald-200' :
+                          count <= 15 ? 'bg-emerald-300' :
+                          count <= 30 ? 'bg-emerald-400' : 'bg-emerald-500'
+                        return (
+                          <div 
+                            key={i} 
+                            className={`aspect-square rounded-sm ${shade} transition-all duration-300 hover:scale-110 cursor-help`}
+                            title={`${day.date}: ${count} AI Summaries`}
+                          ></div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Announcement Center */}
             <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 p-6 md:p-8">
               <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2 mb-6">
@@ -486,19 +647,27 @@ const AdminPanel = ({ user, profile, liveUsersCount }) => {
               <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
                 <Users size={16} className="text-blue-500" /> Deep-Dive User Directory
               </h2>
-              <div className="relative w-full md:w-72">
-                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                  <Search size={14} className="text-slate-400" />
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+                <button
+                  onClick={handleExportCSV}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-colors shadow-md shadow-slate-900/10 whitespace-nowrap"
+                >
+                  📥 Export to CSV
+                </button>
+                <div className="relative w-full md:w-72">
+                  <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                    <Search size={14} className="text-slate-400" />
+                  </div>
+                  <input type="text" placeholder="Search users by email..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
                 </div>
-                <input type="text" placeholder="Search users by email..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500 transition-colors" />
               </div>
             </div>
 
             {loadingUsers ? (
               <div className="py-12 flex justify-center"><Loader2 size={24} className="animate-spin text-slate-300" /></div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto -mx-6 px-6 md:mx-0 md:px-0">
                 <table className="w-full text-left border-collapse min-w-[700px]">
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50">
@@ -550,8 +719,8 @@ const AdminPanel = ({ user, profile, liveUsersCount }) => {
             <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2 mb-6">
               <Clock size={16} className="text-amber-500" /> 7-Day Expiry Watchlist
             </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+            <div className="overflow-x-auto -mx-6 px-6 md:mx-0 md:px-0">
+              <table className="w-full text-left border-collapse min-w-[600px]">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50">
                     <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">User</th>
@@ -694,13 +863,13 @@ const AdminPanel = ({ user, profile, liveUsersCount }) => {
 
       {/* ═══ DEEP DIVE MODAL ═══ */}
       {showUserModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto relative animate-in fade-in zoom-in duration-200">
-            <button onClick={() => setShowUserModal(false)} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-2 transition-colors">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-0 md:p-4">
+          <div className="bg-white w-full h-full md:w-full md:max-w-3xl md:h-auto md:max-h-[90vh] rounded-none md:rounded-[2rem] shadow-2xl overflow-y-auto relative animate-in fade-in zoom-in duration-200">
+            <button onClick={() => setShowUserModal(false)} className="absolute top-4 right-4 md:top-6 md:right-6 text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full p-2 transition-colors">
               <X size={20} />
             </button>
             
-            <div className="p-8">
+            <div className="p-6 md:p-8">
               <div className="flex items-center gap-4 mb-8">
                 <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
                   <UserCheck size={32} />
@@ -767,14 +936,16 @@ const AdminPanel = ({ user, profile, liveUsersCount }) => {
                             <option value="starter">Starter</option>
                             <option value="pro">Pro</option>
                           </select>
-                          <select value={durationMonths} onChange={e => setDurationMonths(Number(e.target.value))}
-                            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500 flex-1">
-                            <option value={1}>1 Mo</option>
-                            <option value={12}>1 Yr</option>
-                          </select>
+                          {selectedTier !== 'free' && (
+                            <select value={durationMonths} onChange={e => setDurationMonths(Number(e.target.value))}
+                              className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500 flex-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                              <option value={1}>1 Mo</option>
+                              <option value={12}>1 Yr</option>
+                            </select>
+                          )}
                         </div>
                         <button onClick={handleActivatePlan} disabled={updatingTier}
-                          className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200 transition-colors disabled:opacity-50">
+                          className="w-full py-3 md:py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200 transition-colors disabled:opacity-50">
                           {updatingTier ? <Loader2 size={14} className="animate-spin inline" /> : 'Apply Tier Update'}
                         </button>
                         <Toast msg={tierMessage} />

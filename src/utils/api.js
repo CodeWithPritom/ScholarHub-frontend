@@ -15,8 +15,7 @@ import { supabase } from '../supabaseClient';
 
 export const PRIMARY_URL = 'https://scholarhub-backend-jjt3.onrender.com';
 export const BACKUP_URL = 'https://arup-vivobook-asuslaptop-x509dj-d509dj.taila8249c.ts.net';
-//export const BASE_URL = import.meta.env.VITE_API_URL || PRIMARY_URL;
-export const BASE_URL = 'http://localhost:8000';
+export const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // ─── Auto-Fallback Fetch Interceptor ───
 // Overrides the native window.fetch to provide seamless failover
@@ -93,12 +92,14 @@ export async function apiFetch(path, options = {}) {
   // Get fresh token for every request
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
+  const deviceId = localStorage.getItem('scholarhub_device_id') || '';
 
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      ...(deviceId ? { 'X-Device-ID': deviceId } : {}),
       ...options.headers
     }
   });

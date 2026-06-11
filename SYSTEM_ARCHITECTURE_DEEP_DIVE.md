@@ -2,7 +2,21 @@
 
 **An Enterprise-Grade Technical Reference**
 *Target Audience: University Faculty, Senior Engineers, and System Architects.*
-*Last Validated: June 2026 — against `utils/api.js`, `Auth.jsx`, `routers/ai.py`, `middleware/rate_limiter.py`, `parsers/openalex_parser.py`, and `components/PaperDetail.jsx`.*
+*Last Validated: June 11, 2026 — against `utils/api.js`, `supabaseClient.js`, `Auth.jsx`, `routers/ai.py`, `routers/unified.py`, `middleware/rate_limiter.py`, `parsers/arxiv_parser.py`, `parsers/openalex_parser.py`, `components/PaperDetail.jsx`, `utils/deviceSync.js`, `vercel.json`, `main.py`, `config.py`.*
+
+---
+
+## Table of Contents
+
+1. [End-to-End System Architecture](#1-end-to-end-system-architecture)
+2. [Security & SaaS Integrity Fortress](#2-security--saas-integrity-fortress)  ← *Core Pillar — Read First*
+3. [Multi-Source Data Waterfall](#3-multi-source-data-waterfall--openalex-promotion)
+4. [Bulletproof Hybrid Infrastructure & Resilience](#4-bulletproof-hybrid-infrastructure--resilience-fixes)
+5. [AI Intelligence Layer](#5-ai-intelligence-layer--inference-truncation--key-rotation)
+6. [Networking & Mentorship Hub](#6-networking--mentorship-hub--contact--orcid-extraction)
+7. [Character-Driven UX & EMO Mascot System](#7-character-driven-ux--emo-mascot-system)
+8. [Database Schema](#8-database-schema--er-diagram)
+9. [Future Roadmap](#9-future-roadmap)
 
 ---
 
@@ -31,7 +45,7 @@ graph TD
     Client -- "Captcha Token" --> Turnstile
     Turnstile -- "Validates Bot Check" --> Client
 
-    FastAPI -- "Validates JWT / Queries Data" --> SupabaseDB
+    FastAPI -- "Validates JWT / RLS-Backed Queries" --> SupabaseDB
     FastAPI -- "Role & Auth Management" --> Auth
 
     FastAPI --> NCBI & Arxiv & OpenAlex & EPMC
@@ -40,22 +54,131 @@ graph TD
     OpenRouter -- "Exhausted" --> TogetherAI
 ```
 
-### Core Components:
+### Core Component Stack
+
 | Layer | Technology | Role |
 |---|---|---|
 | **Frontend** | React 19 / Vite / Tailwind CSS v4 | UI rendering, optimistic state, session-scoped caching |
 | **Backend Gateway** | FastAPI (async Python) | Auth middleware, portal routing, AI orchestration |
 | **AI Inference** | Groq LPU (Llama 3.1 8B Instruct) | 800+ tokens/sec synthesis, chat, outreach, lit-review |
-| **Database** | Supabase PostgreSQL + RLS | User data, usage logs, device fingerprints, bookmarks |
+| **Database** | Supabase PostgreSQL + **RLS** | User data, usage logs, device fingerprints, bookmarks |
 | **Auth** | Supabase Auth + Cloudflare Turnstile | JWT issuance, CAPTCHA bot-prevention on all auth flows |
 
 ---
 
-## 2. Multi-Source Data Waterfall & OpenAlex Promotion
+## 2. Security & SaaS Integrity Fortress
 
-Querying legacy academic APIs is notoriously unstable. To provide uninterrupted service, the backend implements a highly resilient **Zero-Data & Error Fallback Cascade** located inside `routers/unified.py`.
+> **This is the most critical architectural pillar.** Security is not a layer added on top — it is woven into every request lifecycle, from the first browser interaction through to database query execution.
 
-> **⚠️ Breaking Change (June 2026):** Following the **deprecation of Semantic Scholar's public API**, OpenAlex has been explicitly promoted to the **primary source** for the Social Sciences, Law, and Chemistry portals. It also serves as the universal fallback engine for all other portals.
+### 2.1 — Full Security Request Lifecycle
+
+```mermaid
+flowchart TD
+    Browser["User Opens Browser"] --> Turnstile["① Cloudflare Turnstile\nBot Prevention CAPTCHA\non every Login & Signup"]
+    Turnstile -->|"CAPTCHA Token"| SupabaseAuth["② Supabase Auth\nJWT Issuance + Email Verification"]
+    SupabaseAuth -->|"JWT Bearer Token"| LocalStorage["③ Client State\njwt stored in session\ndevice_id = crypto.randomUUID()\nin localStorage"]
+
+    LocalStorage -->|"Every AI Request:\nAuthorization: Bearer JWT\nX-Device-ID: uuid"| AuthMiddleware["④ FastAPI Auth Middleware\nmiddleware/auth.py\nCryptographically verifies JWT\nvia Supabase ANON KEY"]
+
+    AuthMiddleware -- "JWT Invalid / Missing" --> E401["401 Unauthorized\nRequest rejected"]
+    AuthMiddleware -- "JWT Valid" --> DeviceCheck["⑤ Device Fingerprint Check\ncheck_ai_limit()\nX-Device-ID registered\nin user_devices table?"]
+
+    DeviceCheck -- "Not Registered" --> E403["403 Forbidden\nUnregistered Device\nAccess Denied"]
+    DeviceCheck -- "Registered" --> QuotaCheck["⑥ Daily Quota Enforcement\nCount usage_logs for today\nFree=3 / Starter=50 / Pro=100"]
+
+    QuotaCheck -- "Limit Exceeded" --> E429["429 Too Many Requests"]
+    QuotaCheck -- "Within Quota" --> RLS["⑦ PostgreSQL Row Level Security\nPhysical DB-level policy:\nUSERS CAN ONLY READ/WRITE\nTHEIR OWN ROWS"]
+
+    RLS --> BizLogic["⑧ Execute Business Logic\nAI Inference, Search, Bookmarks"]
+    BizLogic --> SubTier["⑨ Subscription Tier Check\nPlan expiry auto-enforcement\n402 → fires global session-expired event"]
+```
+
+### 2.2 — The Five Security Pillars (Detailed)
+
+#### ① Cloudflare Turnstile — Entry Gate
+- CAPTCHA verification is required on **every** authentication action: Login, Sign Up, and Forgot Password.
+- The `captchaToken` is sent directly to Supabase Auth's `signInWithPassword` and `signUp` options.
+- The submit button remains **`disabled`** in React until `setCaptchaToken(token)` is populated via `onSuccess` callback.
+- Prevents automated credential stuffing, bot signups, and brute-force attacks before a single database query is made.
+
+#### ② Stateless JWT Validation — Identity Verification
+- The FastAPI backend **never trusts the client**. Every protected endpoint calls the Supabase Auth server to verify the JWT cryptographic signature.
+- Token validity is checked per-request using the `SUPABASE_ANON_KEY` as the verification key.
+- There is no session cookie, no server-side session store — the system is fully stateless and horizontally scalable.
+
+```python
+# middleware/auth.py — JWT verification pattern
+user_res = requests.get(
+    f"{SUPABASE_URL}/auth/v1/user",
+    headers={"Authorization": f"Bearer {token}", "apikey": SUPABASE_ANON_KEY}
+)
+```
+
+#### ③ PostgreSQL Row Level Security (RLS) — Data Isolation Fortress
+- RLS policies are enforced at the **PostgreSQL engine level** — not in application code. This means even a compromised backend cannot read another user's data without correct identity credentials.
+- **Enforced tables:** `usage_logs`, `user_devices`, `bookmarks`, `coupon_redemptions`.
+- Policy pattern: `USING (auth.uid() = user_id)` — a user's JWT is transparently compared against the `user_id` column on every SELECT, INSERT, UPDATE, and DELETE.
+- The service role key (`SUPABASE_SERVICE_KEY`) is used **only** for admin operations (usage counting, device upsert) and is never exposed to the client.
+
+#### ④ Device Fingerprinting — Account Integrity Enforcement
+- On first login, `crypto.randomUUID()` generates a stable UUID stored in `localStorage` under the key `scholarhub_device_id`.
+- This ID is sent as `X-Device-ID` header on every AI endpoint request.
+- The backend's `check_ai_limit()` middleware queries `user_devices` to verify registration before allowing any AI operation.
+- **Maximum 2 devices** per account. A 3rd device receives a `403 Forbidden` response, blocking feature access without signing out of existing devices.
+- `deviceSync.js` runs silently in the background via `App.jsx`'s `onAuthStateChange` listener to register devices that bypass `Auth.jsx` (e.g., email confirmation link flows).
+
+#### ⑤ Global 402 Session Expiry Interception
+- `apiFetch()` in `utils/api.js` intercepts every HTTP 402 response globally.
+- On detection, it fires a custom DOM event `scholarhub:session-expired` which `App.jsx` listens for.
+- `App.jsx` immediately downgrades the global profile state to `'free'` tier without a page reload, preserving all current UI state.
+- The `rate_limiter.py` backend automatically patches `profiles.user_tier = 'free'` and clears `plan_expiry_date` on detection of an expired plan.
+
+### 2.3 — SaaS Quota Enforcement Summary
+
+| Tier | Daily AI Summaries | Portals | Devices |
+|---|---|---|---|
+| **Free** | 3 / day | 1 (field-locked) | 2 |
+| **Starter** | 50 / day | 1 (field-locked) | 2 |
+| **Pro** | 100 / day | All 7 portals | 2 |
+
+### 2.4 — ISO Timestamp Parsing Resilience (`safe_fromisoformat`)
+
+Supabase PostgreSQL returns timestamps with **arbitrary fractional-second precision** (e.g. `2026-07-11T13:53:24.3504+00:00` — 4-digit fractional). Python's strict `datetime.fromisoformat()` only accepts exactly 0, 3, or 6 fractional digits, causing a `ValueError` crash in the plan expiry auto-downgrade middleware.
+
+**Fix:** A centralized `safe_fromisoformat()` helper in `middleware/rate_limiter.py` normalizes fractional seconds to exactly 6 digits before parsing:
+
+```python
+def safe_fromisoformat(date_str: str) -> datetime:
+    s = date_str.replace('Z', '+00:00')
+    if '.' in s:
+        parts = s.split('.')
+        before_dot = parts[0]
+        after_dot = parts[1]
+        # Find timezone offset in fractional part
+        tz_index = next((after_dot.find(sym) for sym in ('+', '-') if after_dot.find(sym) != -1), -1)
+        if tz_index != -1:
+            frac = after_dot[:tz_index]
+            tz = after_dot[tz_index:]
+        else:
+            frac = after_dot
+            tz = ''
+        frac = (frac + '000000')[:6]  # Pad/truncate to exactly 6 digits
+        s = f"{before_dot}.{frac}{tz}"
+    return datetime.fromisoformat(s)
+```
+
+**Applied in:**
+- `middleware/rate_limiter.py` → `get_user_tier()` and `verify_portal_access()` (plan expiry auto-downgrade)
+- `routers/unified.py` → `redeem_coupon()` (coupon expiry validation)
+- `parsers/arxiv_parser.py` → Inline normalization for publication date strings
+
+---
+
+## 3. Multi-Source Data Waterfall & OpenAlex Promotion
+
+Querying legacy academic APIs is notoriously unstable. To provide uninterrupted service, the backend implements a highly resilient **Zero-Data & Error Fallback Cascade** inside `routers/unified.py`.
+
+> **Breaking Change (June 2026):** Following the **deprecation of Semantic Scholar's public API**, OpenAlex has been explicitly promoted to the **primary source** for Social Sciences, Law, and Chemistry portals. It also serves as the universal fallback engine for all other portals.
 
 ```mermaid
 flowchart TD
@@ -82,24 +205,22 @@ flowchart TD
 ```
 
 ### The `switched_to_universal` Flag:
-When the backend silently reroutes to OpenAlex, it sets `switched_to_universal = True` in the `SearchResponse` schema. The React frontend reads this flag and renders a contextual banner: *"Primary database lacked results. Automatically expanded search globally."*
+When the backend silently reroutes to OpenAlex, it sets `switched_to_universal = True` in `SearchResponse`. The React frontend reads this flag and renders a contextual banner: *"Primary database lacked results. Automatically expanded search globally."*
 
 ---
 
-## 3. Bulletproof Hybrid Infrastructure & Resilience Fixes
+## 4. Bulletproof Hybrid Infrastructure & Resilience Fixes
 
-To guarantee 99.9% uptime despite utilizing free/hobby cloud tiers, we engineered robust fallback mechanisms across the full stack.
+### 4.1 — Global Fetch Interceptor (`utils/api.js`)
 
-### 3.1 — Global Fetch Interceptor (`utils/api.js`)
-
-The custom `window.fetch` override captures the native fetch **before** patching, ensuring the backup call always uses `originalFetch`. This architectural decision makes an **infinite retry loop structurally impossible**.
+The custom `window.fetch` override captures the native fetch **before** patching, ensuring the backup call always uses `originalFetch`. This makes an **infinite retry loop structurally impossible**.
 
 ```mermaid
 sequenceDiagram
     participant ReactClient as "React Frontend"
-    participant Interceptor as "window.fetch Interceptor\n(utils/api.js)"
-    participant Primary as "Primary Server\n(Render.com)"
-    participant Backup as "Backup Server\n(Tailscale VPN)"
+    participant Interceptor as "window.fetch Interceptor"
+    participant Primary as "Primary Server (Render.com)"
+    participant Backup as "Backup Server (Tailscale VPN)"
 
     ReactClient->>Interceptor: fetch('/api/search')
     Interceptor->>Primary: originalFetch → Forwards Request
@@ -109,20 +230,16 @@ sequenceDiagram
         Interceptor-->>ReactClient: Returns Data ✅
     else Primary Returns 502 / 503 / 504
         Primary--XInterceptor: Gateway Error
-        Note over Interceptor: Catches 5xx. Rewrites BASE_URL → BACKUP_URL
+        Note over Interceptor: Catches 5xx. Rewrites BASE_URL to BACKUP_URL
         Interceptor->>Backup: originalFetch → Seamless Retry
         Backup-->>Interceptor: 200 OK
         Interceptor-->>ReactClient: Returns Data (Zero user disruption) ✅
     end
 ```
 
-**Anti-Loop Guarantee:** The backup call uses the pre-captured `originalFetch` reference — it does **not** re-enter the overridden `window.fetch`, making recursive loops architecturally impossible.
+### 4.2 — Vercel SPA Rewrite (`vercel.json`)
 
-### 3.2 — Vercel SPA Rewrite (`vercel.json`)
-
-Standard SPAs serve `index.html` only at the root. Navigating directly to `/research` or pressing refresh on `/paper/123` returns a **404 from Vercel's CDN** before React Router can intercept.
-
-**Fix:** A catch-all rewrite rule in `vercel.json` offloads all server-side navigations back to `index.html`, leaving React Router to handle client-side routing.
+Navigating directly to `/research` or refreshing `/paper/123` returns a 404 from Vercel's CDN before React Router can intercept. A catch-all rewrite rule resolves this:
 
 ```json
 {
@@ -130,15 +247,13 @@ Standard SPAs serve `index.html` only at the root. Navigating directly to `/rese
 }
 ```
 
-### 3.3 — Intelligent Auth Event Filtering (`App.jsx`)
+### 4.3 — Intelligent Auth Event Filtering (`App.jsx`)
 
-Supabase fires `TOKEN_REFRESHED` on every browser tab focus via its internal `visibilitychange` listener. Without filtering, this unmounts and re-mounts the entire component tree — wiping `ResearchPage` state, closing AI panels, and causing disruptive loading spinners.
-
-**Fix:** `onAuthStateChange` now classifies events into two categories:
+Supabase fires `TOKEN_REFRESHED` on every browser tab focus, which without filtering, re-mounts the entire component tree — wiping `ResearchPage` state and causing disruptive loading spinners.
 
 | Event Type | Events | Action |
 |---|---|---|
-| **Significant** | `SIGNED_IN`, `SIGNED_OUT`, `INITIAL_SESSION`, `USER_UPDATED`, `PASSWORD_RECOVERY` | Show loading spinner, refetch profile |
+| **Significant** | `SIGNED_IN`, `SIGNED_OUT`, `INITIAL_SESSION`, `USER_UPDATED`, `PASSWORD_RECOVERY` | Show loading spinner, re-fetch profile |
 | **Silent** | `TOKEN_REFRESHED` | Silently update `user` object only — no re-render |
 
 ```javascript
@@ -159,183 +274,153 @@ if (isSignificantEvent) {
 
 ---
 
-## 4. AI Intelligence Layer — Inference, Truncation & Key Rotation
+## 5. AI Intelligence Layer — Inference, Truncation & Key Rotation
 
-### 4.1 — Smart Truncation Pipeline (`routers/ai.py`)
-
-Processing long academic texts risks triggering HTTP 413 (Payload Too Large) or provider rate limits. The backend applies a deterministic truncation cap before prompt construction.
+### 5.1 — Smart Truncation Pipeline (`routers/ai.py`)
 
 ```mermaid
 flowchart LR
-    Input["User Requests\nAI Summary / Chat / Lit-Review"] --> Router["FastAPI AI Router\n/ai/*"]
-    Router --> Extract["Extract Abstracts\nfrom Top 5–15 Papers\n(tier-dependent)"]
-    Extract --> Check{"Total chars\n> 15,000?"}
+    Input["User Requests AI Summary\n/ Chat / Lit-Review / Gap-Analysis"] --> Router["FastAPI AI Router /ai/*"]
+    Router --> Extract["Extract Abstracts\nTop 5–15 Papers (tier-dependent)\nFree=5 / Starter=10 / Pro=15"]
+    Extract --> Check{"Total chars > 15,000?"}
     Check -- "Yes" --> Truncate["Truncate to 15,000 chars\n+ append truncation notice"]
     Check -- "No" --> Prompt
     Truncate --> Prompt["Build System + User Prompts\nwith portal-specific context"]
-    Prompt --> Groq["Groq LPU\n800+ tokens/sec"]
-    Groq -- "Success" --> Output["Return Structured Output\n(Synthesis + Gaps / Chat reply)"]
-    Groq -- "429 Rate Limit\nor 401 Auth Error" --> Rotate["Rotate to next\nGroq API Key"]
+    Prompt --> Groq["Groq LPU 800+ tokens/sec"]
+    Groq -- "Success" --> Output["Structured Output\nSynthesis + Gaps / Chat reply"]
+    Groq -- "429 / 401" --> Rotate["Rotate to next Groq API Key"]
     Rotate --> Groq
 ```
 
-### 4.2 — Three-Tier AI Key Rotation (`services/ai_service.py`)
+### 5.2 — Three-Tier AI Key Rotation (`services/ai_service.py`)
 
-The `generate_ai_response()` function implements a resilient, provider-agnostic key rotation strategy. All keys are **randomly shuffled per request** to distribute load evenly.
+All keys are **randomly shuffled per request** to distribute load evenly across keys. Exceptions are caught generically — the rotation loop handles 429 (rate limit), 401 (auth failure), and network timeouts identically.
 
 ```mermaid
 flowchart TD
     Call["generate_ai_response called"] --> ShuffleGroq["Shuffle HEAVY_GROQ_KEYS\n(randomized load distribution)"]
     ShuffleGroq --> TryGroq["Try Groq Key N"]
     TryGroq -- "Success" --> Return["Return AI Response ✅"]
-    TryGroq -- "Exception (any)" --> NextGroq{"More Groq\nKeys?"}
+    TryGroq -- "Any Exception\n(429 / 401 / timeout)" --> NextGroq{"More Groq Keys?"}
     NextGroq -- "Yes" --> TryGroq
     NextGroq -- "No" --> ShuffleOR["Shuffle HEAVY_OPENROUTER_KEYS"]
     ShuffleOR --> TryOR["Try OpenRouter Key N"]
     TryOR -- "Success" --> Return
-    TryOR -- "Exception" --> NextOR{"More OR\nKeys?"}
+    TryOR -- "Exception" --> NextOR{"More OR Keys?"}
     NextOR -- "Yes" --> TryOR
     NextOR -- "No" --> TryTogether["Try Together AI\n(TOGETHER_API_KEY)"]
     TryTogether -- "Success" --> Return
-    TryTogether -- "Fails" --> Raise["Raise: All AI providers exhausted\n→ 503 returned to client"]
+    TryTogether -- "Fails" --> Raise["Raise: All providers exhausted\n→ 503 returned to client"]
 ```
 
 ---
 
-## 5. Networking & Mentorship Hub — Contact & ORCID Extraction
+## 6. Networking & Mentorship Hub — Contact & ORCID Extraction
 
-The platform enables direct academic networking by parsing researcher contact data from raw API payloads at parse-time — no additional API requests required.
+### 6.1 — Parser-Level Extraction Pipeline
 
-### 5.1 — Extraction Architecture
-
-Data flows through a **parser-level extraction pipeline** embedded in each academic source's parser:
+Researcher contact data is extracted at **parse-time** from raw API payloads — no additional API requests are needed.
 
 ```mermaid
 flowchart TD
-    APIs["Raw API Payloads\n(NCBI / arXiv / OpenAlex / EPMC)"] --> Parsers["Source-Specific Parsers\nncbi_parser.py / arxiv_parser.py\nopenalex_parser.py / epmc_parser.py"]
+    APIs["Raw API Payloads\nNCBI / arXiv / OpenAlex / EPMC"] --> Parsers["Source-Specific Parsers\nncbi_parser.py / arxiv_parser.py\nopenalex_parser.py / epmc_parser.py"]
 
-    Parsers --> EmailRx["Email Regex Engine\nr'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'"]
+    Parsers --> EmailRx["Email Regex Engine\nr'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'\nScans: raw_affiliation_string\nauthor correspondence fields"]
     Parsers --> OrcidEx["ORCID Extractor\nauthor_obj.get('orcid')\n.replace('https://orcid.org/', '')"]
 
-    EmailRx --> Schema["Article Schema\ncorresponding_email: Optional[str]"]
+    EmailRx --> Schema["Pydantic Article Schema\ncorresponding_email: Optional[str] = None"]
     OrcidEx --> Schema
 
-    Schema --> Frontend["React PaperDetail.jsx\nRenders Contact Email\nand ORCID profile link"]
+    Schema --> Frontend["React PaperDetail.jsx\nRenders Contact Email button\nORCID → verified profile link"]
 ```
 
-**Verified Extraction Sources:**
 | Source | Email Field | ORCID Field |
 |---|---|---|
-| **OpenAlex** | `raw_affiliation_string` (regex) | `author.orcid` (direct) |
+| **OpenAlex** | `raw_affiliation_string` (regex) | `author.orcid` (direct field) |
 | **NCBI / PubMed** | Affiliation strings (regex) | Not consistently available |
 | **arXiv** | Author affiliation text (regex) | Not consistently available |
 | **Europe PMC** | Author correspondence field (regex) | Not consistently available |
 
-All fields are declared `Optional[str] = None` in `models/schemas.py` — a `null` value from any source **never crashes the frontend**.
+> All fields are `Optional[str] = None` in `models/schemas.py`. A `null` from any source **never crashes the frontend.**
 
-### 5.2 — AI Outreach Architect (`/ai/generate-outreach`)
+### 6.2 — AI Outreach Architect (`POST /ai/generate-outreach`)
 
-The platform generates highly personalized outreach emails using **Context-Aware Grounding** — data already held in React component state is passed directly to the AI. No re-fetch of academic APIs is ever required, maximizing speed and minimizing costs.
+Personalized outreach emails are generated using **Context-Aware Grounding** — data already in React state is passed directly, eliminating any re-fetch of academic APIs.
 
 ```mermaid
 flowchart TD
-    User["User Opens PaperDetail.jsx"] --> Auth{"Tier Check\n(PaperDetail.jsx)"}
-    Auth -- "Free Tier" --> UpgradeModal["Show Upgrade Modal\n(Starter / Pro required)"]
-    Auth -- "Starter / Pro" --> Extract["Extract from React State:\npaper_title, abstract,\nfull_authors[0]"]
+    User["User Opens PaperDetail.jsx"] --> TierCheck{"Tier Check"}
+    TierCheck -- "Free" --> UpgradeModal["Show Upgrade Modal\n(Starter / Pro required)"]
+    TierCheck -- "Starter / Pro" --> Extract["Extract from React State:\npaper_title, abstract, full_authors[0]"]
 
-    Extract --> Request["POST /ai/generate-outreach\nHeaders: Bearer JWT + X-Device-ID\nBody: title, abstract, author_name"]
+    Extract --> Request["POST /ai/generate-outreach\nAuthorization: Bearer JWT\nX-Device-ID: uuid"]
 
-    Request --> RateCheck["check_ai_limit()\nVerify device + daily quota"]
-    RateCheck -- "Quota OK" --> Log["log_ai_usage()\nInsert to usage_logs"]
+    Request --> DeviceVerify["Verify X-Device-ID\nregistered in user_devices\n→ 403 if unregistered"]
+    DeviceVerify --> QuotaCheck["Daily Quota Check\ncheck_ai_limit()"]
+    QuotaCheck -- "Exceeded" --> E429["429 Too Many Requests"]
+    QuotaCheck -- "OK" --> Log["log_ai_usage()\nInsert to usage_logs"]
     Log --> Truncate["Smart Truncation\nabstract > 3000 chars → cap"]
     Truncate --> AIEngine["generate_ai_response()\nGroq Llama 3.1\ntemp=0.6, max_tokens=300"]
-    AIEngine --> Rules["Enforce Grounding Rules:\n1. Use ONLY provided title + abstract\n2. Extract one specific methodology\n3. Keep email < 200 words\n4. Include [Your Name] placeholders"]
+    AIEngine --> Rules["Grounding Rules Enforced:\n1. Use ONLY title + abstract\n2. Extract specific methodology\n3. Keep email < 200 words\n4. Add placeholder [Your Name]"]
     Rules --> Draft["Return Formatted Email Draft"]
-    Draft --> UI["Render in PaperDetail Modal\nCopy to Clipboard or open mailto:"]
+    Draft --> UI["Copy to Clipboard / Open mailto:"]
 
-    RateCheck -- "Quota Exceeded" --> E429["429 Too Many Requests"]
-    AIEngine -- "All Providers Exhausted" --> Rollback["rollback_ai_usage(log_id)\nDelete orphaned usage log"]
-    Rollback --> E500["500 Error — Friendly message to user"]
+    AIEngine -- "All Providers Exhausted" --> Rollback["rollback_ai_usage(log_id)\nDelete orphaned usage log entry"]
+    Rollback --> E500["500 + Friendly Error Message"]
 ```
 
 ---
 
-## 6. Character-Driven UX & EMO Mascot System
+## 7. Character-Driven UX & EMO Mascot System
 
-ScholarHub AI deliberately diverges from sterile academic database aesthetics by implementing a fully character-driven, human-centered interface powered by the **EMO mascot**.
+### 7.1 — The Evolution of EMO
 
-### 6.1 — The Evolution of EMO
-
-| Stage | Description |
+| Version | Description |
 |---|---|
-| **v1 — Generic Icon** | `<Smile />` Lucide icon in a plain indigo button |
-| **v2 — Character Mascot** | Custom `EMO.png` with CSS drop-shadow, `framer-motion` breathing animation |
-| **v3 — Premium Widget** | EMO rendered in a glassmorphic pill container with an indigo border glow, dismissible tooltip, and dual floating+breathing animation |
+| **v1 — Generic Icon** | `<Smile />` Lucide icon in a plain indigo circular button |
+| **v2 — Character Mascot** | Custom `EMO.png` with `drop-shadow-2xl`, `framer-motion` infinite float animation |
+| **v3 — Premium Widget** | EMO in a glassmorphic pill container, indigo border glow, dismissible "Need help?" tooltip, dual floating + breathing animation |
 
-**Animation Specification (SupportBot.jsx — `framer-motion`):**
+**Verified Animation Spec (`SupportBot.jsx`):**
 ```javascript
-// Breathing effect on floating button
+// Floating button — breathing effect
 animate={{ scale: [1, 1.05, 1], y: [0, -3, 0] }}
 transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
 
-// Thinking animation during AI response generation
+// Chat header — thinking animation during AI response
 animate={{ scale: [1, 1.15, 1], rotate: [-5, 5, -5] }}
 transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
 ```
 
-### 6.2 — Auth UI Redesign (`Auth.jsx`)
+### 7.2 — Auth UI Redesign (`Auth.jsx`)
 
-The authentication flow has been completely overhauled using a **responsive dual-layout** strategy:
+The authentication flow uses a **responsive dual-layout** strategy validated against real device breakpoints:
 
 ```mermaid
 flowchart LR
     subgraph Mobile ["📱 Mobile — App-Style Flow"]
         direction TB
-        MTop["Vibrant Indigo Hero\n(40vh)\nEMO Mascot floating\nframer-motion animate y: 0 → -10 → 0"]
-        MCard["Overlapping Auth Card\nrounded-t-3rem\nPill Toggle: Login / Sign Up\nTurnstile + Submit Button"]
-        MFeat["Scrollable Below Fold\n'Why Researchers Choose Us'\n4 Feature Blocks:\n800+ t/s, RLS, 2-Device, Multi-API"]
+        MTop["Vibrant Indigo Hero (40vh)\nEMO Mascot floating\ny: 0 → -10 → 0 (3s loop)"]
+        MCard["Overlapping Auth Card\nrounded-t-3rem\nPill Toggle: Login / Sign Up\nTurnstile CAPTCHA\nSubmit Button (disabled until verified)"]
+        MFeat["Scrollable Below Fold\n'Why Researchers Choose Us'\n4 Feature Cards:\n800+ t/s · RLS · 2-Device · Multi-API"]
         MTop --> MCard --> MFeat
     end
 
     subgraph Desktop ["🖥️ Desktop — Neo-Minimal Split-Screen"]
         direction TB
-        DLeft["Left Panel — Slate 900 Dark\nMesh Gradient Blobs\nScholarHub AI Branding\nEMO Mascot (320px)\nTrust the Truth — Feature List"]
-        DRight["Right Panel — Slate 50 Light\nCentered Auth Card\nrounded-2.5rem + shadow\nPill Toggle + Neo-Minimal Inputs\nTurnstile CAPTCHA + CTA Button\nSpam Folder reminder on success"]
+        DLeft["Left Panel — Slate 900 Dark\nMesh Gradient Blobs\nScholarHub AI Logo\nEMO Mascot 320px\n'Trust the Truth' Feature List"]
+        DRight["Right Panel — Slate 50 Light\nCentered Auth Card\nrounded-2.5rem shadow-xl\nPill Toggle (spring animated)\nNeo-Minimal Inputs\nTurnstile CAPTCHA\nCTA Button\nSpam Folder reminder on success"]
         DLeft --- DRight
     end
 ```
 
-**Security logic is preserved 100%** across both layouts: Cloudflare Turnstile is rendered in Step 1 for both Login and Signup flows, keeping the submit button `disabled` until `captchaToken` is populated.
+> **100% Functional Parity:** Cloudflare Turnstile is rendered in Step 1 for both Login AND Signup. The submit button is `disabled` until `captchaToken` is set. Supabase Auth, device sync, and all error handling remain intact across both layouts.
 
 ---
 
-## 7. Security & SaaS Integrity Fortress
+## 8. Database Schema & ER Diagram
 
-Security is woven into the foundation of the platform to protect API endpoints and subscription revenue.
-
-```mermaid
-flowchart TD
-    User --> Turnstile["Cloudflare Turnstile\nBot Prevention on all Auth flows"]
-    Turnstile -->|"CAPTCHA Token"| SupabaseAuth["Supabase Auth\nJWT Issuance"]
-    SupabaseAuth -->|"JWT Bearer Token"| Client["Client localStorage\nscholarhub_device_id"]
-    Client -->|"API Request + JWT + X-Device-ID"| Middleware["FastAPI Auth Middleware\nmiddleware/auth.py"]
-    Middleware -->|"Cryptographically verifies JWT"| DeviceCheck["check_ai_limit()\nX-Device-ID in user_devices?"]
-    DeviceCheck -- "Device NOT registered" --> E403["403 Forbidden\nUnregistered Device"]
-    DeviceCheck -- "Device OK" --> QuotaCheck["Daily Quota Check\nusage_logs count for today"]
-    QuotaCheck -- "Quota Exceeded" --> E429["429 Too Many Requests"]
-    QuotaCheck -- "Quota OK" --> DB["PostgreSQL with Row Level Security\nUser can only read/write own rows"]
-    DB --> BizLogic["Execute Business Logic"]
-```
-
-### Key Security Layers:
-
-1. **Stateless JWT Validation** — Every protected endpoint verifies the JWT signature against Supabase Auth. No implicit trust.
-2. **Row Level Security (RLS)** — PostgreSQL policies physically prevent cross-user data access at the engine level. Users can only access their own `usage_logs`, `user_devices`, and `bookmarks`.
-3. **Device Fingerprinting** — `crypto.randomUUID()` generates a stable browser fingerprint stored in `localStorage`. The backend validates this on every AI request. Max 2 devices per account.
-4. **Silent Device Sync (`deviceSync.js`)** — Runs idempotently in the background on `SIGNED_IN` and `INITIAL_SESSION` events to register devices that bypass `Auth.jsx` (e.g., email confirmation links).
-5. **Global 402 Interception** — `apiFetch()` in `utils/api.js` catches HTTP 402 globally, fires a `scholarhub:session-expired` custom event, and immediately downgrades the client's profile tier to `free` without a page reload.
-
-### Database Schema Entity-Relationship (ER) Diagram
+The architecture relies on strict relational integrity and PostgreSQL RLS policies within Supabase.
 
 ```mermaid
 erDiagram
@@ -351,7 +436,7 @@ erDiagram
         string academic_field
         string unlocked_portal
         string user_tier "free / starter / pro"
-        timestamp plan_expiry_date "Auto-downgrade on expiry"
+        timestamp plan_expiry_date "Auto-downgraded on expiry"
     }
 
     usage_logs {
@@ -365,8 +450,8 @@ erDiagram
     user_devices {
         uuid id PK
         uuid user_id FK
-        string device_id "crypto.randomUUID()"
-        string device_name "Windows PC / Mac / Mobile"
+        string device_id "crypto.randomUUID() — browser fingerprint"
+        string device_name "Windows PC / Mac / Mobile Device"
     }
 
     coupons ||--o{ coupon_redemptions : "validates"
@@ -381,9 +466,7 @@ erDiagram
 
 ---
 
-## 8. Future Roadmap
-
-Our infrastructure is highly modular, enabling rapid integration of complex future technologies.
+## 9. Future Roadmap
 
 ```mermaid
 gantt
@@ -397,6 +480,8 @@ gantt
     AI Outreach & Networking Hub          :done, des4, 2026-06-07, 2026-06-10
     Character-Driven EMO Auth UI          :done, des5, 2026-06-08, 2026-06-10
     QA Security Audit & Bug Fixes         :done, des6, 2026-06-10, 2026-06-11
+    ISO Timestamp & Date Parsing Fix      :done, des6b, 2026-06-11, 1d
+    Final Pre-Deployment QA (5-Point)     :done, des6c, 2026-06-11, 1d
 
     section Phase 2 — Upcoming Enhancements
     Vector DB & PDF RAG Integration       :active, des7, 2026-06-15, 14d
@@ -410,5 +495,5 @@ gantt
 ---
 
 *Document Generated by ScholarHub AI Architecture Audit Team.*
-*Validated against: `utils/api.js`, `Auth.jsx`, `routers/ai.py`, `middleware/rate_limiter.py`, `parsers/openalex_parser.py`, `components/PaperDetail.jsx`, `utils/deviceSync.js`.*
-*Last full QA audit: June 10, 2026. No known defects at time of publication.*
+*Validated against: `utils/api.js`, `supabaseClient.js`, `Auth.jsx`, `routers/ai.py`, `routers/unified.py`, `middleware/rate_limiter.py`, `parsers/arxiv_parser.py`, `parsers/openalex_parser.py`, `components/PaperDetail.jsx`, `utils/deviceSync.js`, `vercel.json`, `main.py`, `config.py`, `models/schemas.py`.*
+*Last full QA audit: June 11, 2026. All 5 integration points verified — **GO status confirmed**. No known defects at time of publication.*

@@ -129,9 +129,10 @@ function App() {
         } else {
           // Dynamic Default Fallback for empty data
           if (isMounted) {
-            const field = sessionUser?.user_metadata?.academic_field || 'Medicine/Bio';
+            const field = sessionUser?.user_metadata?.academicField || sessionUser?.user_metadata?.academic_field || 'Genetic Eng. & Biotech (GEB)';
             const fieldMap = {
-              'Medicine/Bio': 'bio',
+              'Genetic Eng. & Biotech (GEB)': 'geb',
+              'Pharmacy & Pharmacology': 'pharma',
               'Engineering/CS': 'eng',
               'Engineering': 'eng',
               'Physics': 'physics',
@@ -140,15 +141,16 @@ function App() {
               'Chemistry / Pharmacy': 'chem',
               'Law / Legal Studies': 'law'
             };
-            const unlocked = fieldMap[field] || 'bio';
+            const unlocked = fieldMap[field] || 'geb';
 
             setProfile({ 
               user_tier: 'free', 
               tier: 'free', 
               unlocked_portal: unlocked, 
               academic_field: field,
+              academic_status: sessionUser?.user_metadata?.academicStatus || sessionUser?.user_metadata?.academic_status || 'Undergraduate',
               role: 'user',
-              full_name: sessionUser?.user_metadata?.full_name || 'Academic User'
+              full_name: sessionUser?.user_metadata?.fullName || sessionUser?.user_metadata?.full_name || 'Academic User'
             });
             setIsAdmin(isFounder);
           }
@@ -156,9 +158,10 @@ function App() {
       } catch {
         // Fallback Profile
         if (isMounted) {
-          const field = sessionUser?.user_metadata?.academic_field || 'Medicine/Bio';
+          const field = sessionUser?.user_metadata?.academicField || sessionUser?.user_metadata?.academic_field || 'Genetic Eng. & Biotech (GEB)';
           const fieldMap = {
-            'Medicine/Bio': 'bio',
+            'Genetic Eng. & Biotech (GEB)': 'geb',
+            'Pharmacy & Pharmacology': 'pharma',
             'Engineering/CS': 'eng',
             'Engineering': 'eng',
             'Physics': 'physics',
@@ -167,15 +170,16 @@ function App() {
             'Chemistry / Pharmacy': 'chem',
             'Law / Legal Studies': 'law'
           };
-          const unlocked = fieldMap[field] || 'bio';
+          const unlocked = fieldMap[field] || 'geb';
 
           setProfile({ 
             user_tier: 'free', 
             tier: 'free', 
             unlocked_portal: unlocked, 
             academic_field: field,
+            academic_status: sessionUser?.user_metadata?.academicStatus || sessionUser?.user_metadata?.academic_status || 'Undergraduate',
             role: 'user',
-            full_name: sessionUser?.user_metadata?.full_name || 'Academic User'
+            full_name: sessionUser?.user_metadata?.fullName || sessionUser?.user_metadata?.full_name || 'Academic User'
           });
           setIsAdmin(isFounder);
         }
@@ -394,7 +398,7 @@ function App() {
         
         <Route path="/archive" element={<Archive />} />
         <Route path="/resources" element={<Resources />} />
-        <Route path="/pricing" element={<Pricing user={user} />} />
+        <Route path="/pricing" element={<Pricing user={user} profile={profile} />} />
         <Route path="/admin" element={<AdminPanel user={user} profile={profile} liveUsersCount={liveUsersCount} />} />
         <Route path="/profile" element={<ProtectedRoute><Profile user={user} /></ProtectedRoute>} />
         <Route path="/paper/*" element={<PaperDetail user={user} profile={profile} />} />

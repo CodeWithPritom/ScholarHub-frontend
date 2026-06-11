@@ -5,7 +5,7 @@ import { RefreshCcw, X, Sparkles } from 'lucide-react';
 export const ForceRefreshModal = ({ isOpen, onClose, onConfirm }) => (
   <AnimatePresence>
     {isOpen && (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4">
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -17,7 +17,7 @@ export const ForceRefreshModal = ({ isOpen, onClose, onConfirm }) => (
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl border border-slate-100 overflow-hidden"
+          className="relative bg-white w-full h-full sm:h-auto max-w-md rounded-none sm:rounded-[2.5rem] p-8 shadow-2xl border border-slate-100 overflow-y-auto flex flex-col justify-center max-h-screen sm:max-h-[85vh]"
         >
           <div className="absolute top-0 right-0 p-6">
             <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
@@ -58,7 +58,7 @@ export const ForceRefreshModal = ({ isOpen, onClose, onConfirm }) => (
 export const ProUpgradeModal = ({ isOpen, onClose, navigate, reason }) => (
   <AnimatePresence>
     {isOpen && (
-      <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
+      <div className="fixed inset-0 z-[110] flex items-center justify-center p-0 sm:p-6">
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -71,9 +71,15 @@ export const ProUpgradeModal = ({ isOpen, onClose, navigate, reason }) => (
           initial={{ scale: 0.9, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
-          className="relative w-full max-w-md bg-white rounded-[2.5rem] p-10 shadow-2xl border border-slate-100 text-center z-10"
+          className="relative w-full h-full sm:h-auto max-w-md bg-white rounded-none sm:rounded-[2.5rem] p-8 sm:p-10 shadow-2xl border border-slate-100 text-center z-10 overflow-y-auto flex flex-col justify-center max-h-screen sm:max-h-[85vh]"
         >
-          <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-amber-100">
+          <div className="absolute top-0 right-0 p-6">
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-amber-100 shrink-0">
             <Sparkles size={28} />
           </div>
           
@@ -118,7 +124,7 @@ export const ProUpgradeModal = ({ isOpen, onClose, navigate, reason }) => (
 export const StarterUpgradeModal = ({ isOpen, onClose, navigate }) => (
   <AnimatePresence>
     {isOpen && (
-      <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
+      <div className="fixed inset-0 z-[110] flex items-center justify-center p-0 sm:p-6">
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -131,9 +137,15 @@ export const StarterUpgradeModal = ({ isOpen, onClose, navigate }) => (
           initial={{ scale: 0.9, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
-          className="relative w-full max-w-md bg-white rounded-[2.5rem] p-10 shadow-2xl border border-slate-100 text-center z-10"
+          className="relative w-full h-full sm:h-auto max-w-md bg-white rounded-none sm:rounded-[2.5rem] p-8 sm:p-10 shadow-2xl border border-slate-100 text-center z-10 overflow-y-auto flex flex-col justify-center max-h-screen sm:max-h-[85vh]"
         >
-          <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-blue-100">
+          <div className="absolute top-0 right-0 p-6">
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-blue-100 shrink-0">
             <Sparkles size={28} />
           </div>
           

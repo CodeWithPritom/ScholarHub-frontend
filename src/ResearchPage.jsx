@@ -326,10 +326,25 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
             return prev;
           });
         } else {
-          // Forced Default Fallback
+          // Dynamic Default Fallback
+          const metadata = user?.user_metadata || {};
+          const fbField = metadata.academicField || metadata.academic_field || 'Genetic Eng. & Biotech (GEB)';
+          const fbFieldMap = {
+            'Genetic Eng. & Biotech (GEB)': 'geb',
+            'Pharmacy & Pharmacology': 'pharma',
+            'Engineering/CS': 'eng',
+            'Engineering': 'eng',
+            'Physics': 'physics',
+            'Mathematics': 'math',
+            'Social Sciences': 'social',
+            'Chemistry / Pharmacy': 'chem',
+            'Law / Legal Studies': 'law'
+          };
+          const fbUnlocked = fbFieldMap[fbField] || 'geb';
+
           tier = 'free';
-          field = 'Engineering/CS';
-          unlocked = 'eng';
+          field = fbField;
+          unlocked = fbUnlocked;
           
           setUserTier(tier);
           setUnlockedPortalState(unlocked);
@@ -349,7 +364,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
         setProfileError("Database connection issue. Fallback profile loaded.");
         
         const metadata = user?.user_metadata || {};
-        const field = metadata.academic_field || 'Genetic Eng. & Biotech (GEB)';
+        const field = metadata.academicField || metadata.academic_field || 'Genetic Eng. & Biotech (GEB)';
         const fieldMap = {
           'Genetic Eng. & Biotech (GEB)': 'geb',
           'Pharmacy & Pharmacology': 'pharma',
@@ -1296,7 +1311,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       </AnimatePresence>
 
       {/* Search Engine Section */}
-      <section className={`${announcement ? 'pt-16' : 'pt-32'} pb-16 px-6 relative overflow-hidden`}>
+      <section className={`${announcement ? 'pt-16' : 'pt-32'} pb-16 px-4 md:px-8 relative overflow-hidden`}>
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black bg-blue-50 text-blue-600 mb-4 uppercase tracking-widest shadow-sm border border-blue-100">
@@ -1310,7 +1325,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
             </p>
           </div>
 
-          <div className="grid lg:grid-cols-5 gap-16 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-16 items-start">
             <div className="lg:col-span-3">
               <SearchBar 
                 portal={portal}
@@ -1437,7 +1452,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       </section>
 
       {/* Results Workspace */}
-      <main className="max-w-7xl mx-auto px-6 pb-40">
+      <main className="max-w-7xl mx-auto px-4 md:px-8 pb-40">
         
         {universalFallbackAlert && (
           <div className="mb-8 p-5 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
@@ -1489,7 +1504,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
         </div>
 
         {hasSearched && !loading && articles.length > 0 && userTier === 'pro' && (
-          <div className="flex flex-col sm:flex-row gap-3 justify-center items-center my-6">
+          <div className="flex flex-wrap items-center justify-center gap-3 my-6">
             <button 
               onClick={handleLitReviewClick}
               className="w-full sm:w-auto flex justify-center items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all shadow-md shadow-orange-100/50"
@@ -1549,7 +1564,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       {/* Literature Review Generation Overlay */}
       <AnimatePresence>
         {litReviewModalOpen && (
-          <div className="fixed inset-0 z-[90] pt-20 md:pt-24 flex items-center justify-center p-6">
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-0 sm:p-6">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1562,7 +1577,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-4xl bg-white rounded-[3rem] shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[85vh] z-10"
+              className="relative w-full h-full sm:h-auto max-w-4xl bg-white rounded-none sm:rounded-[3rem] shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-screen sm:max-h-[85vh] z-10"
             >
               {/* Header */}
               <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
