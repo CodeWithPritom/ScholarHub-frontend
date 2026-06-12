@@ -54,7 +54,7 @@ function App() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [isInitializing, setIsInitializing] = useState(true)
   const [liveUsersCount, setLiveUsersCount] = useState(1)
-  const [totalMembersCount, setTotalMembersCount] = useState(12400) // Fallback
+  const [totalMembersCount, setTotalMembersCount] = useState(0) // Real count via RPC
   const [deviceLimitWarning, setDeviceLimitWarning] = useState(false)
   const [sessionExpired, setSessionExpired] = useState(false)
   const [expiryMessage, setExpiryMessage] = useState('')
@@ -87,10 +87,8 @@ function App() {
   useEffect(() => {
     const fetchTotalMembers = async () => {
       try {
-        const { count } = await supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true })
-        if (count) setTotalMembersCount(count)
+        const { data, error } = await supabase.rpc('get_total_user_count')
+        if (!error && data !== null) setTotalMembersCount(data)
       } catch (e) { /* ignore */ }
     }
     fetchTotalMembers()
