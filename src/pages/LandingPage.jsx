@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Dna, ArrowRight, Activity, Users, Database, Globe, Megaphone, X, Play, Brain, CheckCircle2, Server, MessageSquare, Smartphone, Monitor, Zap, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Dna, ArrowRight, Activity, Users, Database, Globe, Megaphone, X, Play, Brain, CheckCircle2, Server, MessageSquare, Smartphone, Monitor, Zap, ChevronLeft, ChevronRight, Book, Atom, Sparkles } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 import logo from '../assets/images/logo.png'
 import Footer from '../Footer'
@@ -337,14 +337,46 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
       <Testimonials />
 
       {/* 3D Success Hall Entry */}
-      <section className="pb-32 bg-slate-900 relative z-20">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <button 
-            onClick={() => navigate('/success-stories')} 
-            className="px-8 py-5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-full font-black uppercase tracking-widest text-sm shadow-[0_0_40px_rgba(59,130,246,0.3)] hover:shadow-[0_0_60px_rgba(59,130,246,0.5)] transition-all hover:scale-105 inline-flex items-center gap-3 border border-blue-400/30"
-          >
-            ✨ Enter the 3D Success Hall
-          </button>
+      <section className="relative z-20 w-full mt-20 mb-20 py-24 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent border-y border-indigo-500/10 overflow-hidden">
+        <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
+          <h2 className="text-3xl md:text-5xl font-black mb-6 text-white tracking-tight">Explore Researcher Activities & Success</h2>
+          <p className="text-slate-400 font-medium mb-14 text-base md:text-lg max-w-2xl mx-auto leading-relaxed">
+            Step inside our immersive 3D dimension to see real-time updates, community breakthroughs, and success stories from researchers using ScholarHub AI.
+          </p>
+          
+          <div className="relative inline-flex items-center justify-center w-full md:w-auto">
+            {/* Left Decorative Element (Desktop) */}
+            <motion.div 
+              animate={{ y: [-10, 10, -10], rotate: [-5, 5, -5] }} 
+              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+              className="hidden md:flex absolute -left-32 top-1/2 -translate-y-1/2 w-16 h-16 bg-blue-500/10 backdrop-blur-xl border border-blue-500/20 rounded-2xl items-center justify-center text-blue-400 shadow-xl shadow-blue-500/20"
+            >
+              <Book size={28} />
+            </motion.div>
+
+            {/* The Breathing Hero CTA */}
+            <div className="relative w-full md:w-auto inline-block group">
+              {/* Continuous Breathing Glow */}
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 blur-[25px] opacity-60 animate-pulse rounded-full group-hover:opacity-100 transition-opacity duration-500"></div>
+              
+              <button 
+                onClick={() => navigate('/success-stories')} 
+                className="relative w-full md:w-auto px-10 md:px-12 py-5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-full font-black uppercase tracking-widest text-sm md:text-base shadow-2xl transition-all duration-300 hover:scale-[1.02] active:scale-95 inline-flex items-center justify-center gap-3 border border-white/20"
+              >
+                <Sparkles className="text-blue-200" size={24} />
+                <span>🌐 ENTER THE 3D ACTIVITY HUB</span>
+              </button>
+            </div>
+
+            {/* Right Decorative Element (Desktop) */}
+            <motion.div 
+              animate={{ y: [10, -10, 10], rotate: [5, -5, 5] }} 
+              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+              className="hidden md:flex absolute -right-32 top-1/2 -translate-y-1/2 w-16 h-16 bg-indigo-500/10 backdrop-blur-xl border border-indigo-500/20 rounded-2xl items-center justify-center text-indigo-400 shadow-xl shadow-indigo-500/20"
+            >
+              <Atom size={28} />
+            </motion.div>
+          </div>
         </div>
       </section>
 
