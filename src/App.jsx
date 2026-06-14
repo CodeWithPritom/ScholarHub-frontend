@@ -15,6 +15,7 @@ import { Dna, AlertTriangle, X, CreditCard } from 'lucide-react'
 import Auth from './Auth'
 import LandingPage from './pages/LandingPage'
 const ResearchPage = lazy(() => import('./ResearchPage'))
+const SuccessStories3D = lazy(() => import('./pages/SuccessStories3D'))
 import MyLibrary from './MyLibrary'
 import Settings from './Settings'
 import VerifyEmail from './VerifyEmail'
@@ -398,6 +399,7 @@ function App() {
         <Route path="/resources" element={<Resources />} />
         <Route path="/pricing" element={<Pricing user={user} profile={profile} />} />
         <Route path="/admin" element={<AdminPanel user={user} profile={profile} liveUsersCount={liveUsersCount} />} />
+        <Route path="/success-stories" element={<Suspense fallback={<div className="h-screen w-screen bg-[#020617] text-white flex items-center justify-center font-bold tracking-widest uppercase text-sm">Loading 3D Engine...</div>}><SuccessStories3D /></Suspense>} />
         <Route path="/profile" element={<ProtectedRoute><Profile user={user} /></ProtectedRoute>} />
         <Route path="/paper/*" element={<PaperDetail user={user} profile={profile} />} />
         <Route path="/ai-report" element={<AIReport />} />

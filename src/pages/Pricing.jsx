@@ -503,17 +503,17 @@ const Pricing = ({ user, profile }) => {
                   <GraduationCap size={14} /> Student Outreach Program
                 </div>
                 <h3 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight mb-2">
-                  Get 1 Year of <span className="text-indigo-600">STARTER Tier</span> for FREE
+                  Get 1 Month of <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-indigo-600">PRO Tier</span> for FREE
                 </h3>
                 <p className="text-slate-500 font-medium text-sm max-w-md">
-                  We believe cost shouldn't be a barrier to research. Verify your academic status and unlock premium capabilities at zero cost. <span className="font-bold text-slate-700">One-time offer per student.</span>
+                  Experience the full power of ScholarHub AI. Unlock 100 daily AI uses, all 7 research portals, and the AI Outreach Architect for 30 days. No credit card required.
                 </p>
               </div>
               <button
                 onClick={() => setStudentModalOpen(true)}
                 className="shrink-0 w-full md:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-indigo-200 transition-all hover:-translate-y-1"
               >
-                Claim Free Year
+                ACTIVATE PRO MONTH
               </button>
             </div>
           </div>
@@ -550,7 +550,7 @@ const Pricing = ({ user, profile }) => {
               
               <h3 className="text-2xl font-black text-slate-900 mb-2">Verify Student Status 🎓</h3>
               <p className="text-sm font-medium text-slate-500 mb-8">
-                Follow these exact steps to claim your free 1-year Starter plan. Admin approval takes up to 24 hours.
+                Follow these exact steps to claim your free 1-month PRO plan. Admin approval takes up to 24 hours.
               </p>
               
               <div className="space-y-4 mb-8">
@@ -570,7 +570,7 @@ const Pricing = ({ user, profile }) => {
 
               <button
                 onClick={() => {
-                  const msg = `Hi Pritom, I want to claim the 1-Year Free Student Starter Pack. I will provide my Student ID and Email for verification. User Email: ${user?.email || 'unknown'}`
+                  const msg = `Hi Pritom, I want to claim the 1-Month Free PRO Subscription. I will provide my Student ID and Email for verification. User Email: ${user?.email || 'unknown'}`
                   window.open(`https://wa.me/8801853343176?text=${encodeURIComponent(msg)}`, '_blank')
                   setStudentModalOpen(false)
                 }}

@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { Dna, Globe, MessageCircle, FileText } from 'lucide-react'
+import { Dna } from 'lucide-react'
+import { FaFacebook, FaLinkedin, FaGithub, FaYoutube } from 'react-icons/fa'
 import logo from './assets/images/logo.png'
 
 const Footer = ({ user, onAuthRequired }) => {
@@ -29,9 +30,18 @@ const Footer = ({ user, onAuthRequired }) => {
               Founder: <span className="text-blue-400">Arup Bhowmik Pritom</span>
             </div>
             <div className="flex items-center gap-4 pt-2">
-              <a href="#" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all"><Globe size={18} /></a>
-              <a href="#" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all"><MessageCircle size={18} /></a>
-              <a href="#" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all"><FileText size={18} /></a>
+              <a href="https://www.facebook.com/people/ScholarHub-AI-Advanced-Research-Discovery-Hub/61590477040942/" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-blue-600 hover:text-white hover:scale-110 transition-all">
+                <FaFacebook size={20} />
+              </a>
+              <a href="https://www.linkedin.com/in/arup-bhowmik-pritom/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-blue-600 hover:text-white hover:scale-110 transition-all">
+                <FaLinkedin size={20} />
+              </a>
+              <a href="https://github.com/CodeWithPritom" target="_blank" rel="noopener noreferrer" aria-label="GitHub" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-blue-600 hover:text-white hover:scale-110 transition-all">
+                <FaGithub size={20} />
+              </a>
+              <a href="https://www.youtube.com/@CodeWithPritom-360" target="_blank" rel="noopener noreferrer" aria-label="YouTube" className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center hover:bg-red-600 hover:text-white hover:scale-110 transition-all">
+                <FaYoutube size={20} />
+              </a>
             </div>
           </div>
 

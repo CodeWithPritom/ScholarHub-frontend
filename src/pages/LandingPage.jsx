@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Dna, ArrowRight, Activity, Users, Database, Globe, Megaphone, X, Play, Brain, CheckCircle2, Server, MessageSquare, Smartphone, Monitor, Zap } from 'lucide-react'
+import { Dna, ArrowRight, Activity, Users, Database, Globe, Megaphone, X, Play, Brain, CheckCircle2, Server, MessageSquare, Smartphone, Monitor, Zap, ChevronLeft, ChevronRight } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 import logo from '../assets/images/logo.png'
 import Footer from '../Footer'
 import Navbar from '../components/Navbar'
+import Testimonials from '../components/Testimonials'
 
 const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogout }) => {
   const navigate = useNavigate()
@@ -332,36 +333,18 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
         </div>
       </section>
 
-      {/* Section: Academic Feedback */}
-      <section className="py-32 relative z-10 border-t border-slate-800 bg-slate-900/50">
-        <div className="max-w-4xl mx-auto px-6">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }} 
-            whileInView={{ opacity: 1, y: 0 }} 
-            viewport={{ once: true }} 
-            className="bg-white p-8 md:p-12 rounded-3xl border border-slate-100 shadow-xl text-slate-800 relative overflow-hidden"
+      {/* Testimonials Section Component */}
+      <Testimonials />
+
+      {/* 3D Success Hall Entry */}
+      <section className="pb-32 bg-slate-900 relative z-20">
+        <div className="max-w-7xl mx-auto px-6 text-center">
+          <button 
+            onClick={() => navigate('/success-stories')} 
+            className="px-8 py-5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-full font-black uppercase tracking-widest text-sm shadow-[0_0_40px_rgba(59,130,246,0.3)] hover:shadow-[0_0_60px_rgba(59,130,246,0.5)] transition-all hover:scale-105 inline-flex items-center gap-3 border border-blue-400/30"
           >
-            <div className="absolute top-0 right-0 p-6 md:p-8">
-              <span className="px-4 py-1.5 bg-blue-50 text-blue-600 text-xs font-black uppercase tracking-widest rounded-full border border-blue-100">
-                Dean's Recognition
-              </span>
-            </div>
-            <div className="mb-6 mt-8 md:mt-2">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-6">
-                <span className="text-blue-600 font-serif text-3xl leading-none pt-2">"</span>
-              </div>
-              <p className="text-xl md:text-2xl font-serif italic text-slate-700 leading-relaxed">
-                The platform looks very promising... I am truly happy to see your progress and would like to congratulate you on this impressive achievement. Your dedication and innovation are clearly reflected in the platform.
-              </p>
-            </div>
-            <div className="flex items-center gap-5 mt-8 pt-6 border-t border-slate-100">
-              <img src="/dean.jpg" alt="Prof. Dr. Ahmed Wasif Reza" className="w-16 h-16 rounded-full object-cover border-2 border-slate-200 shadow-sm shrink-0" />
-              <div>
-                <h4 className="font-black text-slate-900 text-lg">Prof. Dr. Ahmed Wasif Reza</h4>
-                <p className="text-sm font-medium text-slate-500">Dean, Faculty of Sciences and Engineering, East West University</p>
-              </div>
-            </div>
-          </motion.div>
+            ✨ Enter the 3D Success Hall
+          </button>
         </div>
       </section>
 
