@@ -161,10 +161,10 @@ const Pricing = ({ user, profile }) => {
     const isCouponApplicable = couponStatus?.success && (couponStatus?.applicable_tier === 'both' || couponStatus?.applicable_tier === tierName.toLowerCase())
 
     if (tierName.toLowerCase() === 'starter') {
-      baseNum = billingCycle === 'yearly' ? 2500 : 250
+      baseNum = billingCycle === 'yearly' ? 1500 : 150
       planPriceNum = isCouponApplicable ? Math.floor(baseNum * (1 - couponStatus.discount / 100)) : baseNum
     } else if (tierName.toLowerCase() === 'pro') {
-      baseNum = billingCycle === 'yearly' ? 10000 : 1000
+      baseNum = billingCycle === 'yearly' ? 5000 : 500
       planPriceNum = isCouponApplicable ? Math.floor(baseNum * (1 - couponStatus.discount / 100)) : baseNum
     }
     
@@ -205,11 +205,11 @@ const Pricing = ({ user, profile }) => {
     },
     {
       name: 'STARTER',
-      price: billingCycle === 'yearly' ? '৳2500' : '৳250',
-      basePriceNum: billingCycle === 'yearly' ? 2500 : 250,
+      price: billingCycle === 'yearly' ? '৳1500' : '৳150',
+      basePriceNum: billingCycle === 'yearly' ? 1500 : 150,
       period: billingCycle === 'yearly' ? '/yr' : '/mo',
-      originalPrice: billingCycle === 'yearly' ? '৳5000' : '৳500',
-      savings: billingCycle === 'yearly' ? '2500' : '250',
+      originalPrice: billingCycle === 'yearly' ? '৳3000' : '৳300',
+      savings: billingCycle === 'yearly' ? '1500' : '150',
       description: 'Higher limits for the same assigned portal.',
       features: [
         { name: user ? dynamicPortalString : "Access to 1 Specialized Portal", included: true },
@@ -230,10 +230,10 @@ const Pricing = ({ user, profile }) => {
     },
     {
       name: 'PRO',
-      price: billingCycle === 'yearly' ? '৳10000' : '৳1000',
-      basePriceNum: billingCycle === 'yearly' ? 10000 : 1000,
-      originalPrice: billingCycle === 'yearly' ? '৳20000' : '৳2000',
-      savings: billingCycle === 'yearly' ? '10000' : '1000',
+      price: billingCycle === 'yearly' ? '৳5000' : '৳500',
+      basePriceNum: billingCycle === 'yearly' ? 5000 : 500,
+      originalPrice: billingCycle === 'yearly' ? '৳10000' : '৳1000',
+      savings: billingCycle === 'yearly' ? '5000' : '500',
       period: billingCycle === 'yearly' ? '/yr' : '/mo',
       description: 'For power researchers demanding unlimited AI potential.',
       features: [

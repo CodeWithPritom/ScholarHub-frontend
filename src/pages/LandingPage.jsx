@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Dna, ArrowRight, Activity, Users, Database, Globe, Megaphone, X, Play, Brain, CheckCircle2, Server, MessageSquare, Smartphone, Monitor, Zap, ChevronLeft, ChevronRight, Book, Atom, Sparkles } from 'lucide-react'
+import { Dna, ArrowRight, Activity, Users, Database, Globe, Megaphone, X, Play, Brain, CheckCircle2, Server, MessageSquare, Smartphone, Monitor, Zap, ChevronLeft, ChevronRight, ChevronDown, Book, Atom, Sparkles, Shield, Timer, GraduationCap, AlertTriangle } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 import logo from '../assets/images/logo.png'
 import Footer from '../Footer'
@@ -20,6 +20,13 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
   }
 
   const [announcement, setAnnouncement] = useState(null);
+  const [openFaq, setOpenFaq] = useState(null);
+
+  const FAQ_ITEMS = [
+    { q: 'How is ScholarHub AI different from ChatGPT?', a: 'Unlike generic AI chatbots, ScholarHub AI is grounded in real academic data. Every answer is synthesized directly from peer-reviewed papers retrieved in real time from NCBI, arXiv, and OpenAlex — so you never get hallucinated citations or fabricated sources.' },
+    { q: 'What sources do you use?', a: 'We aggregate results from three of the world\'s largest academic databases: NCBI (PubMed/PMC) for biomedical literature, arXiv for preprints in STEM fields, and OpenAlex for broad interdisciplinary coverage spanning 230M+ scholarly works.' },
+    { q: 'Is there a device limit?', a: 'Yes. For security and fair-use purposes, each account can be active on a maximum of 2 devices simultaneously. You can log out of one device to free up a slot at any time.' },
+  ];
 
   useEffect(() => {
     const fetchAnnouncement = async () => {
@@ -121,12 +128,12 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
             </div>
           </motion.div>
           
-          <motion.h1 variants={itemVariants} className="text-6xl md:text-8xl font-black tracking-tight leading-[0.9] mb-8">
-            ScholarHub <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-500">AI</span>
+          <motion.h1 variants={itemVariants} className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[0.95] mb-8">
+            Research <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-500">10x Faster.</span><br/>Zero Hallucinations.
           </motion.h1>
           
-          <motion.p variants={itemVariants} className="text-lg md:text-2xl text-slate-400 font-medium mb-12 max-w-2xl mx-auto leading-relaxed">
-            The AI-Powered Discovery Hub for Global Researchers. Whether you call it ScholarHub or a Hub for Scholars, we provide the ultimate intelligent platform unifying GEB, Pharmacy, Engineering, and General Literature.
+          <motion.p variants={itemVariants} className="text-lg md:text-xl text-slate-400 font-medium mb-12 max-w-2xl mx-auto leading-relaxed">
+            ScholarHub AI unifies NCBI, arXiv, and OpenAlex. Synthesize hundreds of peer-reviewed papers in seconds with Meta Llama 3.1 &amp; Groq LPU.
           </motion.p>
           
           <motion.div variants={itemVariants} className="flex flex-col items-center justify-center gap-4 mx-auto w-full">
@@ -135,7 +142,7 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
               disabled={user && !profile}
               className={`group px-8 py-5 w-full sm:w-auto bg-white text-slate-900 hover:bg-blue-50 rounded-2xl text-sm font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-4 shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] ${user && !profile ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-[0_0_60px_-15px_rgba(255,255,255,0.5)] hover:scale-105'}`}
             >
-              {user ? (profile ? "Go to Workspace" : "Syncing Profile...") : "Start Your Discovery"}
+              {user ? (profile ? "Go to Workspace" : "Syncing Profile...") : "🚀 Start Researching for Free"}
               <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
             </button>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-2 w-full sm:w-auto">
@@ -155,12 +162,25 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
               </a>
             </div>
           </motion.div>
+
+          {/* USP Trust Badges */}
+          <motion.div variants={itemVariants} className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 flex-wrap">
+            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold tracking-wide backdrop-blur-md">
+              <Shield size={14} /> Verified Sources Only — No AI-generated fake citations
+            </div>
+            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold tracking-wide backdrop-blur-md">
+              <Timer size={14} /> 800+ Tokens/Sec — Fastest synthesis on the market
+            </div>
+            <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold tracking-wide backdrop-blur-md">
+              <GraduationCap size={14} /> Mentorship Hub — Connect directly with global professors
+            </div>
+          </motion.div>
           
+          {/* Demo Video */}
           <motion.div variants={itemVariants} className="mt-24 w-full max-w-5xl mx-auto">
-            <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-6">Welcome to ScholarHub AI - Watch the Demo</h3>
-            <div className="relative w-full aspect-video rounded-[2rem] overflow-hidden border border-slate-800 shadow-2xl shadow-blue-500/10">
+            <div className="relative w-full aspect-video rounded-[2rem] overflow-hidden border border-slate-700/60 shadow-2xl shadow-blue-500/10">
               <iframe 
-                src="https://www.youtube.com/embed/7RjTeYbRYfI?autoplay=0&controls=1&rel=0" 
+                src="https://www.youtube.com/embed/uA6XPPecG5k?autoplay=0&controls=1&rel=0" 
                 title="ScholarHub AI Demo" 
                 className="absolute inset-0 w-full h-full object-cover bg-slate-900"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
@@ -214,15 +234,73 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
         </div>
       </section>
 
-      {/* Section B: The Intelligence Engine */}
+      {/* Why Not ChatGPT? — Competitive Comparison */}
+      <section className="py-24 relative z-10 border-t border-slate-800">
+        <div className="max-w-5xl mx-auto px-6">
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-14">
+            <h2 className="text-3xl md:text-5xl font-black mb-4">Why Not Just Use <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-orange-400">ChatGPT</span>?</h2>
+            <p className="text-slate-400 font-medium max-w-xl mx-auto">Generic AI tools aren't built for academic research. Here's the difference.</p>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="grid md:grid-cols-2 gap-6">
+            {/* Generic AI Column */}
+            <div className="bg-red-500/5 border border-red-500/20 rounded-3xl p-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-red-500/10 text-red-400 rounded-xl flex items-center justify-center"><AlertTriangle size={20} /></div>
+                <h3 className="text-xl font-black text-red-400">Generic AI (ChatGPT, etc.)</h3>
+              </div>
+              <ul className="space-y-4 text-sm font-medium text-slate-400">
+                <li className="flex gap-3 items-start"><X size={16} className="text-red-400 shrink-0 mt-0.5" /> Hallucinates citations & fabricates sources</li>
+                <li className="flex gap-3 items-start"><X size={16} className="text-red-400 shrink-0 mt-0.5" /> Training data cutoff — no real-time papers</li>
+                <li className="flex gap-3 items-start"><X size={16} className="text-red-400 shrink-0 mt-0.5" /> No direct access to NCBI, arXiv, or OpenAlex</li>
+                <li className="flex gap-3 items-start"><X size={16} className="text-red-400 shrink-0 mt-0.5" /> Cannot verify or cross-reference claims</li>
+              </ul>
+            </div>
+            {/* ScholarHub AI Column */}
+            <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-3xl p-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center"><CheckCircle2 size={20} /></div>
+                <h3 className="text-xl font-black text-emerald-400">ScholarHub AI</h3>
+              </div>
+              <ul className="space-y-4 text-sm font-medium text-slate-300">
+                <li className="flex gap-3 items-start"><CheckCircle2 size={16} className="text-emerald-400 shrink-0 mt-0.5" /> Grounded answers from real peer-reviewed papers</li>
+                <li className="flex gap-3 items-start"><CheckCircle2 size={16} className="text-emerald-400 shrink-0 mt-0.5" /> Real-time access to live academic databases</li>
+                <li className="flex gap-3 items-start"><CheckCircle2 size={16} className="text-emerald-400 shrink-0 mt-0.5" /> Unified search across NCBI, arXiv & OpenAlex</li>
+                <li className="flex gap-3 items-start"><CheckCircle2 size={16} className="text-emerald-400 shrink-0 mt-0.5" /> Every claim linked to its source with DOI</li>
+              </ul>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Core Features */}
       <section className="py-32 relative z-10 border-t border-slate-800">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-5xl font-black mb-6">The Intelligence Engine</h2>
-            <p className="text-slate-400 font-medium max-w-2xl mx-auto">Powered by world-class APIs and models, specifically engineered for zero-hallucination academic synthesis.</p>
+            <h2 className="text-4xl md:text-5xl font-black mb-6">Core Features</h2>
+            <p className="text-slate-400 font-medium max-w-2xl mx-auto">Engineered for zero-hallucination academic synthesis, powered by world-class models.</p>
+          </div>
+          <div className="grid lg:grid-cols-3 gap-8 mb-10">
+            {/* Multi-source Waterfall */}
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-8 group hover:border-blue-500/30 transition-colors">
+              <Database className="text-blue-400 mb-5" size={36} />
+              <h3 className="text-xl font-black mb-3">Multi-Source Waterfall</h3>
+              <p className="text-slate-400 text-sm font-medium leading-relaxed">Query NCBI, arXiv & OpenAlex simultaneously. Results cascade in a unified waterfall feed, ranked by relevance and recency.</p>
+            </motion.div>
+            {/* AI Outreach */}
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-8 group hover:border-indigo-500/30 transition-colors">
+              <Megaphone className="text-indigo-400 mb-5" size={36} />
+              <h3 className="text-xl font-black mb-3">AI Outreach</h3>
+              <p className="text-slate-400 text-sm font-medium leading-relaxed">Generate professional outreach emails to paper authors with one click. Connect with researchers and potential mentors globally.</p>
+            </motion.div>
+            {/* Smart Truncation */}
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }} className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-8 group hover:border-emerald-500/30 transition-colors">
+              <Zap className="text-emerald-400 mb-5" size={36} />
+              <h3 className="text-xl font-black mb-3">Smart Truncation</h3>
+              <p className="text-slate-400 text-sm font-medium leading-relaxed">Intelligent context windowing extracts the most relevant sections from lengthy papers, maximizing synthesis quality within token limits.</p>
+            </motion.div>
           </div>
           <div className="grid lg:grid-cols-2 gap-10">
-            {/* Feature 1 */}
+            {/* Unified Knowledge Portals */}
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-10">
               <Server className="text-blue-500 mb-6" size={40} />
               <h3 className="text-2xl font-black mb-4">Unified Knowledge Portals</h3>
@@ -235,7 +313,7 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
                 ))}
               </div>
             </motion.div>
-            {/* Feature 2 */}
+            {/* Powered by Llama */}
             <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-10 relative overflow-hidden group">
               <div className="absolute -right-10 -top-10 text-indigo-500/5 group-hover:text-indigo-500/10 transition-colors duration-500 pointer-events-none"><Brain size={250} /></div>
               <Brain className="text-indigo-400 mb-6 relative z-10" size={40} />
@@ -291,7 +369,7 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="relative">
               <div className="absolute inset-0 bg-blue-500/10 blur-[100px] rounded-full"></div>
-              <img src="/demo.gif" alt="App Demo Workflow" className="rounded-[2rem] shadow-2xl border border-slate-800 relative z-10 w-full object-cover aspect-[4/3] bg-slate-800" onError={(e) => e.target.src='https://placehold.co/800x600/1e293b/3b82f6?text=Demo+GIF+Placeholder'} />
+              <img src="/gif.gif" alt="App Demo Workflow" className="rounded-[2rem] shadow-2xl border border-slate-800 relative z-10 w-full object-cover aspect-[4/3] bg-slate-800" onError={(e) => e.target.src='https://placehold.co/800x600/1e293b/3b82f6?text=Demo+GIF+Placeholder'} />
             </motion.div>
             <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
               <h2 className="text-4xl md:text-5xl font-black mb-10">How It Works</h2>
@@ -401,7 +479,7 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
             <div className="bg-gradient-to-b from-blue-600/20 to-slate-800/40 border-2 border-blue-500/50 rounded-3xl p-8 text-center flex flex-col relative transform md:-translate-y-4 shadow-2xl shadow-blue-500/10">
               <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-[10px] font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-full">Most Popular</div>
               <h3 className="text-lg font-black uppercase tracking-widest text-blue-400 mb-2 mt-2">Starter</h3>
-              <div className="text-4xl font-black mb-6">৳250<span className="text-sm text-slate-500 font-medium">/mo</span></div>
+              <div className="text-4xl font-black mb-6">৳150<span className="text-sm text-slate-500 font-medium">/mo</span></div>
               <ul className="space-y-4 mb-8 flex-1 text-sm font-medium text-slate-300 text-left">
                 <li className="flex gap-3"><CheckCircle2 className="text-blue-400 shrink-0" size={18} /> Enhanced Power for Your Portal</li>
                 <li className="flex gap-3"><CheckCircle2 className="text-blue-400 shrink-0" size={18} /> 50 AI Power-Uses / day</li>
@@ -410,7 +488,7 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
             </div>
             <div className="bg-slate-800/40 border border-slate-700/50 rounded-3xl p-8 text-center flex flex-col">
               <h3 className="text-lg font-black uppercase tracking-widest text-amber-400 mb-2">Pro</h3>
-              <div className="text-4xl font-black mb-6">৳1000<span className="text-sm text-slate-500 font-medium">/mo</span></div>
+              <div className="text-4xl font-black mb-6">৳500<span className="text-sm text-slate-500 font-medium">/mo</span></div>
               <ul className="space-y-4 mb-8 flex-1 text-sm font-medium text-slate-300 text-left">
                 <li className="flex gap-3"><CheckCircle2 className="text-amber-400 shrink-0" size={18} /> ALL Portals Unlocked</li>
                 <li className="flex gap-3"><CheckCircle2 className="text-amber-400 shrink-0" size={18} /> 100 AI Power-Uses / day</li>
@@ -454,6 +532,42 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
               </div>
             </motion.div>
           </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-24 relative z-10 border-t border-slate-800">
+        <div className="max-w-3xl mx-auto px-6">
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-14">
+            <h2 className="text-3xl md:text-5xl font-black mb-4">Frequently Asked Questions</h2>
+            <p className="text-slate-400 font-medium">Quick answers to common questions about ScholarHub AI.</p>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="space-y-4">
+            {FAQ_ITEMS.map((item, i) => (
+              <div key={i} className="bg-slate-800/50 border border-slate-700/50 rounded-2xl overflow-hidden transition-colors hover:border-slate-600/60">
+                <button
+                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                  className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left cursor-pointer"
+                >
+                  <span className="text-base font-bold text-white">{item.q}</span>
+                  <ChevronDown size={18} className={`text-slate-400 shrink-0 transition-transform duration-300 ${openFaq === i ? 'rotate-180' : ''}`} />
+                </button>
+                <AnimatePresence initial={false}>
+                  {openFaq === i && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: 'easeInOut' }}
+                      className="overflow-hidden"
+                    >
+                      <p className="px-6 pb-6 text-sm text-slate-400 font-medium leading-relaxed">{item.a}</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ))}
+          </motion.div>
         </div>
       </section>
 
