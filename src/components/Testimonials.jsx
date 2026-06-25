@@ -14,35 +14,12 @@ const TESTIMONIALS = [
   },
   {
     id: 2,
-    name: "Dr. Sarah Jenkins",
-    role: "Postdoctoral Researcher, Stanford",
-    text: "ScholarHub AI has completely transformed my literature review process. The speed at which it synthesizes complex papers and extracts methodologies is unprecedented. It's an indispensable tool for any serious researcher.",
+    name: "Sonjoy Bhattacharya Saikat",
+    role: "Vice President of EWU IEEE",
+    text: "The platform is very promising... Keep up the great work!",
     image: null,
-    badge: "PhD Researcher",
+    badge: "Researcher and Student, EWU",
     badgeColor: "bg-blue-100 text-blue-700"
-  },
-  {
-    id: 3,
-    name: "Dr. Michael Chen",
-    role: "Lead Scientist, BioTech Innovations",
-    text: "The zero-hallucination guardrails give me the confidence to use this in my daily workflow. Connecting multiple specialized databases into a single, queryable interface saves me hours every week.",
-    image: null
-  },
-  {
-    id: 4,
-    name: "Elena Rodriguez",
-    role: "PhD Candidate, MIT",
-    text: "The sheer accuracy of the Llama 3.1 model when analyzing academic texts is astounding. It accurately summarizes findings without losing the nuanced details that are critical in our field.",
-    image: null,
-    badge: "Early Access",
-    badgeColor: "bg-emerald-100 text-emerald-700"
-  },
-  {
-    id: 5,
-    name: "Dr. James Wilson",
-    role: "Research Director, Global Health Institute",
-    text: "A truly enterprise-grade platform. The cross-device synchronization and the intuitive user interface make managing hundreds of academic papers incredibly straightforward.",
-    image: null
   }
 ];
 
