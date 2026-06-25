@@ -20,6 +20,7 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
   }
 
   const [announcement, setAnnouncement] = useState(null);
+  const [showPopup, setShowPopup] = useState(false);
   const [openFaq, setOpenFaq] = useState(null);
 
   const FAQ_ITEMS = [
@@ -43,6 +44,10 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
           const dismissedId = sessionStorage.getItem('dismissed_announcement');
           if (dismissedId !== ann.id.toString()) {
             setAnnouncement(ann);
+            const hasSeenPopup = sessionStorage.getItem(`has_seen_popup_${ann.id}`);
+            if (!hasSeenPopup) {
+              setShowPopup(true);
+            }
           }
         }
       } catch (err) {
@@ -65,6 +70,24 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
     visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
   }
 
+  const renderTextWithLinks = (text, type) => {
+    if (!text) return null;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+    
+    let linkClass = 'underline hover:opacity-80 transition-opacity font-bold break-all ';
+    if (type === 'warning') linkClass += 'text-amber-700';
+    else if (type === 'success') linkClass += 'text-green-700';
+    else linkClass += 'text-blue-600';
+
+    return parts.map((part, i) => {
+      if (part.match(urlRegex)) {
+        return <a key={i} href={part} target="_blank" rel="noopener noreferrer" className={linkClass} onClick={(e) => e.stopPropagation()}>{part}</a>;
+      }
+      return part;
+    });
+  };
+
   return (
     <div className="min-h-screen bg-slate-900 text-white font-sans selection:bg-blue-500/30 overflow-hidden relative">
       
@@ -83,31 +106,112 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
 
       {/* Global Announcement Banner */}
       <AnimatePresence>
-        {announcement && (
+        {announcement && !showPopup && (
           <motion.div 
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className={`absolute top-24 left-0 w-full z-40 py-3 px-6 flex items-center justify-between gap-3 text-sm font-bold shadow-md border-b backdrop-blur-md overflow-hidden ${
-              announcement.type === 'warning' ? 'bg-amber-900/50 text-amber-300 border-amber-800' :
-              announcement.type === 'success' ? 'bg-green-900/50 text-green-300 border-green-800' :
-              'bg-blue-900/50 text-blue-300 border-blue-800'
+            onClick={() => setShowPopup(true)}
+            className={`cursor-pointer absolute top-24 left-0 w-full z-40 py-3 px-6 flex items-center justify-between gap-3 text-sm font-bold shadow-md border-b backdrop-blur-md overflow-hidden transition-colors hover:opacity-90 ${
+              announcement.type === 'warning' ? 'bg-amber-900/50 text-amber-300 border-amber-800 hover:bg-amber-900/70' :
+              announcement.type === 'success' ? 'bg-green-900/50 text-green-300 border-green-800 hover:bg-green-900/70' :
+              'bg-blue-900/50 text-blue-300 border-blue-800 hover:bg-blue-900/70'
             }`}
           >
             <div className="flex items-center gap-3 flex-1 min-w-0 justify-center">
               <Megaphone size={16} className="animate-bounce shrink-0" />
-              <span className="truncate">{announcement.message}</span>
+              <span className="truncate">{announcement.title ? `${announcement.title} - ${announcement.message}` : announcement.message}</span>
             </div>
             <button 
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 sessionStorage.setItem('dismissed_announcement', announcement.id.toString())
                 setAnnouncement(null)
               }} 
               className="shrink-0 p-1 rounded-full hover:bg-white/10 transition-colors"
+              title="Dismiss permanently"
             >
               <X size={16} />
             </button>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Pop-up Announcement Modal */}
+      <AnimatePresence>
+        {announcement && showPopup && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+              onClick={() => {
+                setShowPopup(false);
+                sessionStorage.setItem(`has_seen_popup_${announcement.id}`, 'true');
+              }}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className={`relative rounded-[2rem] w-full max-w-lg p-8 shadow-2xl overflow-hidden ${
+                announcement.type === 'warning' ? 'bg-amber-50 border border-amber-200' :
+                announcement.type === 'success' ? 'bg-green-50 border border-green-200' :
+                'bg-blue-50 border border-blue-200'
+              }`}
+            >
+              <button 
+                onClick={() => {
+                  setShowPopup(false);
+                  sessionStorage.setItem(`has_seen_popup_${announcement.id}`, 'true');
+                }}
+                className={`absolute top-6 right-6 p-2 rounded-full transition-colors ${
+                  announcement.type === 'warning' ? 'text-amber-500 hover:bg-amber-100' :
+                  announcement.type === 'success' ? 'text-green-500 hover:bg-green-100' :
+                  'text-blue-500 hover:bg-blue-100'
+                }`}
+              >
+                <X size={20} />
+              </button>
+              
+              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-6 ${
+                announcement.type === 'warning' ? 'bg-amber-100 text-amber-600' :
+                announcement.type === 'success' ? 'bg-green-100 text-green-600' :
+                'bg-blue-100 text-blue-600'
+              }`}>
+                <Megaphone size={32} />
+              </div>
+              
+              <h3 className={`text-2xl font-black mb-4 ${
+                announcement.type === 'warning' ? 'text-amber-900' :
+                announcement.type === 'success' ? 'text-green-900' :
+                'text-blue-900'
+              }`}>{announcement.title || 'Announcement'}</h3>
+              
+              <div className={`text-sm font-medium mb-8 leading-relaxed whitespace-pre-wrap max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar ${
+                announcement.type === 'warning' ? 'text-amber-800' :
+                announcement.type === 'success' ? 'text-green-800' :
+                'text-blue-800'
+              }`}>
+                {renderTextWithLinks(announcement.message, announcement.type)}
+              </div>
+
+              <button
+                onClick={() => {
+                  setShowPopup(false);
+                  sessionStorage.setItem(`has_seen_popup_${announcement.id}`, 'true');
+                }}
+                className={`w-full py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-xl ${
+                  announcement.type === 'warning' ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-200' :
+                  announcement.type === 'success' ? 'bg-green-600 hover:bg-green-700 text-white shadow-green-200' :
+                  'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200'
+                }`}
+              >
+                Got it
+              </button>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
