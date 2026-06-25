@@ -17,7 +17,7 @@ const TESTIMONIALS = [
     name: "Sonjoy Bhattacharya Saikat",
     role: "Vice President of EWU IEEE",
     text: "The platform is very promising... Keep up the great work!",
-    image: null,
+    image: "/sonjoy.jpg",
     badge: "Researcher and Student, EWU",
     badgeColor: "bg-blue-100 text-blue-700"
   }
