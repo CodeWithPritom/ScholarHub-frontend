@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { supabase } from './supabaseClient'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Turnstile } from '@marsidev/react-turnstile'
@@ -35,7 +35,67 @@ const Auth = () => {
   const [success, setSuccess] = useState(null)
   const [captchaToken, setCaptchaToken] = useState('')
   const [isForgotPassword, setIsForgotPassword] = useState(false)
+  const [otp, setOtp] = useState(['', '', '', '', '', ''])
+  const [resendTimer, setResendTimer] = useState(300)
   const turnstileRef = useRef(null)
+
+  useEffect(() => {
+    const isVerifying = localStorage.getItem('sh_verifying_otp');
+    const storedEmail = localStorage.getItem('sh_verifying_email');
+    const storedTime = localStorage.getItem('sh_verifying_time');
+
+    if (isVerifying === 'true' && storedEmail && storedTime) {
+      const ONE_HOUR = 60 * 60 * 1000;
+      if (Date.now() - parseInt(storedTime, 10) < ONE_HOUR) {
+        setEmail(storedEmail);
+        setIsLogin(false);
+        setStep(3);
+      } else {
+        localStorage.removeItem('sh_verifying_otp');
+        localStorage.removeItem('sh_verifying_email');
+        localStorage.removeItem('sh_verifying_time');
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    let interval = null;
+    if (step === 3 && resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer(prev => prev - 1);
+      }, 1000);
+    } else if (resendTimer === 0) {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [step, resendTimer]);
+
+  const formatTimer = () => {
+    const minutes = Math.floor(resendTimer / 60);
+    const seconds = resendTimer % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const handleResendOtp = async () => {
+    if (resendTimer > 0) return;
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email
+      });
+      if (error) throw error;
+      setSuccess('A new verification code has been sent to your email.');
+      setResendTimer(300);
+      setOtp(['', '', '', '', '', '']);
+    } catch (err) {
+      setError(err.message || 'Failed to resend code.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleForgotPassword = async (e) => {
     e.preventDefault()
@@ -67,6 +127,36 @@ const Auth = () => {
       setLoading(false)
       turnstileRef.current?.reset()
       setCaptchaToken('')
+    }
+  }
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault()
+    const token = otp.join('')
+    if (token.length !== 6) {
+      setError('Please enter the 6-digit code.')
+      return
+    }
+    setLoading(true)
+    setError(null)
+    setSuccess(null)
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: email,
+        token: token,
+        type: 'signup'
+      })
+      if (error) throw error
+      localStorage.removeItem('sh_verifying_otp');
+      localStorage.removeItem('sh_verifying_email');
+      localStorage.removeItem('sh_verifying_time');
+      
+      setSuccess('Account verified successfully! Redirecting...')
+      setTimeout(() => navigate('/research'), 1500)
+    } catch (err) {
+      setError(err.message || 'Invalid or expired code.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -172,15 +262,16 @@ const Auth = () => {
           }
         })
         if (error) throw error
+        setStep(3)
+        localStorage.setItem('sh_verifying_otp', 'true');
+        localStorage.setItem('sh_verifying_email', email);
+        localStorage.setItem('sh_verifying_time', Date.now().toString());
+
         setSuccess(
           <>
-            Account created! Please check your email (and your <span className="font-black text-emerald-900 bg-emerald-200/60 px-1.5 py-0.5 rounded-md mx-0.5">Spam</span> folder) for a verification link.
+            Account created! Please check your email (and your <span className="font-black text-emerald-900 bg-emerald-200/60 px-1.5 py-0.5 rounded-md mx-0.5">Spam</span> folder) for the 6-digit verification code.
           </>
         )
-        setIsLogin(true)
-        setStep(1)
-        setPassword('')
-        setFullName('')
         turnstileRef.current?.reset()
         setCaptchaToken('')
       }
@@ -288,7 +379,7 @@ const Auth = () => {
             )}
           </AnimatePresence>
 
-          <form onSubmit={isLogin || step === 2 ? handleAuth : handleNextStep} className="relative">
+          <form onSubmit={step === 3 ? handleVerifyOtp : (isLogin || step === 2 ? handleAuth : handleNextStep)} className="relative">
             <AnimatePresence mode="wait">
               <motion.div key={isLogin ? 'login' : step === 1 ? 'signup1' : 'signup2'} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.2 }} className="space-y-4">
                 
@@ -396,6 +487,95 @@ const Auth = () => {
                       </button>
                     </div>
                   </>
+                )}
+
+                {/* STEP 3: OTP VERIFICATION */}
+                {!isLogin && step === 3 && !isForgotPassword && (
+                  <div className="flex flex-col items-center pt-2">
+                    <div className="p-4 bg-indigo-50 text-indigo-600 rounded-full mb-6">
+                      <Mail size={32} />
+                    </div>
+                    <h3 className="text-xl font-black text-slate-900 mb-2">Check your email</h3>
+                    <p className="text-sm font-medium text-slate-500 text-center mb-8">
+                      We sent a 6-digit verification code to <br/> <span className="font-bold text-slate-800">{email}</span>
+                    </p>
+
+                    <div className="flex gap-2 sm:gap-3 justify-center mb-2 w-full">
+                      {otp.map((digit, index) => (
+                        <input
+                          key={index}
+                          id={`otp-${index}`}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9]/g, '');
+                            const newOtp = [...otp];
+                            newOtp[index] = val;
+                            setOtp(newOtp);
+                            if (val && index < 5) {
+                              document.getElementById(`otp-${index + 1}`)?.focus();
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Backspace' && !digit && index > 0) {
+                              document.getElementById(`otp-${index - 1}`)?.focus();
+                            }
+                          }}
+                          onPaste={(e) => {
+                            e.preventDefault();
+                            const pastedData = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, 6);
+                            if (pastedData) {
+                              const newOtp = [...otp];
+                              for (let i = 0; i < pastedData.length; i++) {
+                                newOtp[i] = pastedData[i];
+                              }
+                              setOtp(newOtp);
+                              const focusIndex = pastedData.length < 6 ? pastedData.length : 5;
+                              document.getElementById(`otp-${focusIndex}`)?.focus();
+                            }
+                          }}
+                          className="w-10 h-12 sm:w-12 sm:h-14 text-center text-xl font-black text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none"
+                        />
+                      ))}
+                    </div>
+
+                    <div className="w-full bg-amber-50 border border-amber-100 rounded-xl p-4 mb-6 mt-4">
+                      <p className="text-xs font-bold text-amber-800 text-center leading-relaxed">
+                        Didn’t receive the code? Please check your <span className="font-black bg-amber-200/50 px-1 rounded">Spam</span> or Junk folder. If it’s still missing, you can request a new one after the timer ends.
+                      </p>
+                    </div>
+
+                    <button type="submit" disabled={loading || otp.join('').length !== 6}
+                      className="w-full p-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[14px] font-bold tracking-wide transition-all hover:-translate-y-0.5 shadow-lg shadow-indigo-200 disabled:opacity-50 flex justify-center items-center gap-2 mb-4"
+                    >
+                      {loading ? <Loader2 size={18} className="animate-spin" /> : 'Verify Account'}
+                    </button>
+                    
+                    <div className="flex flex-col items-center gap-3 w-full mt-2">
+                      <button 
+                        type="button" 
+                        onClick={handleResendOtp}
+                        disabled={resendTimer > 0 || loading}
+                        className={`text-[13px] font-bold transition-colors px-6 py-2.5 rounded-xl border ${
+                          resendTimer > 0 
+                            ? 'text-indigo-400 bg-indigo-50/50 border-indigo-100 cursor-not-allowed' 
+                            : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border-indigo-200 hover:border-indigo-300'
+                        }`}
+                      >
+                        {resendTimer > 0 ? `Resend available in ${formatTimer()}` : 'Resend Code'}
+                      </button>
+                      <button type="button" onClick={() => {
+                         localStorage.removeItem('sh_verifying_otp');
+                         localStorage.removeItem('sh_verifying_email');
+                         localStorage.removeItem('sh_verifying_time');
+                         setStep(1); setIsLogin(true); setOtp(['', '', '', '', '', '']); setPassword(''); setResendTimer(300);
+                      }} className="text-[12px] font-bold text-slate-500 hover:text-slate-700 transition-colors mt-2">
+                        Change email address
+                      </button>
+                    </div>
+                  </div>
                 )}
               </motion.div>
             </AnimatePresence>

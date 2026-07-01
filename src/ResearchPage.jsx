@@ -121,6 +121,12 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
     const cached = sessionStorage.getItem('active_portal');
     if (cached) return cached;
     
+    const consent = localStorage.getItem('scholarhub_cookie_consent') === 'true';
+    if (consent) {
+      const saved = localStorage.getItem('last_used_portal');
+      if (saved) return saved;
+    }
+    
     // Auth Sync: Fallback to user metadata
     const fieldMap = {
       'Genetic Eng. & Biotech (GEB)': 'geb',
@@ -312,11 +318,26 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
           
           // Frontend Sync: Enforce strict string matching from the DB
           setPortal(prev => {
+            const consent = localStorage.getItem('scholarhub_cookie_consent') === 'true';
+            
             if (tier === 'free' || tier === 'starter') {
+              // Rule B: Ignore localStorage. Force match unlocked_portal
               if (prev !== unlocked) {
                 sessionStorage.setItem('active_portal', unlocked);
                 setTimeout(() => hydratePortalState(unlocked), 0);
                 return unlocked;
+              }
+            } else if (tier === 'pro') {
+              // Rule A: For PRO users, if consent, prefer localStorage if available
+              let proPortal = prev;
+              if (consent) {
+                const stored = localStorage.getItem('last_used_portal');
+                if (stored) proPortal = stored;
+              }
+              if (prev !== proPortal) {
+                sessionStorage.setItem('active_portal', proPortal);
+                setTimeout(() => hydratePortalState(proPortal), 0);
+                return proPortal;
               }
             } else if (!prev) {
               sessionStorage.setItem('active_portal', unlocked);
@@ -692,6 +713,14 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       }
     } catch(e) {
       console.warn('Failed to save old portal state', e);
+    }
+
+    // Task 2: Save to localStorage if consent is true (Rule A & Rule C)
+    const consent = localStorage.getItem('scholarhub_cookie_consent') === 'true';
+    if (consent) {
+      if (userTier === 'pro' || !user) {
+        localStorage.setItem('last_used_portal', newPortal);
+      }
     }
 
     // b) Update the 'portal' state

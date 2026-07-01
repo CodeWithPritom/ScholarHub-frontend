@@ -7,6 +7,7 @@ import logo from '../assets/images/logo.png'
 import Footer from '../Footer'
 import Navbar from '../components/Navbar'
 import Testimonials from '../components/Testimonials'
+import CookieBanner from '../components/CookieBanner'
 
 const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogout }) => {
   const navigate = useNavigate()
@@ -676,6 +677,7 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
       </section>
 
       <Footer />
+      <CookieBanner />
     </div>
   )
 }
