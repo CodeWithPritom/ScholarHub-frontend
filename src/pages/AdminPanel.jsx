@@ -20,6 +20,98 @@ const Toast = ({ msg }) => {
   )
 }
 
+const SystemHealthMonitor = () => {
+  const [monitors, setMonitors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchHealth = async () => {
+      try {
+        const response = await fetch('https://api.uptimerobot.com/v2/getMonitors', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'api_key=ur3554743-623e350478067b26cb96f10a&format=json&custom_uptime_ratios=1&logs=1',
+        });
+        
+        const data = await response.json();
+        if (data.stat === 'ok') {
+          setMonitors(data.monitors);
+        } else {
+          setError('Failed to fetch stats');
+        }
+      } catch (err) {
+        setError('Network error');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchHealth();
+    const interval = setInterval(fetchHealth, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 p-6 md:p-8">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+            <Activity size={16} className="text-emerald-500" /> External Server Health
+          </h3>
+          <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Real-time UptimeRobot Monitors (24H)</p>
+        </div>
+        <span className="px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[9px] font-black uppercase tracking-widest border border-emerald-100 flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          Live Feed
+        </span>
+      </div>
+
+      {loading && !monitors.length ? (
+        <div className="flex justify-center py-6"><Loader2 className="animate-spin text-slate-300" size={24} /></div>
+      ) : error ? (
+        <div className="text-xs text-red-500 font-bold text-center py-4 bg-red-50 rounded-xl">{error}</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {monitors.map(m => {
+            const isUp = m.status === 2;
+            const lastIncidentLog = m.logs?.find(log => log.type === 1);
+            const lastIncidentDate = lastIncidentLog ? new Date(lastIncidentLog.datetime * 1000).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'No recent incidents';
+            
+            return (
+              <div key={m.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 rounded-2xl bg-slate-50 border border-slate-100 gap-4 transition-all hover:border-blue-100 hover:shadow-md">
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className={`w-3 h-3 rounded-full shrink-0 ${isUp ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)] animate-pulse' : 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.5)] animate-pulse'}`} />
+                  <div className="min-w-0">
+                    <div className="text-sm font-black text-slate-800 flex items-center gap-2 truncate">
+                      {m.url.includes('render.com') ? 'Primary Cloud (Render)' : m.url.includes('ts.net') ? 'Home Backup (Tailscale)' : m.friendly_name}
+                      {!isUp && <span className="px-1.5 py-0.5 rounded text-[8px] uppercase tracking-wider bg-red-100 text-red-600 shrink-0">Down</span>}
+                    </div>
+                    <a href={m.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-slate-400 font-bold hover:text-blue-500 transition-colors truncate block">{m.url}</a>
+                    <div className="text-[9px] text-slate-400 mt-1.5 flex items-center gap-1">
+                      <Clock size={10} className="text-slate-300" />
+                      Last Incident: <span className="font-bold text-slate-500">{lastIncidentDate}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-left sm:text-right shrink-0">
+                  <div className={`text-xl font-black ${isUp ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {parseFloat(m.custom_uptime_ratio).toFixed(1)}%
+                  </div>
+                  <div className="text-[9px] font-black uppercase tracking-widest text-slate-400">24H Uptime</div>
+                </div>
+              </div>
+            );
+          })}
+          {monitors.length === 0 && (
+            <div className="text-xs text-slate-500 font-bold col-span-1 md:col-span-2 text-center py-4 bg-slate-50 rounded-xl">No monitors found.</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const AdminPanel = ({ user, profile, liveUsersCount }) => {
   const navigate = useNavigate()
   const [loadingAccess, setLoadingAccess] = useState(true)
@@ -586,6 +678,9 @@ const AdminPanel = ({ user, profile, liveUsersCount }) => {
                 </div>
               </div>
             </div>
+            
+            {/* Real-time Server Health */}
+            <SystemHealthMonitor />
 
             {/* Announcement Center */}
             <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 p-6 md:p-8">
