@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from './supabaseClient'
 import { ensureDeviceIsRegistered } from './utils/deviceSync'
 import { SESSION_EXPIRED_EVENT } from './utils/api'
@@ -49,6 +50,131 @@ function SessionExpiryRedirector({ sessionExpired, onRedirected }) {
   return null;
 }
 
+const ProfileSetupModal = ({ isOpen, user, onClose }) => {
+  const [fullName, setFullName] = useState(user?.user_metadata?.full_name || '');
+  const [academicField, setAcademicField] = useState('Genetic Eng. & Biotech (GEB)');
+  const [academicStatus, setAcademicStatus] = useState('Undergrad');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!fullName) {
+      setError('Please provide your full name.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    
+    const fieldMap = {
+      'Genetic Eng. & Biotech (GEB)': 'geb',
+      'Pharmacy & Pharmacology': 'pharma',
+      'Engineering/CS': 'eng',
+      'Physics': 'physics',
+      'Mathematics': 'math',
+      'Social Sciences': 'social',
+      'Law / Legal Studies': 'law',
+      'Chemistry / Pharmacy': 'chem'
+    };
+    const unlockedPortal = fieldMap[academicField] || 'geb';
+    
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: {
+          full_name: fullName,
+          academic_field: academicField,
+          academic_status: academicStatus,
+          unlocked_portal: unlockedPortal
+        }
+      });
+      if (updateError) throw updateError;
+      
+      if (user) {
+        const { error: profileError } = await supabase.from('profiles').update({
+            full_name: fullName,
+            academic_field: academicField,
+            status: academicStatus,
+            unlocked_portal: unlockedPortal
+        }).eq('id', user.id);
+        if (profileError) console.error("Profile update error:", profileError);
+      }
+      
+      onClose();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <AnimatePresence>
+      <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full relative z-10"
+        >
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Complete Your Profile</h2>
+            <p className="text-sm font-medium text-slate-500 mt-2">Just a few more details to personalize your workspace.</p>
+          </div>
+          
+          {error && (
+            <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm font-bold mb-4">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Full Name</label>
+              <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} disabled={loading}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Academic Field</label>
+              <select value={academicField} onChange={e => setAcademicField(e.target.value)} disabled={loading}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              >
+                <option value="Genetic Eng. & Biotech (GEB)">Genetic Eng. & Biotech (GEB)</option>
+                <option value="Pharmacy & Pharmacology">Pharmacy & Pharmacology</option>
+                <option value="Engineering/CS">Engineering/CS</option>
+                <option value="Physics">Physics</option>
+                <option value="Mathematics">Mathematics</option>
+                <option value="Social Sciences">Social Sciences</option>
+                <option value="Law / Legal Studies">Law / Legal Studies</option>
+                <option value="Chemistry / Pharmacy">Chemistry / Pharmacy</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Academic Status</label>
+              <select value={academicStatus} onChange={e => setAcademicStatus(e.target.value)} disabled={loading}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              >
+                <option value="Undergrad">Undergrad</option>
+                <option value="Masters">Masters</option>
+                <option value="Faculty">Faculty</option>
+                <option value="Independent">Independent</option>
+              </select>
+            </div>
+            <button type="submit" disabled={loading}
+              className="w-full mt-4 p-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[14px] font-black tracking-wide transition-all shadow-lg flex justify-center items-center gap-2"
+            >
+              {loading ? 'Saving...' : 'Save Profile'}
+            </button>
+          </form>
+        </motion.div>
+      </div>
+    </AnimatePresence>
+  );
+}
+
 function App() {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
@@ -59,6 +185,7 @@ function App() {
   const [deviceLimitWarning, setDeviceLimitWarning] = useState(false)
   const [sessionExpired, setSessionExpired] = useState(false)
   const [expiryMessage, setExpiryMessage] = useState('')
+  const [needsOnboarding, setNeedsOnboarding] = useState(false)
 
   // ─── Global 402 Session Expiry Handler ───
   // Listens for the custom 'scholarhub:session-expired' event fired by
@@ -119,66 +246,47 @@ function App() {
           .select('role, full_name, academic_field, status, user_tier, unlocked_portal')
           .eq('id', sessionUser.id)
           .maybeSingle();
-          
-        if (!error && data && (data.academic_field || data.unlocked_portal)) {
-          if (isMounted) {
+
+        const isMissing = (val) => !val || val === 'Scholar' || val === 'Not Specified' || val === 'Academic User';
+        let profileIsValid = false;
+
+        if (!error && data) {
+          if (!isMissing(data.full_name) && !isMissing(data.academic_field) && !isMissing(data.status)) {
+            profileIsValid = true;
+          }
+        }
+
+        if (isMounted) {
+          if (profileIsValid) {
+            setNeedsOnboarding(false);
             setProfile({ ...data, tier: data.user_tier });
             setIsAdmin(data.role === 'admin' || isFounder);
-          }
-        } else {
-          // Dynamic Default Fallback for empty data
-          if (isMounted) {
-            const field = sessionUser?.user_metadata?.academicField || sessionUser?.user_metadata?.academic_field || 'Genetic Eng. & Biotech (GEB)';
-            const fieldMap = {
-              'Genetic Eng. & Biotech (GEB)': 'geb',
-              'Pharmacy & Pharmacology': 'pharma',
-              'Engineering/CS': 'eng',
-              'Engineering': 'eng',
-              'Physics': 'physics',
-              'Mathematics': 'math',
-              'Social Sciences': 'social',
-              'Chemistry / Pharmacy': 'chem',
-              'Law / Legal Studies': 'law'
-            };
-            const unlocked = fieldMap[field] || 'geb';
-
+          } else {
+            setNeedsOnboarding(true);
+            const field = sessionUser?.user_metadata?.academic_field || 'Genetic Eng. & Biotech (GEB)';
             setProfile({ 
               user_tier: 'free', 
               tier: 'free', 
-              unlocked_portal: unlocked, 
+              unlocked_portal: 'geb', 
               academic_field: field,
-              academic_status: sessionUser?.user_metadata?.academicStatus || sessionUser?.user_metadata?.academic_status || 'Undergraduate',
+              academic_status: sessionUser?.user_metadata?.academic_status || 'Undergrad',
               role: 'user',
-              full_name: sessionUser?.user_metadata?.fullName || sessionUser?.user_metadata?.full_name || 'Academic User'
+              full_name: sessionUser?.user_metadata?.full_name || ''
             });
             setIsAdmin(isFounder);
           }
         }
       } catch {
-        // Fallback Profile
         if (isMounted) {
-          const field = sessionUser?.user_metadata?.academicField || sessionUser?.user_metadata?.academic_field || 'Genetic Eng. & Biotech (GEB)';
-          const fieldMap = {
-            'Genetic Eng. & Biotech (GEB)': 'geb',
-            'Pharmacy & Pharmacology': 'pharma',
-            'Engineering/CS': 'eng',
-            'Engineering': 'eng',
-            'Physics': 'physics',
-            'Mathematics': 'math',
-            'Social Sciences': 'social',
-            'Chemistry / Pharmacy': 'chem',
-            'Law / Legal Studies': 'law'
-          };
-          const unlocked = fieldMap[field] || 'geb';
-
+          setNeedsOnboarding(true);
           setProfile({ 
             user_tier: 'free', 
             tier: 'free', 
-            unlocked_portal: unlocked, 
-            academic_field: field,
-            academic_status: sessionUser?.user_metadata?.academicStatus || sessionUser?.user_metadata?.academic_status || 'Undergraduate',
+            unlocked_portal: 'geb', 
+            academic_field: 'Genetic Eng. & Biotech (GEB)',
+            academic_status: 'Undergrad',
             role: 'user',
-            full_name: sessionUser?.user_metadata?.fullName || sessionUser?.user_metadata?.full_name || 'Academic User'
+            full_name: ''
           });
           setIsAdmin(isFounder);
         }
@@ -247,9 +355,15 @@ function App() {
             .maybeSingle()
             .then(({ data, error }) => {
               if (!isMounted) return;
-              if (!error && data && (data.academic_field || data.unlocked_portal)) {
-                setProfile({ ...data, tier: data.user_tier });
-                setIsAdmin(data.role === 'admin' || isFounder);
+              const isMissing = (val) => !val || val === 'Scholar' || val === 'Not Specified' || val === 'Academic User';
+              if (!error && data) {
+                if (!isMissing(data.full_name) && !isMissing(data.academic_field) && !isMissing(data.status)) {
+                  setNeedsOnboarding(false);
+                  setProfile({ ...data, tier: data.user_tier });
+                  setIsAdmin(data.role === 'admin' || isFounder);
+                } else {
+                  setNeedsOnboarding(true);
+                }
               }
             });
         }
@@ -263,7 +377,6 @@ function App() {
     };
   }, [])
 
-  // ─── Realtime Presence (Live Users) ───
   useEffect(() => {
     const channel = supabase.channel('online-users', {
       config: { presence: { key: user ? user.id : 'guest-' + Math.random().toString(36).substring(2, 9) } },
@@ -280,6 +393,8 @@ function App() {
 
     return () => { supabase.removeChannel(channel) }
   }, [user])
+
+
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -317,96 +432,87 @@ function App() {
     )
   }
 
-  // ─── Route Protection ───
   const ProtectedRoute = ({ children }) => {
     if (!user) return <Navigate to="/auth" replace />
     if (!user.email_confirmed_at) return <Navigate to="/verify-email" replace />
     return children
   }
 
-  // ─── Routes ───
   return (
     <BrowserRouter>
-      {/* ─── Global Support Bot ─── */}
-      <SupportBot />
+      {needsOnboarding ? (
+        <ProfileSetupModal isOpen={true} user={user} onClose={() => setNeedsOnboarding(false)} />
+      ) : (
+        <>
+          <SupportBot />
+          <SessionExpiryRedirector sessionExpired={sessionExpired} onRedirected={() => setSessionExpired(false)} />
 
-      {/* ─── 402 Session Expiry Redirector ─── */}
-      <SessionExpiryRedirector sessionExpired={sessionExpired} onRedirected={() => setSessionExpired(false)} />
-
-      {/* ─── Premium Expiry Toast ─── */}
-      {sessionExpired && expiryMessage && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] max-w-md animate-in slide-in-from-top">
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-5 shadow-xl shadow-red-100/50 flex items-start gap-3">
-            <CreditCard size={18} className="text-red-600 shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-bold text-red-800 leading-snug">
-                Premium Plan Expired
-              </p>
-              <p className="text-xs font-medium text-red-600 mt-1">
-                {expiryMessage}
-              </p>
+          {sessionExpired && expiryMessage && (
+            <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] max-w-md animate-in slide-in-from-top">
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-5 shadow-xl shadow-red-100/50 flex items-start gap-3">
+                <CreditCard size={18} className="text-red-600 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-red-800 leading-snug">
+                    Premium Plan Expired
+                  </p>
+                  <p className="text-xs font-medium text-red-600 mt-1">
+                    {expiryMessage}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSessionExpired(false)}
+                  className="text-red-400 hover:text-red-600 transition-colors shrink-0"
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </div>
-            <button
-              onClick={() => setSessionExpired(false)}
-              className="text-red-400 hover:text-red-600 transition-colors shrink-0"
-            >
-              <X size={16} />
-            </button>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* ─── Device Limit Warning Toast ─── */}
-      {deviceLimitWarning && (
-        <div className="fixed top-4 right-4 z-[9999] max-w-sm animate-in slide-in-from-right">
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 shadow-xl shadow-amber-100/50 flex items-start gap-3">
-            <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-bold text-amber-800 leading-snug">
-                Device limit reached (2/2).
-              </p>
-              <p className="text-xs font-medium text-amber-600 mt-1">
-                Manage your devices in{' '}
-                <a href="/profile" className="underline font-bold hover:text-amber-800 transition-colors">Profile</a>.
-              </p>
+          {deviceLimitWarning && (
+            <div className="fixed top-4 right-4 z-[9999] max-w-sm animate-in slide-in-from-right">
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 shadow-xl shadow-amber-100/50 flex items-start gap-3">
+                <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-amber-800 leading-snug">
+                    Device limit reached (2/2).
+                  </p>
+                  <p className="text-xs font-medium text-amber-600 mt-1">
+                    Manage your devices in{' '}
+                    <a href="/profile" className="underline font-bold hover:text-amber-800 transition-colors">Profile</a>.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setDeviceLimitWarning(false)}
+                  className="text-amber-400 hover:text-amber-600 transition-colors shrink-0"
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </div>
-            <button
-              onClick={() => setDeviceLimitWarning(false)}
-              className="text-amber-400 hover:text-amber-600 transition-colors shrink-0"
-            >
-              <X size={16} />
-            </button>
-          </div>
-        </div>
+          )}
+
+          <Routes>
+            <Route path="/" element={user && !user.email_confirmed_at ? <Navigate to="/verify-email" replace /> : <LandingPage liveUsersCount={liveUsersCount} totalMembersCount={totalMembersCount} user={user} profile={profile} onLogout={handleLogout} />} />
+            <Route path="/verify-email" element={user && !user.email_confirmed_at ? <VerifyEmail user={user} /> : <Navigate to="/" replace />} />
+            <Route path="/research" element={<ProtectedRoute><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#f8fafc]"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}><ResearchPage user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense></ProtectedRoute>} />
+            <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
+            <Route path="/library" element={<ProtectedRoute><MyLibrary user={user} onLogout={handleLogout} /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><Settings user={user} /></ProtectedRoute>} />
+            <Route path="/archive" element={<Archive />} />
+            <Route path="/resources" element={<Resources />} />
+            <Route path="/pricing" element={<Pricing user={user} profile={profile} />} />
+            <Route path="/admin" element={<AdminPanel user={user} profile={profile} liveUsersCount={liveUsersCount} />} />
+            <Route path="/success-stories" element={<Suspense fallback={<div className="h-screen w-screen bg-[#020617] text-white flex items-center justify-center font-bold tracking-widest uppercase text-sm">Loading 3D Engine...</div>}><SuccessStories3D /></Suspense>} />
+            <Route path="/profile" element={<ProtectedRoute><Profile user={user} /></ProtectedRoute>} />
+            <Route path="/paper/*" element={<PaperDetail user={user} profile={profile} />} />
+            <Route path="/ai-report" element={<AIReport />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/about" element={<About />} />
+          </Routes>
+        </>
       )}
-      <Routes>
-        <Route path="/" element={user && !user.email_confirmed_at ? <Navigate to="/verify-email" replace /> : <LandingPage liveUsersCount={liveUsersCount} totalMembersCount={totalMembersCount} user={user} profile={profile} onLogout={handleLogout} />} />
-        
-        <Route path="/verify-email" element={user && !user.email_confirmed_at ? <VerifyEmail user={user} /> : <Navigate to="/" replace />} />
-        
-        <Route 
-          path="/research" 
-          element={<ProtectedRoute><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#f8fafc]"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}><ResearchPage user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense></ProtectedRoute>} 
-        />
-        
-        <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
-        
-        <Route path="/library" element={<ProtectedRoute><MyLibrary user={user} onLogout={handleLogout} /></ProtectedRoute>} />
-        
-        <Route path="/settings" element={<ProtectedRoute><Settings user={user} /></ProtectedRoute>} />
-        
-        <Route path="/archive" element={<Archive />} />
-        <Route path="/resources" element={<Resources />} />
-        <Route path="/pricing" element={<Pricing user={user} profile={profile} />} />
-        <Route path="/admin" element={<AdminPanel user={user} profile={profile} liveUsersCount={liveUsersCount} />} />
-        <Route path="/success-stories" element={<Suspense fallback={<div className="h-screen w-screen bg-[#020617] text-white flex items-center justify-center font-bold tracking-widest uppercase text-sm">Loading 3D Engine...</div>}><SuccessStories3D /></Suspense>} />
-        <Route path="/profile" element={<ProtectedRoute><Profile user={user} /></ProtectedRoute>} />
-        <Route path="/paper/*" element={<PaperDetail user={user} profile={profile} />} />
-        <Route path="/ai-report" element={<AIReport />} />
-        <Route path="/privacy" element={<PrivacyPolicy />} />
-        <Route path="/terms" element={<TermsOfService />} />
-        <Route path="/about" element={<About />} />
-      </Routes>
     </BrowserRouter>
   )
 }

@@ -4,7 +4,7 @@ import { generateCitations, copyToClipboard } from '../utils/citationUtils'
 import { formatAbstract } from '../utils/formatters'
 import { BASE_URL } from '../utils/api'
 import CopyButton from './CopyButton'
-import CitationModal from './CitationModal'
+
 import Footer from '../Footer'
 import { supabase } from '../supabaseClient'
 import {
@@ -24,7 +24,6 @@ const PaperDetail = ({ user, profile }) => {
   const [loading, setLoading] = useState(!location.state?.article)
   
   const [copied, setCopied] = useState(false)
-  const [citationOpen, setCitationOpen] = useState(false)
   const [showAllAuthors, setShowAllAuthors] = useState(false)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [upgradeModalMessage, setUpgradeModalMessage] = useState('')
@@ -84,12 +83,17 @@ const PaperDetail = ({ user, profile }) => {
     }
   }
 
+  const [citationCopied, setCitationCopied] = useState(false)
   const handleCopyCitation = async () => {
     if (!article) return
-    const citations = generateCitations(article)
-    await copyToClipboard(citations.apa)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    try {
+      const citations = generateCitations(article)
+      await copyToClipboard(citations.apa)
+      setCitationCopied(true)
+      setTimeout(() => setCitationCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy citation:', err)
+    }
   }
 
   useEffect(() => {
@@ -195,7 +199,6 @@ const PaperDetail = ({ user, profile }) => {
 
   return (
     <div className="min-h-screen bg-white selection:bg-blue-100 selection:text-blue-700 font-sans">
-      <CitationModal article={article} isOpen={citationOpen} onClose={() => setCitationOpen(false)} />
 
       {/* Mentorship Upgrade Modal */}
       {showUpgradeModal && (
@@ -239,11 +242,15 @@ const PaperDetail = ({ user, profile }) => {
           </button>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setCitationOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-lg border border-slate-200 transition-all shadow-sm"
+              onClick={handleCopyCitation}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg border transition-all shadow-sm ${
+                citationCopied 
+                  ? 'bg-green-50 text-green-700 border-green-200' 
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+              }`}
             >
-              <Quote size={14} />
-              Cite
+              {citationCopied ? <Check size={14} /> : <Quote size={14} />}
+              {citationCopied ? 'Copied APA Citation!' : 'Cite'}
             </button>
             {(() => {
               const src = article.source || ''

@@ -377,6 +377,32 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
         </div>
       </section>
 
+      {/* Why Manual Searching is Obsolete */}
+      <section className="py-24 relative z-10 border-t border-slate-800 bg-slate-900/50">
+        <div className="max-w-5xl mx-auto px-6">
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-14">
+            <h2 className="text-3xl md:text-5xl font-black mb-4">Why use this instead of <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-400">manual searching</span>?</h2>
+            <p className="text-slate-400 font-medium max-w-xl mx-auto">Manual verification takes hours. ScholarHub AI automates credibility checking instantly.</p>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="grid md:grid-cols-2 gap-6">
+            <div className="bg-blue-500/5 border border-blue-500/20 rounded-3xl p-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-blue-500/10 text-blue-400 rounded-xl flex items-center justify-center"><Shield size={20} /></div>
+                <h3 className="text-xl font-black text-blue-400">Unmatched Authority</h3>
+              </div>
+              <p className="text-slate-300 font-medium leading-relaxed">Integrated with a 32,000+ Global Journal Database to instantly identify Q1-Q4 high-impact papers. Know exactly what you're citing at a glance.</p>
+            </div>
+            <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-3xl p-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center"><CheckCircle2 size={20} /></div>
+                <h3 className="text-xl font-black text-emerald-400">Guaranteed Accuracy</h3>
+              </div>
+              <p className="text-slate-300 font-medium leading-relaxed">Stop reading low-quality preprints. Our engine cross-references Scimago (SJR) data to highlight verified peer-reviewed research effortlessly.</p>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* Core Features */}
       <section className="py-32 relative z-10 border-t border-slate-800">
         <div className="max-w-7xl mx-auto px-6">

@@ -27,9 +27,7 @@ const Auth = () => {
   const [step, setStep] = useState(1)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [fullName, setFullName] = useState('')
-  const [academicField, setAcademicField] = useState('Genetic Eng. & Biotech (GEB)')
-  const [academicStatus, setAcademicStatus] = useState('Undergrad');
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
@@ -160,15 +158,24 @@ const Auth = () => {
     }
   }
 
-  const handleNextStep = (e) => {
-    e.preventDefault()
-    if (!email || !password || (!isLogin && !fullName)) {
-      setError('Please fill in all fields.')
-      return
+
+
+  const handleOAuthLogin = async (provider) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: window.location.origin + '/research'
+        }
+      });
+      if (error) throw error;
+    } catch (error) {
+      setError(error.message);
+      setLoading(false);
     }
-    setError(null)
-    setStep(2)
-  }
+  };
 
   const handleAuth = async (e) => {
     e.preventDefault()
@@ -244,20 +251,10 @@ const Auth = () => {
           }
         }
       } else {
-        console.log('Sending metadata:', { fullName, academicField, academicStatus })
-        
         const { error } = await supabase.auth.signUp({ 
           email, 
           password,
           options: {
-            data: {
-              fullName: fullName,
-              full_name: fullName, 
-              academicField: academicField,
-              academic_field: academicField,
-              academicStatus: academicStatus,
-              academic_status: academicStatus
-            },
             captchaToken: captchaToken
           }
         })
@@ -318,8 +315,8 @@ const Auth = () => {
               <div><h4 className="font-bold text-white text-sm">Multi-Source APIs</h4><p className="text-xs text-slate-400 mt-1 font-medium leading-relaxed">Unified access to NCBI, arXiv, OpenAlex.</p></div>
             </div>
             <div className="flex items-start gap-4">
-              <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-400 shrink-0"><Zap size={20}/></div>
-              <div><h4 className="font-bold text-white text-sm">800+ Tokens/Sec</h4><p className="text-xs text-slate-400 mt-1 font-medium leading-relaxed">Fast AI insights powered by Llama 3.1 & Groq LPU.</p></div>
+              <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-400 shrink-0"><Sparkles size={20}/></div>
+              <div><h4 className="font-bold text-white text-sm">Q1-Q4 Journal Intelligence</h4><p className="text-xs text-slate-400 mt-1 font-medium leading-relaxed">Instantly verify 32,000+ peer-reviewed journals.</p></div>
             </div>
             <div className="flex items-start gap-4">
               <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-blue-400 shrink-0"><ShieldCheck size={20}/></div>
@@ -379,21 +376,14 @@ const Auth = () => {
             )}
           </AnimatePresence>
 
-          <form onSubmit={step === 3 ? handleVerifyOtp : (isLogin || step === 2 ? handleAuth : handleNextStep)} className="relative">
+          <form onSubmit={step === 3 ? handleVerifyOtp : handleAuth} className="relative">
             <AnimatePresence mode="wait">
               <motion.div key={isLogin ? 'login' : step === 1 ? 'signup1' : 'signup2'} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.2 }} className="space-y-4">
                 
                 {/* STEP 1 FIELDS */}
                 {step === 1 && !isForgotPassword && (
                   <>
-                    {!isLogin && (
-                      <div className="relative">
-                        <UserPlus className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                        <input type="text" required={!isLogin} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full Name" disabled={loading}
-                          className="w-full bg-slate-50 border-none rounded-2xl p-4 pl-12 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none placeholder:text-slate-400"
-                        />
-                      </div>
-                    )}
+
                     <div className="relative">
                       <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                       <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email Address" disabled={loading}
@@ -423,6 +413,26 @@ const Auth = () => {
                     >
                       {loading ? <Loader2 size={18} className="animate-spin" /> : (isLogin ? 'Access Research Hub' : 'Continue')}
                     </button>
+
+                    <div className="relative flex items-center py-4">
+                      <div className="flex-grow border-t border-slate-200"></div>
+                      <span className="flex-shrink-0 mx-4 text-slate-400 text-xs font-bold uppercase tracking-wider">Or continue with</span>
+                      <div className="flex-grow border-t border-slate-200"></div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <button type="button" disabled={true}
+                        className="w-full py-3 bg-slate-50 text-slate-400 border border-slate-200 rounded-2xl text-[14px] font-bold tracking-wide shadow-sm opacity-50 grayscale flex flex-col justify-center items-center gap-0.5 cursor-not-allowed relative"
+                      >
+                        <span>Google</span>
+                        <span className="text-[10px] uppercase tracking-widest text-indigo-500 font-black">Coming Soon</span>
+                      </button>
+                      <button type="button" onClick={() => handleOAuthLogin('github')} disabled={loading}
+                        className="w-full p-4 bg-[#24292e] hover:bg-[#2c3238] text-white rounded-2xl text-[14px] font-bold tracking-wide transition-all shadow-sm disabled:opacity-50 flex justify-center items-center gap-2"
+                      >
+                        GitHub
+                      </button>
+                    </div>
                   </>
                 )}
 
@@ -447,47 +457,7 @@ const Auth = () => {
                   </div>
                 )}
 
-                {/* STEP 2: ONBOARDING */}
-                {!isLogin && step === 2 && !isForgotPassword && (
-                  <>
-                    <div className="relative">
-                      <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
-                      <select value={academicField} onChange={(e) => setAcademicField(e.target.value)}
-                        className="w-full bg-slate-50 border-none rounded-2xl p-4 pl-12 pr-4 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none appearance-none"
-                      >
-                        <option value="Genetic Eng. & Biotech (GEB)">Genetic Eng. & Biotech (GEB)</option>
-                        <option value="Pharmacy & Pharmacology">Pharmacy & Pharmacology</option>
-                        <option value="Engineering/CS">Engineering/CS</option>
-                        <option value="Physics">Physics</option>
-                        <option value="Mathematics">Mathematics</option>
-                        <option value="Social Sciences">Social Sciences</option>
-                        <option value="Law / Legal Studies">Law / Legal Studies</option>
-                        <option value="Chemistry / Pharmacy">Chemistry / Pharmacy</option>
-                      </select>
-                    </div>
 
-                    <div className="relative">
-                      <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
-                      <select value={academicStatus} onChange={(e) => setAcademicStatus(e.target.value)}
-                        className="w-full bg-slate-50 border-none rounded-2xl p-4 pl-12 pr-4 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none appearance-none"
-                      >
-                        <option value="Undergrad">Undergrad</option>
-                        <option value="Masters">Masters</option>
-                        <option value="Faculty">Faculty</option>
-                        <option value="Independent">Independent</option>
-                      </select>
-                    </div>
-
-                    <div className="flex gap-3 pt-6">
-                      <button type="button" onClick={() => setStep(1)} className="px-6 p-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl text-[13px] font-bold transition-all">Back</button>
-                      <button type="submit" disabled={loading || !captchaToken}
-                        className="flex-1 p-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[14px] font-bold tracking-wide transition-all hover:-translate-y-0.5 shadow-lg shadow-indigo-200 disabled:opacity-50 flex justify-center items-center gap-2"
-                      >
-                        {loading ? <Loader2 size={18} className="animate-spin" /> : 'Complete Registration'}
-                      </button>
-                    </div>
-                  </>
-                )}
 
                 {/* STEP 3: OTP VERIFICATION */}
                 {!isLogin && step === 3 && !isForgotPassword && (
@@ -587,9 +557,9 @@ const Auth = () => {
           <h3 className="text-xl font-black text-slate-900 mb-6 text-center tracking-tight">Why Researchers Choose Us</h3>
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center text-center">
-               <div className="p-3 bg-emerald-50 text-emerald-500 rounded-2xl mb-4"><Zap size={22}/></div>
-               <h4 className="font-bold text-slate-900 text-[14px]">800+ Tokens/Sec</h4>
-               <p className="text-[12px] text-slate-500 mt-1.5 font-medium leading-snug">Fast AI insights.</p>
+               <div className="p-3 bg-emerald-50 text-emerald-500 rounded-2xl mb-4"><Sparkles size={22}/></div>
+               <h4 className="font-bold text-slate-900 text-[14px]">Q1-Q4 Rankings</h4>
+               <p className="text-[12px] text-slate-500 mt-1.5 font-medium leading-snug">Scimago Data Integration.</p>
             </div>
             <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center text-center">
                <div className="p-3 bg-indigo-50 text-indigo-500 rounded-2xl mb-4"><Database size={22}/></div>

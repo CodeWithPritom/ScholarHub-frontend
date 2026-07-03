@@ -9,6 +9,7 @@ import {
 import { supabase } from '../supabaseClient'
 import Footer from '../Footer'
 import { motion, AnimatePresence } from 'framer-motion'
+import WorkspaceLayout from '../components/WorkspaceLayout'
 
 const Profile = ({ user }) => {
   const navigate = useNavigate()
@@ -192,32 +193,10 @@ const Profile = ({ user }) => {
   ]
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-700">
-      
-      {/* ─── Navbar ─── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/70 backdrop-blur-2xl border-b border-slate-100/80">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
-            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/25">
-              <Sparkles size={20} />
-            </div>
-            <span className="text-sm font-black tracking-tight text-slate-900 uppercase">
-              ScholarHub <span className="text-blue-600">AI</span>
-            </span>
-          </div>
-          
-          <button 
-            onClick={() => navigate('/research')}
-            className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors"
-          >
-            <ChevronLeft size={16} />
-            Back to Hub
-          </button>
-        </div>
-      </nav>
+    <WorkspaceLayout user={user}>
 
       {/* ─── Hero Section ─── */}
-      <div className="relative pt-32 pb-16 px-6 overflow-hidden bg-slate-900 text-white">
+      <div className="relative py-12 px-10 overflow-hidden bg-slate-900 text-white rounded-[2.5rem] shadow-2xl w-full">
         <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-500/[0.08] rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-indigo-500/[0.08] rounded-full blur-3xl pointer-events-none" />
         
@@ -262,7 +241,7 @@ const Profile = ({ user }) => {
       </div>
 
       {/* ─── Dashboard Cards ─── */}
-      <main className="max-w-5xl mx-auto px-6 py-16">
+      <div className="w-full mt-10">
         <div className="grid lg:grid-cols-3 gap-10 items-start">
           
           {/* Left Columns (Billing & Limits) */}
@@ -549,10 +528,10 @@ const Profile = ({ user }) => {
           </motion.div>
 
         </div>
-      </main>
+      </div>
 
-      <Footer />
-    </div>
+
+    </WorkspaceLayout>
   )
 }
 

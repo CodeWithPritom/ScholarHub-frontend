@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from './supabaseClient'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, User, Lock, Mail, Check, AlertCircle, Loader2, Save, Settings as SettingsIcon } from 'lucide-react'
+import WorkspaceLayout from './components/WorkspaceLayout'
 
 const Settings = ({ user }) => {
   const navigate = useNavigate()
@@ -68,25 +69,7 @@ const Settings = ({ user }) => {
   if (!user) return null
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-700">
-      {/* Navbar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-100">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button 
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-sm font-black text-slate-600 hover:text-blue-600 transition-colors group"
-          >
-            <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
-            Back
-          </button>
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-100">
-            <SettingsIcon size={14} className="text-blue-600" />
-            <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">
-              Account Settings
-            </span>
-          </div>
-        </div>
-      </nav>
+    <WorkspaceLayout user={user}>
 
       {/* Global Toast */}
       <AnimatePresence>
@@ -107,7 +90,7 @@ const Settings = ({ user }) => {
         )}
       </AnimatePresence>
 
-      <main className="pt-32 pb-20 max-w-2xl mx-auto px-6">
+      <div className="max-w-2xl mx-auto w-full">
         <div className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] border border-slate-100">
           <div className="mb-10 text-center">
             <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
@@ -181,8 +164,8 @@ const Settings = ({ user }) => {
             </button>
           </form>
         </div>
-      </main>
-    </div>
+      </div>
+    </WorkspaceLayout>
   )
 }
 

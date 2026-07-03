@@ -7,6 +7,7 @@ import {
   Trash2, FolderPlus, Folder, Calendar, BookOpen, Database, 
   Check, AlertCircle, Loader2, ExternalLink, Pencil, X, Settings, ChevronDown
 } from 'lucide-react'
+import WorkspaceLayout from './components/WorkspaceLayout'
 
 const getExternalUrl = (pmid, source) => {
   if (!pmid) return '';
@@ -132,46 +133,7 @@ const MyLibrary = ({ user, onLogout }) => {
   const filteredBookmarks = bookmarks.filter(b => b.album_id === selectedAlbum)
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans">
-      {/* Navbar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-100">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button 
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-sm font-black text-slate-600 hover:text-blue-600 transition-colors group"
-          >
-            <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
-            Back to Hub
-          </button>
-          <div className="flex items-center gap-3">
-            <div className="relative group cursor-pointer">
-              <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-100 transition-colors">
-                <User size={14} className="text-blue-600" />
-                <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest max-w-[120px] truncate">
-                  {user.email?.split('@')[0]}
-                </span>
-                <ChevronDown size={14} className="text-blue-600 ml-1" />
-              </div>
-              
-              <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-100 shadow-xl rounded-2xl p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top translate-y-2 group-hover:translate-y-0 z-[100]">
-                <Link to="/profile" className="flex items-center gap-3 px-4 py-3 text-sm font-semibold text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors">
-                  <User size={16} />
-                  My Account
-                </Link>
-                <Link to="/settings" className="flex items-center gap-3 px-4 py-3 text-sm font-semibold text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors">
-                  <Settings size={16} />
-                  Settings
-                </Link>
-                <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors text-left">
-                  <LogOut size={16} />
-                  Logout
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </nav>
-
+    <WorkspaceLayout user={user} onLogout={onLogout}>
       {/* Global Toast */}
       <AnimatePresence>
         {toast && (
@@ -191,7 +153,7 @@ const MyLibrary = ({ user, onLogout }) => {
         )}
       </AnimatePresence>
 
-      <main className="pt-28 pb-32 max-w-7xl mx-auto px-6 flex flex-col md:flex-row gap-10">
+      <div className="w-full h-full flex flex-col md:flex-row gap-10">
         
         {/* Sidebar */}
         <aside className="w-full md:w-64 shrink-0 flex flex-col gap-6">
@@ -397,8 +359,8 @@ const MyLibrary = ({ user, onLogout }) => {
             </div>
           )}
         </div>
-      </main>
-    </div>
+      </div>
+    </WorkspaceLayout>
   )
 }
 

@@ -191,7 +191,7 @@ const Pricing = ({ user, profile }) => {
       features: [
         { name: user ? dynamicPortalString : "Access to 1 Specialized Portal", included: true },
         { name: '3 AI Power-Uses / Day', included: true },
-        { name: '5-Paper Deep Analysis Limit', included: true },
+        { name: 'Journal Quality Indicators (Limited)', included: true },
         { name: '20 Saved Papers Limit', included: true },
         { name: 'Basic Search Speed (5s Delay)', included: true },
         { name: 'AI-Powered Email Outreach to Authors', included: false },
@@ -214,7 +214,7 @@ const Pricing = ({ user, profile }) => {
       features: [
         { name: user ? dynamicPortalString : "Access to 1 Specialized Portal", included: true },
         { name: '50 AI Power-Uses / Day', included: true },
-        { name: '10-Paper Deep Analysis Limit', included: true },
+        { name: 'Advanced Journal Ranking (Q1-Q4 Tags)', included: true },
         { name: 'Unlimited Saved Papers', included: true },
         { name: 'High-Speed Search (1s Delay)', included: true },
         { name: 'AI-Powered Email Outreach to Authors', included: true },
@@ -239,7 +239,7 @@ const Pricing = ({ user, profile }) => {
       features: [
         { name: 'Universal Access: ALL 7 Portals Unlocked', included: true },
         { name: '100 Premium AI Power-Uses / Day', included: true },
-        { name: '15-Paper Deep Analysis Limit', included: true },
+        { name: 'Full Impact-Factor Intelligence & Q1 Priority Filtering', included: true },
         { name: 'Unlimited Saved Papers', included: true },
         { name: 'Instant Search Speed (Zero Delay)', included: true },
         { name: 'AI-Powered Email Outreach to Authors', included: true },
@@ -489,6 +489,16 @@ const Pricing = ({ user, profile }) => {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Visual Social Proof for Quartiles */}
+        <div className="max-w-4xl mx-auto mt-12 mb-8 bg-blue-50/50 border border-blue-100 rounded-3xl p-6 text-center">
+          <p className="text-sm font-bold text-slate-600 flex items-center justify-center gap-3 flex-wrap">
+            <Sparkles className="text-amber-500" size={18} />
+            <span><span className="text-emerald-600 font-black">Q1</span> = Top 25% of journals in the field.</span>
+            <span><span className="text-indigo-600 font-black">Q2</span> = Top 50%.</span>
+            <span className="text-slate-800">Shop smarter, cite better.</span>
+          </p>
         </div>
 
         {/* Student Outreach Program Section */}

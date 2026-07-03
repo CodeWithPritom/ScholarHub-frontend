@@ -15,8 +15,9 @@
 5. [AI Intelligence Layer](#5-ai-intelligence-layer--inference-truncation--key-rotation)
 6. [Networking & Mentorship Hub](#6-networking--mentorship-hub--contact--orcid-extraction)
 7. [Character-Driven UX & EMO Mascot System](#7-character-driven-ux--emo-mascot-system)
-8. [Database Schema](#8-database-schema--er-diagram)
-9. [Future Roadmap](#9-future-roadmap)
+8. [Journal Quality Intelligence Layer](#8-journal-quality-intelligence-layer)
+9. [Database Schema](#9-database-schema--er-diagram)
+10. [Future Roadmap](#10-future-roadmap)
 
 ---
 
@@ -140,6 +141,8 @@ user_res = requests.get(
 | **Free** | 3 / day | 1 (field-locked) | 2 |
 | **Starter** | 50 / day | 1 (field-locked) | 2 |
 | **Pro** | 100 / day | All 7 portals | 2 |
+
+*Note: In addition to daily quotas, a strict **Burst Rate Limit** (Anti-Token Squeezing) is enforced via `usage_logs`. Users are strictly capped at 5 AI requests per minute to prevent script-based API abuse.*
 
 ### 2.4 — ISO Timestamp Parsing Resilience (`safe_fromisoformat`)
 
@@ -418,7 +421,32 @@ flowchart LR
 
 ---
 
-## 8. Database Schema & ER Diagram
+## 8. Journal Quality Intelligence Layer
+
+To provide researchers with immediate credibility indicators, ScholarHub integrates a high-performance journal ranking pipeline.
+
+### 8.1 — Data Source & Storage
+- Integrates the comprehensive **Scimago (SJR) Dataset** (32,000+ records).
+- Stored efficiently in the Supabase `journal_rankings` table.
+
+### 8.2 — High-Performance Batch Lookup Engine
+- **O(1) Network Overhead:** Instead of performing expensive N+1 queries per article, the backend aggregates all unique journal names from the search results.
+- **SQL ANY() Equivalent:** It executes **exactly ONE asynchronous batch query** using dynamically constructed `.or_()` conditions to fetch all relevant candidates simultaneously, maximizing scalability and ensuring zero noticeable latency.
+
+### 8.3 — Fuzzy Matching & Normalization
+Journals, especially from preprint servers like arXiv, often have unpredictable formatting (e.g., "Phys. Rev. D" vs "Physical Review D"). The backend resolves this via a multi-stage fuzzy matching engine:
+- **Normalization:** Aggressive alphanumeric cleaning (`re.sub(r'[^a-z0-9\s]', '')`) of both incoming queries and database titles to eliminate punctuation and casing discrepancies.
+- **Keyword Wildcards (`%word%`):** Translates normalized names into `%word1%word2%` wildcards, using Postgres `.ilike()` to fetch all possible abbreviations and permutations.
+- **Length-Distance Validation:** If an exact normalized match fails, a fallback regex substring search is used. To prevent a short title like *'Nature'* from hijacking the ranking of *'Nature Physics'*, the engine calculates the string length difference and strictly assigns the quartile to the closest match.
+
+### 8.4 — Frontend Visual Indicators
+- The `ArticleGrid.jsx` component conditionally renders elegant Q1–Q4 badges right next to the journal name based on the `journal_quartile` field.
+- **Color Coding:** Q1 (Emerald/Green), Q2 (Blue/Indigo), Q3 (Amber/Orange), Q4 (Slate/Gray).
+- **Graceful Degradation:** If a ranking isn't found (e.g., niche preprints), the badge safely omits itself without breaking the card layout or hiding the journal name.
+
+---
+
+## 9. Database Schema & ER Diagram
 
 The architecture relies on strict relational integrity and PostgreSQL RLS policies within Supabase.
 
@@ -466,7 +494,7 @@ erDiagram
 
 ---
 
-## 9. Future Roadmap
+## 10. Future Roadmap
 
 ```mermaid
 gantt

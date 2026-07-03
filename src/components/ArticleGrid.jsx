@@ -157,7 +157,7 @@ const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, o
   return (
     <motion.div 
       layout
-      className="group bg-white hover:bg-slate-50/50 rounded-[2.5rem] border border-slate-200/60 hover:border-blue-300 shadow-sm hover:shadow-[0_32px_64px_-12px_rgba(0,0,0,0.1)] transition-all duration-500 overflow-hidden flex flex-col cursor-pointer relative"
+      className="group bg-white hover:bg-slate-50/30 rounded-[2rem] border border-slate-100 hover:border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.08)] transition-all duration-500 overflow-hidden flex flex-col cursor-pointer relative"
       onClick={handleOpenDetail}
     >
       <AnimatePresence>
@@ -184,10 +184,22 @@ const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, o
       <div className="p-8 flex-1">
         <div className="flex items-start justify-between gap-3 mb-6">
           <div className="flex flex-wrap gap-2">
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black bg-blue-50 text-blue-600 border border-blue-100 uppercase tracking-widest">
-              <BookOpen size={14} />
-              {journal}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black bg-blue-50 text-blue-600 border border-blue-100 uppercase tracking-widest">
+                <BookOpen size={14} />
+                {journal}
+              </span>
+              {article.journal_quartile && (
+                <span className={`inline-flex items-center px-2 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${
+                  article.journal_quartile === 'Q1' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 shadow-sm shadow-emerald-100' :
+                  article.journal_quartile === 'Q2' ? 'bg-indigo-50 text-indigo-600 border-indigo-200 shadow-sm shadow-indigo-100' :
+                  article.journal_quartile === 'Q3' ? 'bg-amber-50 text-amber-600 border-amber-200 shadow-sm shadow-amber-100' :
+                  'bg-slate-50 text-slate-500 border-slate-200 shadow-sm shadow-slate-100'
+                }`}>
+                  {article.journal_quartile}
+                </span>
+              )}
+            </div>
             {article.citationCount !== undefined && article.citationCount !== null && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black bg-amber-50 text-amber-600 border border-amber-100 uppercase tracking-widest" title={`${article.influentialCitationCount || 0} Influential`}>
                 <Quote size={12} />
@@ -325,7 +337,7 @@ const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, o
         </div>
       </div>
 
-      <div className="px-8 py-5 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+      <div className="px-8 py-5 bg-slate-50/30 border-t border-slate-50 flex items-center justify-between">
         <span className="text-[10px] font-black text-slate-400 flex items-center gap-2 uppercase tracking-[0.2em]">
           <Database size={12} />
           PMID: {pmid}
@@ -474,7 +486,7 @@ const ArticleGrid = ({
               </button>
             )}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 w-full opacity-50 pointer-events-none">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full opacity-50 pointer-events-none">
             {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
           </div>
         </motion.div>
@@ -491,7 +503,7 @@ const ArticleGrid = ({
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
         >
           {articles.map((article, idx) => (
             <ArticleCard 

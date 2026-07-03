@@ -11,12 +11,13 @@ import { BASE_URL, fireSessionExpired } from './utils/api';
 import { getOrCreateDeviceId } from './utils/deviceSync';
 import Footer from './Footer';
 import AuthModal from './AuthModal';
-import Navbar from './components/Navbar';
+import WorkspaceLayout from './components/WorkspaceLayout';
 import { ProUpgradeModal, StarterUpgradeModal, ForceRefreshModal } from './components/UpgradeModals';
 
 import AIChatWidget from './components/AIChatWidget';
 import SearchBar from './components/SearchBar';
 import ArticleGrid from './components/ArticleGrid';
+
 
 const getPortalDetails = (portalId) => {
   switch(portalId) {
@@ -34,10 +35,14 @@ const getPortalDetails = (portalId) => {
 
 // Utility functions for Lit Review Modal
 const parseInline = (text) => {
-  const parts = text.split(/(\*\*.*?\*\*)/g);
+  // Handle bold (**text**) and inline code (`text`)
+  const parts = text.split(/(\*\*.*?\*\*|`[^`]+`)/g);
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       return <strong key={i} className="font-black text-slate-900">{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith('`') && part.endsWith('`')) {
+      return <code key={i} className="px-1.5 py-0.5 bg-slate-100 text-indigo-700 text-xs rounded font-mono">{part.slice(1, -1)}</code>;
     }
     return part;
   });
@@ -45,18 +50,115 @@ const parseInline = (text) => {
 
 const formatMarkdown = (text) => {
   if (!text) return null;
-  const paragraphs = text.split('\n\n');
-  return paragraphs.map((para, i) => {
-    if (para.trim().startsWith('- ') || para.trim().startsWith('* ')) {
-      const items = para.split('\n').map(line => line.replace(/^[-*]\s+/, '').trim());
-      return (
-        <ul key={i} className="list-disc ml-6 mb-6 space-y-2">
-          {items.map((item, j) => <li key={j}>{parseInline(item)}</li>)}
-        </ul>
-      );
+  const lines = text.split('\n');
+  const elements = [];
+  let buffer = [];
+  let listItems = [];
+  let listType = null; // 'ul' or 'ol'
+
+  const flushBuffer = () => {
+    if (buffer.length > 0) {
+      const content = buffer.join('\n').trim();
+      if (content) {
+        elements.push(
+          <p key={`p-${elements.length}`} className="mb-5 leading-[1.85] text-slate-600 text-[15px]">
+            {parseInline(content)}
+          </p>
+        );
+      }
+      buffer = [];
     }
-    return <p key={i} className="mb-6 leading-relaxed">{parseInline(para)}</p>;
+  };
+
+  const flushList = () => {
+    if (listItems.length > 0) {
+      const ListTag = listType === 'ol' ? 'ol' : 'ul';
+      elements.push(
+        <ListTag
+          key={`list-${elements.length}`}
+          className={`${listType === 'ol' ? 'list-decimal' : 'list-disc'} ml-6 mb-6 space-y-3`}
+        >
+          {listItems.map((item, j) => (
+            <li key={j} className="text-slate-600 text-[15px] leading-[1.85] pl-1">
+              {parseInline(item)}
+            </li>
+          ))}
+        </ListTag>
+      );
+      listItems = [];
+      listType = null;
+    }
+  };
+
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+
+    // Headings
+    if (trimmed.startsWith('### ')) {
+      flushBuffer();
+      flushList();
+      elements.push(
+        <h3 key={`h3-${elements.length}`} className="text-lg font-black text-slate-800 mt-8 mb-3 tracking-tight">
+          {parseInline(trimmed.slice(4))}
+        </h3>
+      );
+      return;
+    }
+    if (trimmed.startsWith('## ')) {
+      flushBuffer();
+      flushList();
+      elements.push(
+        <h2 key={`h2-${elements.length}`} className="text-xl font-black text-slate-900 mt-10 mb-4 pb-2 border-b border-slate-100 tracking-tight">
+          {parseInline(trimmed.slice(3))}
+        </h2>
+      );
+      return;
+    }
+    if (trimmed.startsWith('# ')) {
+      flushBuffer();
+      flushList();
+      elements.push(
+        <h1 key={`h1-${elements.length}`} className="text-2xl font-black text-slate-900 mt-10 mb-5 pb-3 border-b-2 border-slate-200 tracking-tight">
+          {parseInline(trimmed.slice(2))}
+        </h1>
+      );
+      return;
+    }
+
+    // Unordered list items
+    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      flushBuffer();
+      if (listType && listType !== 'ul') flushList();
+      listType = 'ul';
+      listItems.push(trimmed.replace(/^[-*]\s+/, ''));
+      return;
+    }
+
+    // Ordered list items
+    const olMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
+    if (olMatch) {
+      flushBuffer();
+      if (listType && listType !== 'ol') flushList();
+      listType = 'ol';
+      listItems.push(olMatch[2]);
+      return;
+    }
+
+    // Empty line = paragraph break
+    if (trimmed === '') {
+      flushList();
+      flushBuffer();
+      return;
+    }
+
+    // Normal text
+    if (listItems.length > 0) flushList();
+    buffer.push(line);
   });
+
+  flushBuffer();
+  flushList();
+  return elements;
 };
 
 const formatMarkdownToHTML = (text) => {
@@ -102,9 +204,12 @@ const exportToPDF = (content) => {
   printWindow.document.close();
 };
 
+
+
 const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
   const navigate = useNavigate();
   const searchAbortControllerRef = useRef(null);
+  const resultsRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [profileError, setProfileError] = useState(null);
@@ -178,21 +283,6 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
   const [bookmarkCount, setBookmarkCount] = useState(0);
   const [usageStats, setUsageStats] = useState({ aiSummaries: 0 });
 
-  const fetchBookmarkCount = async () => {
-    if (!user) return;
-    try {
-      const { count, error } = await supabase
-        .from('bookmarks')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-      if (!error && count !== null) {
-        setBookmarkCount(count);
-      }
-    } catch (err) {
-      console.error('Error fetching bookmark count:', err);
-    }
-  };
-
   const [announcement, setAnnouncement] = useState(null);
 
   useEffect(() => {
@@ -219,21 +309,26 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
     fetchAnnouncement();
   }, []);
 
-  const fetchUsageStats = async () => {
+  const fetchUserDashboardStats = async () => {
     if (!user) return;
     try {
       const todayStr = new Date().toISOString().split('T')[0];
-      const { count, error } = await supabase
-        .from('usage_logs')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('action', 'ai_summary')
-        .eq('usage_date', todayStr);
-      if (!error && count !== null) {
-        setUsageStats({ aiSummaries: count });
+      
+      const [bookmarkRes, usageRes] = await Promise.all([
+        supabase.from('bookmarks').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase.from('usage_logs').select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id).eq('action', 'ai_summary').eq('usage_date', todayStr)
+      ]);
+
+      if (!bookmarkRes.error && bookmarkRes.count !== null) {
+        setBookmarkCount(bookmarkRes.count);
+      }
+      
+      if (!usageRes.error && usageRes.count !== null) {
+        setUsageStats({ aiSummaries: usageRes.count });
       }
     } catch (err) {
-      console.error('Error fetching usage stats:', err);
+      console.error('Error fetching dashboard stats:', err);
     }
   };
 
@@ -414,8 +509,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       }
     };
     getTierAndProfile();
-    fetchBookmarkCount();
-    fetchUsageStats();
+    fetchUserDashboardStats();
     
     // Force re-fetch every 5 minutes
     const intervalId = setInterval(() => {
@@ -897,7 +991,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
         throw new Error(errMsg);
       }
       const data = await response.json();
-      fetchUsageStats();
+      fetchUserDashboardStats();
       
       setAiSummary(data.output);
       setChatHistory([{ role: 'assistant', content: 'Here is your executive summary. Feel free to ask any specific questions about these papers.' }]);
@@ -978,7 +1072,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
         throw new Error(errMsg);
       }
       const data = await response.json();
-      fetchUsageStats();
+      fetchUserDashboardStats();
 
       setChatHistory(prev => [...prev, { role: 'assistant', content: data.output }]);
     } catch (err) {
@@ -1137,6 +1231,9 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       if (results.length > 0) {
         sessionStorage.setItem('aiPromptVisible', 'true');
         setTimeout(() => setAiPromptVisible(true), 1500);
+        setTimeout(() => {
+          resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 300);
       }
 
       if (userTier === 'free' || !user) {
@@ -1279,7 +1376,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 selection:bg-blue-100 selection:text-blue-700 font-sans">
+    <WorkspaceLayout user={user} profile={profile} onLogout={onLogout}>
       
       {/* Force Refresh Modal */}
       <ForceRefreshModal 
@@ -1288,9 +1385,6 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
         onConfirm={executeForceRefresh} 
       />
 
-      {/* Premium Navbar */}
-      <Navbar user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={onLogout} />
-
       {/* Global Announcement Banner */}
       <AnimatePresence>
         {announcement && (
@@ -1298,7 +1392,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className={`mt-16 py-3 px-6 border-b z-40 relative flex items-center justify-between gap-3 text-sm font-bold shadow-sm overflow-hidden ${
+            className={`py-3 px-6 border-b z-40 relative flex items-center justify-between gap-3 text-sm font-bold shadow-sm overflow-hidden ${
               announcement.type === 'warning' ? 'bg-amber-50 text-amber-700 border-amber-200' :
               announcement.type === 'success' ? 'bg-green-50 text-green-700 border-green-200' :
               'bg-indigo-50 text-indigo-700 border-indigo-200'
@@ -1328,7 +1422,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className={`py-3 px-6 border-b z-30 relative flex items-center justify-center gap-3 text-sm font-bold shadow-sm bg-red-50 text-red-700 border-red-200 ${announcement ? '' : 'mt-16'}`}
+            className={`py-3 px-6 border-b z-30 relative flex items-center justify-center gap-3 text-sm font-bold shadow-sm bg-red-50 text-red-700 border-red-200`}
           >
             <ShieldAlert size={16} className="animate-pulse" />
             <span>{profileError}</span>
@@ -1340,8 +1434,8 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       </AnimatePresence>
 
       {/* Search Engine Section */}
-      <section className={`${announcement ? 'pt-16' : 'pt-32'} pb-16 px-4 md:px-8 relative overflow-hidden`}>
-        <div className="max-w-7xl mx-auto">
+      <section className="relative w-full">
+        <div className="w-full">
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black bg-blue-50 text-blue-600 mb-4 uppercase tracking-widest shadow-sm border border-blue-100">
               <Search size={14} /> Professional Search Engine
@@ -1551,20 +1645,22 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
           </div>
         )}
 
-        <ArticleGrid 
-          articles={articles}
-          hasSearched={hasSearched}
-          clearFilters={clearFilters}
-          user={user}
-          userTier={userTier}
-          bookmarkCount={bookmarkCount}
-          fetchBookmarkCount={fetchBookmarkCount}
-          setShowAuthModal={setShowAuthModal}
-          loading={loading}
-          error={error}
-          searchPubMed={searchPubMed}
-          cancelSearch={cancelSearch}
-        />
+        <div ref={resultsRef} className="scroll-mt-8">
+          <ArticleGrid 
+            articles={articles}
+            hasSearched={hasSearched}
+            clearFilters={clearFilters}
+            user={user}
+            userTier={userTier}
+            bookmarkCount={bookmarkCount}
+            fetchBookmarkCount={fetchUserDashboardStats}
+            setShowAuthModal={setShowAuthModal}
+            loading={loading}
+            error={error}
+            searchPubMed={searchPubMed}
+            cancelSearch={cancelSearch}
+          />
+        </div>
       </main>
 
       {/* AI Assistant Elements */}
@@ -1598,7 +1694,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => !litReviewLoading && setLitReviewModalOpen(false)}
+              /* Locked backdrop: do NOT close on click — user must use the Close button */
               className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
             />
             
@@ -1721,8 +1817,6 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
         onClose={() => setStarterUnlockModalOpen(false)} 
         navigate={navigate} 
       />
-
-      <Footer user={user} onAuthRequired={() => setShowAuthModal(true)} />
       
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
       
@@ -1748,7 +1842,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </WorkspaceLayout>
   );
 };
 

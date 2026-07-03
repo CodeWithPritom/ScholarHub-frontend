@@ -222,7 +222,7 @@ const SearchBar = ({
                 exit={{ opacity: 0, height: 0 }}
                 className="absolute -bottom-10 left-0 text-xs font-black text-amber-600 flex items-center gap-1.5 bg-amber-50 px-4 py-2 rounded-xl border border-amber-100"
               >
-                <AlertCircle size={14} /> Guest rate limit — next search in {guestCooldown}s. <span className="text-blue-600 underline cursor-pointer" onClick={() => navigate('/auth')}>Login for unlimited access.</span>
+                <AlertCircle size={14} /> Free Tier cooldown — next search in {guestCooldown}s. <span className="text-blue-600 underline cursor-pointer" onClick={() => navigate('/pricing')}>Upgrade to PRO for instant search</span>
               </motion.div>
             )}
           </AnimatePresence>
@@ -301,38 +301,43 @@ const SearchBar = ({
               transition={{ duration: 0.25 }}
               className="overflow-hidden"
             >
-              <div className="mt-6 p-8 bg-white border border-slate-100 rounded-[2.5rem] shadow-2xl shadow-slate-200/40 space-y-8">
+              <div className="mt-6 p-8 bg-white border border-slate-100 rounded-[2rem] shadow-[0_8px_32px_-8px_rgba(0,0,0,0.08)] space-y-0">
                 
-                {/* Quick Date Presets */}
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                    <Calendar size={12} className="text-blue-500" />
-                    Quick Range
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { label: 'Past 30 Days', days: 30 },
-                      { label: 'Past 6 Months', days: 180 },
-                      { label: 'Past Year', days: 365 },
-                      { label: 'Past 5 Years', days: 1825 }
-                    ].map((preset) => (
-                      <button
-                        key={preset.days}
-                        onClick={() => applyDatePreset(preset.days)}
-                        className="px-4 py-2 bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-blue-600 text-xs font-bold rounded-xl transition-colors border border-slate-100 hover:border-blue-200"
-                      >
-                        {preset.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                {/* 3-Column Filter Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-start">
 
-                <div className="grid md:grid-cols-2 gap-8">
-                  {/* Custom Date Filter */}
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Custom Date Range</label>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                      <div className="relative w-full sm:flex-1">
+                  {/* Column 1: Quick Range */}
+                  <div className="min-w-0 space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                      <Calendar size={12} className="text-blue-500" />
+                      Quick Range
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { label: 'Past 30 Days', days: 30 },
+                        { label: 'Past 6 Months', days: 180 },
+                        { label: 'Past Year', days: 365 },
+                        { label: 'Past 5 Years', days: 1825 }
+                      ].map((preset) => (
+                        <button
+                          key={preset.days}
+                          onClick={() => applyDatePreset(preset.days)}
+                          className="px-4 py-2.5 bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-blue-600 text-xs font-bold rounded-xl transition-colors border border-slate-100 hover:border-blue-200"
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Column 2: Custom Date Range */}
+                  <div className="min-w-0 space-y-3">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                      <Calendar size={12} className="text-blue-500" />
+                      Custom Date Range
+                    </label>
+                    <div className="flex flex-col gap-3">
+                      <div className="relative w-full">
                         <input 
                           type="date" 
                           value={startDate}
@@ -345,8 +350,8 @@ const SearchBar = ({
                           </button>
                         )}
                       </div>
-                      <span className="text-slate-300 font-bold hidden sm:inline text-center">to</span>
-                      <div className="relative w-full sm:flex-1">
+                      <span className="text-slate-300 text-[10px] font-black uppercase tracking-widest text-center">to</span>
+                      <div className="relative w-full">
                         <input 
                           type="date" 
                           value={endDate}
@@ -362,16 +367,16 @@ const SearchBar = ({
                     </div>
                   </div>
 
-                  {/* Sort Selection */}
-                  <div className="space-y-3">
+                  {/* Column 3: Algorithm Priority */}
+                  <div className="min-w-0 space-y-3">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
                       <LayoutGrid size={12} className="text-blue-500" />
                       Algorithm Priority
                     </label>
-                    <div className="flex bg-slate-50 p-1 rounded-2xl border border-slate-100">
+                    <div className="flex flex-col bg-slate-50 p-1.5 rounded-2xl border border-slate-100 gap-1">
                       <button
                         onClick={() => setSortBy('relevance')}
-                        className={`flex-1 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${
+                        className={`w-full py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${
                           sortBy === 'relevance' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
                         }`}
                       >
@@ -379,7 +384,7 @@ const SearchBar = ({
                       </button>
                       <button
                         onClick={() => setSortBy('date')}
-                        className={`flex-1 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${
+                        className={`w-full py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${
                           sortBy === 'date' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
                         }`}
                       >
@@ -387,19 +392,32 @@ const SearchBar = ({
                       </button>
                     </div>
                   </div>
+
                 </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                {/* Bottom Action Bar */}
+                <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-100">
                   <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                     <Sparkles size={12} className="text-amber-500" />
                     STARTER / PRO Exclusive
                   </div>
-                  <button 
-                    onClick={() => setIsFilterOpen(false)}
-                    className="px-6 py-2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-700 transition-colors shadow-md shadow-blue-200"
-                  >
-                    Apply Filters
-                  </button>
+                  <div className="flex items-center gap-3">
+                    {(startDate || endDate || sortBy !== 'relevance') && (
+                      <button 
+                        onClick={clearFilters}
+                        className="px-5 py-2.5 bg-slate-50 text-slate-500 hover:text-red-600 hover:bg-red-50 text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors border border-slate-100 hover:border-red-200 flex items-center gap-1.5"
+                      >
+                        <RefreshCcw size={12} />
+                        Reset All
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => setIsFilterOpen(false)}
+                      className="px-6 py-2.5 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-700 transition-colors shadow-md shadow-blue-200"
+                    >
+                      Apply Filters
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>

@@ -33,7 +33,7 @@ window.fetch = async function(resource, config) {
   } catch (error) {
     // Only attempt fallback if the request was targeting our backend
     if (urlStr && (urlStr.startsWith(PRIMARY_URL) || urlStr.startsWith(BASE_URL))) {
-      console.warn(`[Auto-Fallback] Connection to Primary API failed. Retrying on Backup API...`);
+      // Silently retry on Backup API
       
       let newUrlStr = urlStr.replace(PRIMARY_URL, BACKUP_URL);
       if (urlStr.startsWith(BASE_URL) && BASE_URL !== PRIMARY_URL) {

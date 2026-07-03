@@ -4,32 +4,104 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, Sparkles, XCircle, Send, FileText, Minimize2, Maximize2, ChevronDown, ChevronUp } from 'lucide-react';
 
 /**
- * Minimal Markdown-lite formatter for AI summaries (inline)
+ * Academic-grade Markdown renderer for AI summaries.
+ * Supports H1-H3 headings, bold, inline code, ordered/unordered lists.
  */
-const formatMarkdown = (text) => {
-  if (!text) return null
-  const paragraphs = text.split('\n\n')
-  return paragraphs.map((para, i) => {
-    if (para.trim().startsWith('- ') || para.trim().startsWith('* ')) {
-      const items = para.split('\n').map(line => line.replace(/^[-*]\s+/, '').trim())
-      return (
-        <ul key={i} className="list-disc ml-6 mb-6 space-y-2">
-          {items.map((item, j) => <li key={j}>{parseInline(item)}</li>)}
-        </ul>
-      )
-    }
-    return <p key={i} className="mb-6 leading-relaxed">{parseInline(para)}</p>
-  })
-}
-
 const parseInline = (text) => {
-  const parts = text.split(/(\*\*.*?\*\*)/g)
+  const parts = text.split(/(\*\*.*?\*\*|`[^`]+`)/g)
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       return <strong key={i} className="font-black text-slate-900">{part.slice(2, -2)}</strong>
     }
+    if (part.startsWith('`') && part.endsWith('`')) {
+      return <code key={i} className="px-1.5 py-0.5 bg-slate-100 text-indigo-700 text-xs rounded font-mono">{part.slice(1, -1)}</code>
+    }
     return part
   })
+}
+
+const formatMarkdown = (text) => {
+  if (!text) return null
+  const lines = text.split('\n')
+  const elements = []
+  let buffer = []
+  let listItems = []
+  let listType = null
+
+  const flushBuffer = () => {
+    if (buffer.length > 0) {
+      const content = buffer.join('\n').trim()
+      if (content) {
+        elements.push(
+          <p key={`p-${elements.length}`} className="mb-5 leading-[1.85] text-slate-600 text-[15px]">
+            {parseInline(content)}
+          </p>
+        )
+      }
+      buffer = []
+    }
+  }
+
+  const flushList = () => {
+    if (listItems.length > 0) {
+      const ListTag = listType === 'ol' ? 'ol' : 'ul'
+      elements.push(
+        <ListTag
+          key={`list-${elements.length}`}
+          className={`${listType === 'ol' ? 'list-decimal' : 'list-disc'} ml-6 mb-6 space-y-3`}
+        >
+          {listItems.map((item, j) => (
+            <li key={j} className="text-slate-600 text-[15px] leading-[1.85] pl-1">
+              {parseInline(item)}
+            </li>
+          ))}
+        </ListTag>
+      )
+      listItems = []
+      listType = null
+    }
+  }
+
+  lines.forEach((line) => {
+    const trimmed = line.trim()
+
+    if (trimmed.startsWith('### ')) {
+      flushBuffer(); flushList()
+      elements.push(<h3 key={`h3-${elements.length}`} className="text-base font-black text-slate-800 mt-6 mb-2 tracking-tight">{parseInline(trimmed.slice(4))}</h3>)
+      return
+    }
+    if (trimmed.startsWith('## ')) {
+      flushBuffer(); flushList()
+      elements.push(<h2 key={`h2-${elements.length}`} className="text-lg font-black text-slate-900 mt-8 mb-3 pb-2 border-b border-slate-100 tracking-tight">{parseInline(trimmed.slice(3))}</h2>)
+      return
+    }
+
+    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      flushBuffer()
+      if (listType && listType !== 'ul') flushList()
+      listType = 'ul'
+      listItems.push(trimmed.replace(/^[-*]\s+/, ''))
+      return
+    }
+
+    const olMatch = trimmed.match(/^(\d+)\.\s+(.*)/)
+    if (olMatch) {
+      flushBuffer()
+      if (listType && listType !== 'ol') flushList()
+      listType = 'ol'
+      listItems.push(olMatch[2])
+      return
+    }
+
+    if (trimmed === '') { flushList(); flushBuffer(); return }
+
+    if (listItems.length > 0) flushList()
+    buffer.push(line)
+  })
+
+  flushBuffer()
+  flushList()
+  return elements
 }
 
 const AIChatWidget = ({
@@ -235,21 +307,78 @@ const AIChatWidget = ({
                   ) : (
                     <div className="space-y-6">
                       {/* Initial Summary Bubble */}
-                      {aiSummary && (
-                        <motion.div 
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="p-6 bg-white rounded-[2rem] rounded-tl-none border border-slate-100 shadow-sm"
-                        >
-                          <div className="flex items-center gap-2 mb-3">
-                            <Bot size={14} className="text-blue-600" />
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Initial Synthesis</span>
-                          </div>
-                          <div className="font-serif text-slate-700 leading-relaxed text-sm" style={{ fontFamily: "'Merriweather', serif" }}>
-                            {formatMarkdown(aiSummary)}
-                          </div>
-                        </motion.div>
-                      )}
+                      {aiSummary && (() => {
+                        // Split out the [Relevance Map] section if present
+                        const parts = aiSummary.split('[Relevance Map]');
+                        const mainContent = parts[0].trim();
+                        const relevanceRaw = parts[1] || '';
+                        const relevanceEntries = relevanceRaw
+                          .split('\n')
+                          .map(l => l.trim())
+                          .filter(l => l.startsWith('RELEVANCE|'))
+                          .map(l => {
+                            const segs = l.split('|');
+                            return { title: segs[1] || '', score: parseInt(segs[2]) || 0, reason: segs[3] || '' };
+                          });
+
+                        return (
+                          <>
+                            <motion.div 
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="p-6 bg-white rounded-[2rem] rounded-tl-none border border-slate-100 shadow-sm"
+                            >
+                              <div className="flex items-center gap-2 mb-3">
+                                <Bot size={14} className="text-blue-600" />
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Initial Synthesis</span>
+                              </div>
+                              <div className="text-slate-700 leading-relaxed text-sm space-y-1" style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}>
+                                {formatMarkdown(mainContent)}
+                              </div>
+                            </motion.div>
+
+                            {/* Relevance Match Meter */}
+                            {relevanceEntries.length > 0 && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2 }}
+                                className="p-6 bg-white rounded-[2rem] rounded-tl-none border border-slate-100 shadow-sm"
+                              >
+                                <div className="flex items-center gap-2 mb-4">
+                                  <div className="w-5 h-5 bg-indigo-100 rounded-md flex items-center justify-center">
+                                    <Sparkles size={12} className="text-indigo-600" />
+                                  </div>
+                                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Relevance Match Meter</span>
+                                </div>
+                                <div className="space-y-4">
+                                  {relevanceEntries.map((entry, idx) => (
+                                    <div key={idx}>
+                                      <div className="flex items-center justify-between mb-1.5">
+                                        <p className="text-xs font-bold text-slate-700 leading-tight line-clamp-1 flex-1 mr-3">{entry.title}</p>
+                                        <span className={`text-xs font-black shrink-0 ${entry.score >= 80 ? 'text-emerald-600' : entry.score >= 50 ? 'text-amber-600' : 'text-slate-400'}`}>
+                                          {entry.score}%
+                                        </span>
+                                      </div>
+                                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                                        <motion.div
+                                          initial={{ width: 0 }}
+                                          animate={{ width: `${entry.score}%` }}
+                                          transition={{ duration: 0.8, delay: idx * 0.1 }}
+                                          className={`h-full rounded-full ${entry.score >= 80 ? 'bg-emerald-500' : entry.score >= 50 ? 'bg-amber-500' : 'bg-slate-300'}`}
+                                        />
+                                      </div>
+                                      {entry.reason && (
+                                        <p className="text-[11px] text-slate-400 mt-1 leading-snug">{entry.reason}</p>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </motion.div>
+                            )}
+                          </>
+                        );
+                      })()}
 
                       {/* Conversational History */}
                       {chatHistory.map((msg, idx) => (
