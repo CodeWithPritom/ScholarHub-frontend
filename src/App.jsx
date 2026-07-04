@@ -11,6 +11,7 @@ import { supabase } from './supabaseClient'
 import { ensureDeviceIsRegistered } from './utils/deviceSync'
 import { SESSION_EXPIRED_EVENT } from './utils/api'
 import { Dna, AlertTriangle, X, CreditCard } from 'lucide-react'
+import { Toaster } from 'sonner'
 
 // Pages
 import Auth from './Auth'
@@ -440,6 +441,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <Toaster position="top-right" richColors />
       {needsOnboarding ? (
         <ProfileSetupModal isOpen={true} user={user} onClose={() => setNeedsOnboarding(false)} />
       ) : (

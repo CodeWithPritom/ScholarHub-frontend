@@ -277,7 +277,7 @@ const AIChatWidget = ({
                               setIsAiLimitReached(false);
                               navigate('/pricing');
                             }}
-                            className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-md shadow-orange-200 transition-all hover:-translate-y-0.5"
+                            className="w-full py-4 bg-amber-600 hover:bg-amber-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-md transition-all hover:-translate-y-0.5"
                           >
                             UPGRADE TO {userTier === 'free' ? 'STARTER' : 'PRO'}
                           </button>

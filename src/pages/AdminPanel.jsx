@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { Search, ShieldCheck, Ticket, Calendar as CalIcon, Loader2, Check, UserCheck, AlertCircle, Ban, Trash2, CreditCard, ToggleLeft, ToggleRight, Users, Zap, Radio, Bell, Megaphone, X, Key, Activity, Clock, FileText, RefreshCcw } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 import { BASE_URL, fireSessionExpired } from '../utils/api'
@@ -377,7 +378,7 @@ const AdminPanel = ({ user, profile, liveUsersCount }) => {
 
   const handleExportCSV = () => {
     if (!usersList || usersList.length === 0) {
-      alert("No users available to export.")
+      toast.warning("No users available to export.")
       return
     }
     
@@ -836,7 +837,7 @@ const AdminPanel = ({ user, profile, liveUsersCount }) => {
                         <td className="px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">{u.user_tier}</td>
                         <td className="px-4 py-4 text-xs font-bold text-amber-600">{new Date(u.expires_at).toLocaleDateString()}</td>
                         <td className="px-4 py-4 text-right">
-                          <button onClick={() => alert(`Placeholder: Notified ${u.email} about upcoming expiry.`)}
+                          <button onClick={() => toast.info(`Placeholder: Notified ${u.email} about upcoming expiry.`)}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors">
                             <Bell size={12} /> Notify User
                           </button>

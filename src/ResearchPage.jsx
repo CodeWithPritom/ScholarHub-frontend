@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Dna, Activity, Library, User, ChevronDown, Settings, 
@@ -530,6 +531,8 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
   const [litReviewStep, setLitReviewStep] = useState('');
   const [litReviewProgress, setLitReviewProgress] = useState(0);
   const [litReviewTitle, setLitReviewTitle] = useState('Literature Review Synthesis');
+  const [cachedLitReview, setCachedLitReview] = useState(null);
+  const [cachedGapAnalysis, setCachedGapAnalysis] = useState(null);
 
   const handleGapAnalysisClick = async () => {
     if (userTier !== 'pro') {
@@ -538,8 +541,17 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       return;
     }
 
+    const currentKey = articles.slice(0, 15).map(art => art.pmid || art.title).join('|');
+
     setLitReviewTitle('Research Gap Analysis');
     setLitReviewModalOpen(true);
+
+    if (cachedGapAnalysis && cachedGapAnalysis.key === currentKey) {
+      setLitReviewLoading(false);
+      setLitReviewContent(cachedGapAnalysis.content);
+      return;
+    }
+
     setLitReviewLoading(true);
     setLitReviewContent('');
     setLitReviewStep('AI is analyzing research gaps...');
@@ -605,6 +617,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
 
       const data = await response.json();
       setLitReviewContent(data.output);
+      setCachedGapAnalysis({ key: currentKey, content: data.output });
     } catch (err) {
       console.error(err);
       if (err.name === 'AbortError') {
@@ -626,8 +639,17 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       return;
     }
 
+    const currentKey = articles.slice(0, 15).map(art => art.pmid || art.title).join('|');
+
     setLitReviewTitle('Literature Review Synthesis');
     setLitReviewModalOpen(true);
+
+    if (cachedLitReview && cachedLitReview.key === currentKey) {
+      setLitReviewLoading(false);
+      setLitReviewContent(cachedLitReview.content);
+      return;
+    }
+
     setLitReviewLoading(true);
     setLitReviewContent('');
     setLitReviewStep('AI is synthesizing global research data...');
@@ -694,6 +716,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
 
       const data = await response.json();
       setLitReviewContent(data.output);
+      setCachedLitReview({ key: currentKey, content: data.output });
     } catch (err) {
       console.error(err);
       if (err.name === 'AbortError') {
@@ -1434,19 +1457,28 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       </AnimatePresence>
 
       {/* Search Engine Section */}
-      <section className="relative w-full">
+      <section className="relative w-full pb-16">
         <div className="w-full">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black bg-blue-50 text-blue-600 mb-4 uppercase tracking-widest shadow-sm border border-blue-100">
-              <Search size={14} /> Professional Search Engine
-            </div>
-            <h2 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tight leading-[0.95] mb-6">
-              Analytical <span className="text-blue-600">Dashboard.</span>
-            </h2>
-            <p className="text-lg text-slate-500 max-w-2xl mx-auto leading-relaxed font-medium">
-              Real-time synchronization with Global Research Databases. Execute advanced queries across 7 disciplines.
-            </p>
-          </div>
+          <AnimatePresence mode="wait">
+            {(!hasSearched && !aiChatOpen) && (
+              <motion.div 
+                initial={{ opacity: 0, y: -20, height: 0 }}
+                animate={{ opacity: 1, y: 0, height: 'auto', marginBottom: '4rem' }}
+                exit={{ opacity: 0, y: -20, height: 0, marginBottom: 0, overflow: 'hidden' }}
+                className="text-center"
+              >
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black bg-blue-50 text-blue-600 mb-4 uppercase tracking-widest shadow-sm border border-blue-100">
+                  <Search size={14} /> Professional Search Engine
+                </div>
+                <h2 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tight leading-[0.95] mb-6">
+                  Analytical <span className="text-blue-600">Dashboard.</span>
+                </h2>
+                <p className="text-lg text-slate-500 max-w-2xl mx-auto leading-relaxed font-medium">
+                  Real-time synchronization with Global Research Databases. Execute advanced queries across 7 disciplines.
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-16 items-start">
             <div className="lg:col-span-3">
@@ -1630,7 +1662,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
           <div className="flex flex-wrap items-center justify-center gap-3 my-6">
             <button 
               onClick={handleLitReviewClick}
-              className="w-full sm:w-auto flex justify-center items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all shadow-md shadow-orange-100/50"
+              className="w-full sm:w-auto flex justify-center items-center gap-2 px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all shadow-sm"
             >
               <Sparkles size={14} />
               Generate Lit Review
@@ -1779,8 +1811,8 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
                     <button
                       onClick={async () => {
                         try {
-                          await navigator.clipboard.writeText(litReviewContent);
-                          alert('Literature review copied to clipboard!');
+                           await navigator.clipboard.writeText(litReviewContent);
+                           toast.success('Literature review copied to clipboard!');
                         } catch (err) {
                           console.error(err);
                         }

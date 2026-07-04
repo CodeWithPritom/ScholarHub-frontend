@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, BookOpen, AlertCircle, Bookmark, Check, Loader2, Library, 
-  FolderPlus, Calendar, Users, ArrowUpRight, Copy, Database, ChevronUp, 
-  Filter, RefreshCcw, LayoutGrid, Quote, X
+  FolderPlus, Calendar, Users, Copy, Database, ChevronUp, 
+  Filter, RefreshCcw, LayoutGrid, Quote, X, List
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { generateCitation } from '../utils/citationUtils';
+import { toast } from 'sonner';
 
 const SkeletonCard = () => (
   <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/60 p-6 animate-pulse">
@@ -35,7 +36,6 @@ const getExternalUrl = (pmid, source) => {
 const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, onBookmarkSaved }) => {
   const navigate = useNavigate();
   const [bookmarkStatus, setBookmarkStatus] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'exists'
-  const [toast, setToast] = useState(null);
   const [showAlbumPicker, setShowAlbumPicker] = useState(false);
   const [albums, setAlbums] = useState([]);
   const [newAlbumName, setNewAlbumName] = useState('');
@@ -56,8 +56,9 @@ const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, o
   };
 
   const showToast = (message, type = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
+    if (type === 'success') toast.success(message);
+    else if (type === 'warning') toast.warning(message);
+    else toast.error(message);
   };
 
   const [citationCopied, setCitationCopied] = useState(false);
@@ -160,26 +161,6 @@ const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, o
       className="group bg-white hover:bg-slate-50/30 rounded-[2rem] border border-slate-100 hover:border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.08)] transition-all duration-500 overflow-hidden flex flex-col cursor-pointer relative"
       onClick={handleOpenDetail}
     >
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: -10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className={`absolute top-4 left-4 right-4 z-20 px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-xl ${
-              toast.type === 'success' 
-                ? 'bg-green-500 text-white shadow-green-200' 
-                : toast.type === 'warning'
-                ? 'bg-amber-500 text-white shadow-amber-200'
-                : 'bg-red-500 text-white shadow-red-200'
-            }`}
-          >
-            {toast.type === 'success' ? <Check size={14} /> : <AlertCircle size={14} />}
-            {toast.message}
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <div className="p-8 flex-1">
         <div className="flex items-start justify-between gap-3 mb-6">
@@ -318,11 +299,7 @@ const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, o
           <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white group-hover:from-slate-50/50 to-transparent"></div>
         </div>
 
-        <div className="mt-6 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-blue-600 text-[10px] font-black uppercase tracking-widest group-hover:gap-3 transition-all">
-            Explore Detail <ArrowUpRight size={14} />
-          </div>
-          
+        <div className="mt-6 flex items-center justify-start">
           <button
             onClick={handleCopyCitation}
             className={`relative flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
@@ -350,11 +327,289 @@ const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, o
   );
 };
 
+const TableRow = ({ article, user, userTier, bookmarkCount, onAuthRequired, onBookmarkSaved }) => {
+  const navigate = useNavigate();
+  const [bookmarkStatus, setBookmarkStatus] = useState('idle');
+  const [showAlbumPicker, setShowAlbumPicker] = useState(false);
+  const [albums, setAlbums] = useState([]);
+  const [newAlbumName, setNewAlbumName] = useState('');
+  const albumRef = useRef(null);
+  const [citationCopied, setCitationCopied] = useState(false);
+
+  const title = article?.title || 'No Title Available';
+  const pmid = article?.pmid || 'N/A';
+  const journal = article?.journal || 'Unknown Journal';
+  const date = article?.date || 'Undated';
+  const authors = article?.authors || 'Authors not listed';
+
+  const isLimitReached = userTier === 'free' && bookmarkCount >= 20;
+
+  const handleOpenDetail = () => {
+    navigate(`/paper/${encodeURIComponent(pmid)}`, { state: { article } });
+  };
+
+  const showToast = (message, type = 'success') => {
+    if (type === 'success') toast.success(message);
+    else if (type === 'warning') toast.warning(message);
+    else toast.error(message);
+  };
+
+  const handleCopyCitation = async (e) => {
+    e.stopPropagation();
+    const citation = generateCitation(article, 'apa');
+    try {
+      await navigator.clipboard.writeText(citation);
+      setCitationCopied(true);
+      showToast('Citation copied to clipboard!');
+      setTimeout(() => setCitationCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy citation:', err);
+      showToast('Failed to copy citation', 'error');
+    }
+  };
+
+  useEffect(() => {
+    const handle = (e) => {
+      if (albumRef.current && !albumRef.current.contains(e.target)) {
+        setShowAlbumPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, []);
+
+  const fetchAlbums = async () => {
+    if (!user) return;
+    const { data } = await supabase.from('albums').select('*').eq('user_id', user.id).order('name');
+    setAlbums(data || []);
+  };
+
+  const handleBookmarkClick = async (e) => {
+    e.stopPropagation();
+    if (!user) {
+      if (onAuthRequired) onAuthRequired();
+      return;
+    }
+    if (isLimitReached) return;
+    await fetchAlbums();
+    setShowAlbumPicker(true);
+  };
+
+  const saveToAlbum = async (albumId = null) => {
+    setShowAlbumPicker(false);
+    if (bookmarkStatus === 'saving') return;
+    setBookmarkStatus('saving');
+
+    try {
+      const { data: existing } = await supabase
+        .from('bookmarks').select('id').eq('user_id', user.id).eq('pmid', pmid).maybeSingle();
+
+      if (existing) {
+        setBookmarkStatus('exists');
+        showToast('Paper already in your library.', 'warning');
+        setTimeout(() => setBookmarkStatus('idle'), 2000);
+        return;
+      }
+
+      let finalSource = article.source;
+      if (!finalSource) {
+        if (pmid.startsWith('W') || pmid.startsWith('10.')) finalSource = 'scholar';
+        else if (journal.toLowerCase().includes('arxiv') || String(pmid).includes('.')) finalSource = 'arxiv';
+        else finalSource = 'ncbi';
+      }
+      
+      const finalUrl = article.url || getExternalUrl(pmid, finalSource);
+      const insertData = { user_id: user.id, pmid, title, journal, source: finalSource, url: finalUrl };
+      if (albumId) insertData.album_id = albumId;
+      const { error } = await supabase.from('bookmarks').insert(insertData);
+      if (error) throw error;
+
+      setBookmarkStatus('saved');
+      showToast('Paper saved to your library!');
+      if (onBookmarkSaved) onBookmarkSaved();
+      setTimeout(() => setBookmarkStatus('idle'), 2500);
+    } catch (err) {
+      console.error('Bookmark error:', err);
+      setBookmarkStatus('idle');
+      showToast('Failed to save. Please try again.', 'error');
+    }
+  };
+
+  const handleCreateAlbumAndSave = async (e) => {
+    e.stopPropagation();
+    if (!newAlbumName.trim()) return;
+    try {
+      const { data, error } = await supabase.from('albums').insert({ user_id: user.id, name: newAlbumName.trim() }).select().single();
+      if (error) throw error;
+      setNewAlbumName('');
+      saveToAlbum(data.id);
+    } catch (err) {
+      console.error('Failed to create album:', err);
+      showToast('Failed to create album.', 'error');
+    }
+  };
+
+  return (
+    <tr 
+      onClick={handleOpenDetail}
+      className="hover:bg-slate-50/70 cursor-pointer transition-colors duration-200 group relative border-b border-slate-100/80"
+    >
+      {/* Column 1: Title & Source */}
+      <td className="px-6 py-4 max-w-lg min-w-[280px]">
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-black text-slate-800 group-hover:text-blue-600 transition-colors line-clamp-2 leading-snug">
+            {title}
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 text-blue-600 text-[9px] font-black uppercase tracking-widest border border-blue-100/50">
+              {journal}
+            </span>
+            {article.journal_quartile && (
+              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border ${
+                article.journal_quartile === 'Q1' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                article.journal_quartile === 'Q2' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
+                article.journal_quartile === 'Q3' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                'bg-slate-50 text-slate-500 border-slate-100'
+              }`}>
+                {article.journal_quartile}
+              </span>
+            )}
+          </div>
+        </div>
+      </td>
+
+      {/* Column 2: Authors */}
+      <td className="px-6 py-4 max-w-[220px]">
+        <span className="text-xs font-semibold text-slate-500 line-clamp-2 leading-relaxed">
+          {authors}
+        </span>
+      </td>
+
+      {/* Column 3: Date */}
+      <td className="px-6 py-4 whitespace-nowrap">
+        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+          {date}
+        </span>
+      </td>
+
+      {/* Column 4: PMID / Database ID */}
+      <td className="px-6 py-4 whitespace-nowrap">
+        <span className="text-xs font-black text-slate-400 tracking-widest uppercase">
+          {pmid}
+        </span>
+      </td>
+
+      {/* Column 5: Actions */}
+      <td className="px-6 py-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-end gap-2 relative">
+          
+          {/* Copy Citation Button */}
+          <button
+            onClick={handleCopyCitation}
+            className={`flex items-center justify-center w-8 h-8 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
+              citationCopied
+                ? 'bg-green-50 text-green-600 border border-green-200'
+                : 'bg-white text-slate-400 border border-slate-200 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50'
+            }`}
+            title="Copy Citation"
+          >
+            {citationCopied ? <Check size={12} /> : <Copy size={12} />}
+          </button>
+
+          {/* Bookmark Button Container */}
+          <div className="relative" ref={albumRef}>
+            <button
+              onClick={handleBookmarkClick}
+              disabled={bookmarkStatus === 'saving' || isLimitReached}
+              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 ${
+                isLimitReached
+                  ? 'bg-slate-50 border border-slate-100 text-slate-300 cursor-not-allowed opacity-60'
+                  : bookmarkStatus === 'saved'
+                  ? 'bg-green-50 border border-green-200 text-green-600 shadow-lg shadow-green-100'
+                  : bookmarkStatus === 'exists'
+                  ? 'bg-amber-50 border border-amber-200 text-amber-600'
+                  : bookmarkStatus === 'saving'
+                  ? 'bg-blue-50 border border-blue-200 text-blue-600 animate-pulse'
+                  : 'bg-white border border-slate-200 text-slate-300 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50'
+              }`}
+              title={isLimitReached ? "Upgrade to Starter" : "Save to Library"}
+            >
+              {bookmarkStatus === 'saving' ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : bookmarkStatus === 'saved' ? (
+                <Check size={12} />
+              ) : (
+                <Bookmark size={12} />
+              )}
+            </button>
+
+            {/* Album Picker */}
+            <AnimatePresence>
+              {showAlbumPicker && (
+                <motion.div
+                  initial={{ opacity: 0, y: -5, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -5, scale: 0.95 }}
+                  className="absolute right-0 top-10 z-30 w-56 bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden text-left"
+                >
+                  <div className="p-2 border-b border-slate-100">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Save to Album</p>
+                  </div>
+                  <div className="max-h-36 overflow-y-auto">
+                    <button
+                      onClick={() => saveToAlbum(null)}
+                      className="w-full text-left px-3 py-2 text-[10px] font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors flex items-center gap-1.5"
+                    >
+                      <Library size={12} className="text-slate-400" /> Default
+                    </button>
+                    {albums.map(album => (
+                      <button
+                        key={album.id}
+                        onClick={() => saveToAlbum(album.id)}
+                        className="w-full text-left px-3 py-2 text-[10px] font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors flex items-center gap-1.5"
+                      >
+                        <FolderPlus size={12} className="text-slate-400" /> {album.name}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="p-2 border-t border-slate-100">
+                    <form onSubmit={handleCreateAlbumAndSave} className="flex gap-1.5">
+                      <input
+                        type="text"
+                        value={newAlbumName}
+                        onChange={(e) => setNewAlbumName(e.target.value)}
+                        placeholder="Album..."
+                        className="flex-1 px-2 py-1 bg-slate-50 border border-slate-100 rounded text-[10px] font-semibold outline-none focus:border-blue-300 text-slate-700"
+                      />
+                      <button type="submit" className="px-2 py-1 bg-blue-600 text-white rounded text-[10px] font-bold hover:bg-blue-700 transition-colors">
+                        <FolderPlus size={12} />
+                      </button>
+                    </form>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Arrow Detail Button */}
+          <button 
+            onClick={handleOpenDetail} 
+            className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-300 group-hover:text-blue-600 group-hover:border-blue-200 transition-all"
+          >
+            <ChevronUp size={12} className="rotate-90" />
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+};
+
 const ArticleGrid = ({ 
   articles, hasSearched, clearFilters, user, userTier, bookmarkCount, 
   fetchBookmarkCount, setShowAuthModal, loading, error, searchPubMed, portal, cancelSearch 
 }) => {
   const [loadingStage, setLoadingStage] = useState(0);
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
 
   useEffect(() => {
     if (!loading) {
@@ -500,23 +755,87 @@ const ArticleGrid = ({
           <button onClick={clearFilters} className="text-blue-600 text-sm font-black uppercase tracking-widest hover:underline">Reset Search Filters</button>
         </div>
       ) : (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-        >
-          {articles.map((article, idx) => (
-            <ArticleCard 
-              key={`${article.pmid}-${idx}`}
-              article={article} 
-              user={user} 
-              userTier={userTier}
-              bookmarkCount={bookmarkCount}
-              onBookmarkSaved={fetchBookmarkCount}
-              onAuthRequired={() => setShowAuthModal(true)}
-            />
-          ))}
-        </motion.div>
+        <div className="space-y-6">
+          {/* Layout View Toggle Selector */}
+          <div className="flex justify-between items-center bg-white border border-slate-100 px-6 py-3.5 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              Found {articles.length} academic papers
+            </span>
+            <div className="flex items-center gap-1 bg-slate-50 border border-slate-100 p-1 rounded-xl">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+                  viewMode === 'grid'
+                    ? 'bg-white text-blue-600 shadow-sm border border-slate-200/50'
+                    : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                <LayoutGrid size={12} /> Grid
+              </button>
+              <button
+                onClick={() => setViewMode('table')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+                  viewMode === 'table'
+                    ? 'bg-white text-blue-600 shadow-sm border border-slate-200/50'
+                    : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                <List size={12} /> Table
+              </button>
+            </div>
+          </div>
+
+          {viewMode === 'grid' ? (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+            >
+              {articles.map((article, idx) => (
+                <ArticleCard 
+                  key={`${article.pmid}-${idx}`}
+                  article={article} 
+                  user={user} 
+                  userTier={userTier}
+                  bookmarkCount={bookmarkCount}
+                  onBookmarkSaved={fetchBookmarkCount}
+                  onAuthRequired={() => setShowAuthModal(true)}
+                />
+              ))}
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full overflow-x-auto bg-white rounded-[2rem] border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)]"
+            >
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/50">
+                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Title & Journal</th>
+                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Authors</th>
+                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Published Date</th>
+                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">PMID / Database ID</th>
+                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100/60">
+                  {articles.map((article, idx) => (
+                    <TableRow 
+                      key={`${article.pmid}-${idx}`}
+                      article={article}
+                      user={user}
+                      userTier={userTier}
+                      bookmarkCount={bookmarkCount}
+                      onBookmarkSaved={fetchBookmarkCount}
+                      onAuthRequired={() => setShowAuthModal(true)}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </motion.div>
+          )}
+        </div>
       )}
     </>
   );

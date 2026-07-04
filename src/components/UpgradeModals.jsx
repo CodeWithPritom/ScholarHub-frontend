@@ -104,7 +104,7 @@ export const ProUpgradeModal = ({ isOpen, onClose, navigate, reason }) => (
                 onClose();
                 navigate('/pricing');
               }}
-              className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-600 text-white text-xs font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-orange-100 hover:from-amber-600 hover:to-orange-700 transition-all"
+              className="w-full py-4 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-amber-100 transition-all"
             >
               View Pricing Plans
             </button>

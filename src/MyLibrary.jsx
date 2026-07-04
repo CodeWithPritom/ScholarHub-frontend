@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { toast } from 'sonner'
 import { supabase } from './supabaseClient'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
@@ -24,7 +25,6 @@ const MyLibrary = ({ user, onLogout }) => {
   
   const [loading, setLoading] = useState(true)
   const [removingBookmark, setRemovingBookmark] = useState(null)
-  const [toast, setToast] = useState(null)
   
   // Album Management
   const [isCreatingAlbum, setIsCreatingAlbum] = useState(false)
@@ -34,8 +34,8 @@ const MyLibrary = ({ user, onLogout }) => {
   const [deletingAlbum, setDeletingAlbum] = useState(null)
 
   const showToast = (message, type = 'success') => {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), 3000)
+    if (type === 'success') toast.success(message)
+    else toast.error(message)
   }
 
   useEffect(() => {
@@ -134,25 +134,6 @@ const MyLibrary = ({ user, onLogout }) => {
 
   return (
     <WorkspaceLayout user={user} onLogout={onLogout}>
-      {/* Global Toast */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className={`fixed top-20 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-2xl ${
-              toast.type === 'success'
-                ? 'bg-green-500 text-white shadow-green-200'
-                : 'bg-red-500 text-white shadow-red-200'
-            }`}
-          >
-            {toast.type === 'success' ? <Check size={14} /> : <AlertCircle size={14} />}
-            {toast.message}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <div className="w-full h-full flex flex-col md:flex-row gap-10">
         
         {/* Sidebar */}

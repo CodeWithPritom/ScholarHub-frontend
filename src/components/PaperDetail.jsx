@@ -417,16 +417,13 @@ const PaperDetail = ({ user, profile }) => {
                   <button
                     onClick={handleGenerateOutreach}
                     disabled={generatingOutreach}
-                    className="w-full relative group overflow-hidden rounded-xl p-[1px] transition-all hover:scale-[1.01]"
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-4 py-3 flex items-center justify-center gap-2 text-xs font-bold transition-all shadow-md hover:scale-[1.01]"
                   >
-                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 via-purple-500 to-violet-500 rounded-xl opacity-80 group-hover:opacity-100 transition-opacity" />
-                    <div className="relative bg-white/10 backdrop-blur-sm px-4 py-3 rounded-xl flex items-center justify-center gap-2 text-white text-xs font-bold shadow-lg">
-                      {generatingOutreach ? (
-                        <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Drafting Email...</>
-                      ) : (
-                        <><Sparkles size={14} /> Generate High-Impact Outreach Email</>
-                      )}
-                    </div>
+                    {generatingOutreach ? (
+                      <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Drafting Email...</>
+                    ) : (
+                      <><Sparkles size={14} /> Generate High-Impact Outreach Email</>
+                    )}
                   </button>
                 ) : (
                   <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 mt-2">

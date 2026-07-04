@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { supabase } from './supabaseClient'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, User, Lock, Mail, Check, AlertCircle, Loader2, Save, Settings as SettingsIcon } from 'lucide-react'
@@ -10,7 +11,6 @@ const Settings = ({ user }) => {
   const [fullName, setFullName] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [toast, setToast] = useState(null)
   
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -22,8 +22,8 @@ const Settings = ({ user }) => {
   }, [user, navigate])
 
   const showToast = (message, type = 'success') => {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), 3000)
+    if (type === 'success') toast.success(message)
+    else toast.error(message)
   }
 
   const fetchProfile = async () => {
@@ -70,25 +70,6 @@ const Settings = ({ user }) => {
 
   return (
     <WorkspaceLayout user={user}>
-
-      {/* Global Toast */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className={`fixed top-20 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-2xl ${
-              toast.type === 'success'
-                ? 'bg-green-500 text-white shadow-green-200'
-                : 'bg-red-500 text-white shadow-red-200'
-            }`}
-          >
-            {toast.type === 'success' ? <Check size={14} /> : <AlertCircle size={14} />}
-            {toast.message}
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <div className="max-w-2xl mx-auto w-full">
         <div className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] border border-slate-100">

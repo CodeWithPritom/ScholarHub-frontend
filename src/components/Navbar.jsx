@@ -25,7 +25,7 @@ const Navbar = ({ user, profile, liveUsersCount, onLogout, transparent = false }
   }, [location.pathname])
 
   const navLinks = [
-    ...(user ? [{ name: 'Dashboard', path: '/' }] : []),
+    ...(user ? [{ name: 'Home', path: '/' }] : []),
     { name: 'Resources', path: '/resources' },
     { name: 'About', path: '/about' },
     { name: 'Tutorial', path: '/#tutorial' },

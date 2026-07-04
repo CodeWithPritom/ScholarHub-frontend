@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
-  Home, BookOpen, Info, Book, Archive, CreditCard, 
+  Home, Book, Archive, CreditCard, 
   HelpCircle, ChevronLeft, ChevronRight, X, Sparkles
 } from 'lucide-react';
 import logo from '../assets/images/logo.png';
@@ -10,9 +10,7 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed })
   const location = useLocation();
 
   const links = [
-    { name: 'Dashboard', path: '/', icon: <Home size={20} /> },
-    { name: 'Resources', path: '/resources', icon: <BookOpen size={20} /> },
-    { name: 'About', path: '/about', icon: <Info size={20} /> },
+    { name: 'Home', path: '/', icon: <Home size={20} /> },
     { name: 'Tutorial', path: '/#tutorial', icon: <Book size={20} /> },
     { name: 'Archive', path: '/archive', icon: <Archive size={20} /> },
     { name: 'Pricing', path: '/pricing', icon: <CreditCard size={20} /> },

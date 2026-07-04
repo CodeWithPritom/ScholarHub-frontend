@@ -570,7 +570,7 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
               
               <button 
                 onClick={() => navigate('/success-stories')} 
-                className="relative w-full md:w-auto px-10 md:px-12 py-5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-full font-black uppercase tracking-widest text-sm md:text-base shadow-2xl transition-all duration-300 hover:scale-[1.02] active:scale-95 inline-flex items-center justify-center gap-3 border border-white/20"
+                className="relative w-full md:w-auto px-10 md:px-12 py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-black uppercase tracking-widest text-sm md:text-base shadow-2xl transition-all duration-300 hover:scale-[1.02] active:scale-95 inline-flex items-center justify-center gap-3 border border-white/20"
               >
                 <Sparkles className="text-blue-200" size={24} />
                 <span>🌐 ENTER THE 3D ACTIVITY HUB</span>

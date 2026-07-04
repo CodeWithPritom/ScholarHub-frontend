@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { Check, X, Shield, Sparkles, Loader2, ArrowRight, Tag, Zap, AlertCircle, GraduationCap } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -145,7 +146,7 @@ const Pricing = ({ user, profile }) => {
         setUpgradedTierText(tierName.toUpperCase())
         setCelebrationModalOpen(true)
       } catch (err) {
-        alert(err.message)
+        toast.error(err.message)
       } finally {
         setIsRedeeming(false)
       }
@@ -465,7 +466,7 @@ const Pricing = ({ user, profile }) => {
                     plan.isCurrent 
                       ? 'bg-slate-100 text-slate-400 cursor-default' 
                       : couponStatus?.discount === 100 && plan.isUpgrade && (couponStatus?.applicable_tier === 'both' || couponStatus?.applicable_tier === plan.name.toLowerCase())
-                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg shadow-amber-200'
+                      ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-lg shadow-amber-200'
                       : plan.premium
                       ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-xl shadow-amber-200'
                       : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200'

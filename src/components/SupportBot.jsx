@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, X, Send, RotateCcw, AlertCircle, Clock, Sparkles, FlaskConical, Smile, Ghost, Mic, MicOff } from 'lucide-react';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../utils/api';
@@ -284,7 +285,7 @@ export default function SupportBot() {
   const handleMicClick = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert("Oops! Your browser doesn't support my ears (Speech Recognition).");
+      toast.error("Oops! Your browser doesn't support my ears (Speech Recognition).");
       return;
     }
 

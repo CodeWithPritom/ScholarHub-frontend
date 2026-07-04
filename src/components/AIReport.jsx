@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { formatMarkdown } from '../utils/formatters'
 import { supabase } from '../supabaseClient'
 import {
@@ -46,7 +47,7 @@ const AIReport = () => {
 
   const handleExportPDF = () => {
     if (userTier === 'free') {
-      alert("Upgrade to Starter or PRO to export reports as PDF.")
+      toast.error("Upgrade to Starter or PRO to export reports as PDF.")
       navigate('/pricing')
       return
     }
