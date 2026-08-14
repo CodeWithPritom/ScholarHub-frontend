@@ -2,12 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, X, Send, RotateCcw, AlertCircle, Clock, Sparkles, FlaskConical, Smile, Ghost, Mic, MicOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { apiFetch } from '../utils/api';
 import { getOrCreateDeviceId } from '../utils/deviceSync';
 import emoImage from '../assets/images/EMO.png';
 
-export default function SupportBot() {
+export default function SupportBot({ user }) {
+  const location = useLocation();
+
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState(() => {
     try {
@@ -26,9 +28,8 @@ export default function SupportBot() {
     const saved = sessionStorage.getItem('support_voice_mode');
     return saved ? JSON.parse(saved) : null;
   });
-  // Removed bee animation state for performance
   const navigate = useNavigate();
-  
+
   // Cooldown State
   const COOLDOWN_DURATION = 600; // 10 minutes in seconds
   const [cooldownExpiry, setCooldownExpiry] = useState(() => {
@@ -38,12 +39,32 @@ export default function SupportBot() {
   const [timeRemaining, setTimeRemaining] = useState(0);
   const messagesEndRef = useRef(null);
 
-  // Toggle listener
+  // Toggle listener with Research Mentor context support
   useEffect(() => {
-    const handleToggle = () => setIsOpen(prev => !prev);
+    const handleToggle = (e) => {
+      if (!user) {
+        toast.info('Please log in to access your AI Research Mentor.');
+        navigate('/auth');
+        return;
+      }
+      setIsOpen(true);
+      const detail = e?.detail;
+      if (detail?.lessonTitle || detail?.paperTitle || detail?.contextPrompt) {
+        const titleStr = detail.lessonTitle || detail.paperTitle || 'this research topic';
+        const greetingText = `Hi there! I am Emo ✨, your AI Guardian & Research Mentor for "${titleStr}"! How can I guide your research or explain concepts for you today? 🧬`;
+
+        setMessages(prev => {
+          // Avoid duplicating identical recent mentor greetings
+          if (prev.length > 0 && prev[prev.length - 1].content.includes(titleStr)) {
+            return prev;
+          }
+          return [...prev, { role: 'assistant', content: greetingText }];
+        });
+      }
+    };
     window.addEventListener('toggle-support-bot', handleToggle);
     return () => window.removeEventListener('toggle-support-bot', handleToggle);
-  }, []);
+  }, [user, navigate]);
 
   // Pre-load voices so they are ready when needed (Fix for Chrome/Edge)
   useEffect(() => {
@@ -106,7 +127,7 @@ export default function SupportBot() {
     t = t.replace(/\bshouldn't\b/gi, "should not");
     // Strip trailing commas/dots that might cause issues if parsed weirdly
     t = t.replace(/(\.+)$/, '');
-    
+
     return t;
   };
 
@@ -116,7 +137,7 @@ export default function SupportBot() {
       window.speechSynthesis.cancel(); // Cancel ongoing speech
       const utterance = new SpeechSynthesisUtterance(cleanForSpeech(text));
       const voices = window.speechSynthesis.getVoices();
-      
+
       // Look for known soft/female voices across Windows, Mac, and Android
       const preferredVoices = ['Google US English', 'Google UK English Female', 'Zira', 'Hazel', 'Samantha', 'Victoria', 'Tessa', 'Veena'];
       let selectedVoice = null;
@@ -125,12 +146,12 @@ export default function SupportBot() {
         if (selectedVoice) break;
       }
       if (!selectedVoice) {
-        selectedVoice = voices.find(v => v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('girl')) 
-                     || voices.find(v => !v.name.includes('David') && !v.name.includes('Mark') && !v.name.toLowerCase().includes('male'));
+        selectedVoice = voices.find(v => v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('girl'))
+          || voices.find(v => !v.name.includes('David') && !v.name.includes('Mark') && !v.name.toLowerCase().includes('male'));
       }
-      
+
       if (selectedVoice) utterance.voice = selectedVoice;
-      
+
       utterance.pitch = 1.0; // Normal pitch to prevent weird robotic/alien sounds
       utterance.rate = 1.05; // Normal speed
       window.speechSynthesis.speak(utterance);
@@ -170,7 +191,7 @@ export default function SupportBot() {
     if (!userMessage || isLoading || cooldownExpiry) return;
 
     setInput('');
-    
+
     const newMessages = [...messages, { role: 'user', content: userMessage }];
     setMessages(newMessages);
     setIsLoading(true);
@@ -263,7 +284,7 @@ export default function SupportBot() {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance("Yay! I can't wait to hear your voice! Click the mic and start talking.");
       const voices = window.speechSynthesis.getVoices();
-      
+
       const preferredVoices = ['Google US English', 'Google UK English Female', 'Zira', 'Hazel', 'Samantha', 'Victoria', 'Tessa', 'Veena'];
       let selectedVoice = null;
       for (const pref of preferredVoices) {
@@ -271,11 +292,11 @@ export default function SupportBot() {
         if (selectedVoice) break;
       }
       if (!selectedVoice) {
-        selectedVoice = voices.find(v => v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('girl')) 
-                     || voices.find(v => !v.name.includes('David') && !v.name.includes('Mark') && !v.name.toLowerCase().includes('male'));
+        selectedVoice = voices.find(v => v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('girl'))
+          || voices.find(v => !v.name.includes('David') && !v.name.includes('Mark') && !v.name.toLowerCase().includes('male'));
       }
       if (selectedVoice) utterance.voice = selectedVoice;
-      
+
       utterance.pitch = 1.0; // Normal pitch to prevent weird robotic/alien sounds
       utterance.rate = 1.05; // Normal speed
       window.speechSynthesis.speak(utterance);
@@ -295,7 +316,7 @@ export default function SupportBot() {
     recognition.lang = 'en-US';
 
     recognition.onstart = () => setIsMicActive(true);
-    
+
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
       setInput(transcript);
@@ -317,6 +338,11 @@ export default function SupportBot() {
 
   const cooldownProgress = cooldownExpiry ? ((COOLDOWN_DURATION - timeRemaining) / COOLDOWN_DURATION) * 100 : 100;
 
+  // Hide the support bot on the Auditor page (placed after all hooks to respect Rules of Hooks)
+  if (location.pathname === '/auditor') {
+    return null;
+  }
+
   return (
     <>
       {/* Bee Animation Removed for Performance */}
@@ -325,18 +351,18 @@ export default function SupportBot() {
       <AnimatePresence>
         {!isOpen && (
           <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9999] flex flex-col items-end gap-2 sm:gap-3">
-            
+
             {/* Tooltip */}
             <AnimatePresence>
               {showTooltip && (
                 <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8, y: 10 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   className="bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-xl border border-indigo-100 flex items-center gap-2 relative"
                 >
                   <p className="text-[13px] font-bold text-slate-700 tracking-wide whitespace-nowrap">Need help? 🤖</p>
-                  <button 
+                  <button
                     onClick={(e) => { e.stopPropagation(); setShowTooltip(false); }}
                     className="p-1 rounded-full hover:bg-slate-100 text-slate-400 hover:text-rose-500 transition-colors ml-1"
                   >
@@ -350,20 +376,20 @@ export default function SupportBot() {
 
             {/* EMO Button */}
             <motion.button
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0, opacity: 0 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               whileHover={{ scale: 1.05 }}
               transition={{ type: "spring", stiffness: 400, damping: 10 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => { setIsOpen(true); setShowTooltip(false); }}
               className="relative w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center rounded-full border-[3px] border-indigo-400/30 bg-white/50 backdrop-blur-md shadow-[0_0_20px_rgba(99,102,241,0.25)] hover:shadow-[0_0_30px_rgba(99,102,241,0.4)] hover:border-indigo-400/50 transition-all"
             >
-              <motion.img 
-                src={emoImage} 
-                alt="EMO" 
+              <motion.img
+                src={emoImage}
+                alt="EMO"
                 className="w-14 h-14 sm:w-[70px] sm:h-[70px] object-contain drop-shadow-xl"
-                animate={{ scale: [1, 1.05, 1], y: [0, -3, 0] }}
+                animate={{ scale: [1, 1.05, 1], y: [-3, 0, -3] }}
                 transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
               />
             </motion.button>
@@ -375,8 +401,8 @@ export default function SupportBot() {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.9, transition: { duration: 0.2 } }}
             className="fixed bottom-6 right-6 z-[9999] w-[350px] max-w-[calc(100vw-3rem)] h-[500px] max-h-[calc(100vh-6rem)] bg-white/80 backdrop-blur-2xl rounded-3xl shadow-[0_12px_40px_rgba(79,70,229,0.25)] border border-white/50 flex flex-col overflow-hidden"
           >
@@ -393,23 +419,23 @@ export default function SupportBot() {
               </div>
               <div className="flex items-center gap-1">
                 {voiceMode !== null && (
-                  <button 
-                    onClick={() => handleVoiceChoice(!voiceMode)} 
+                  <button
+                    onClick={() => handleVoiceChoice(!voiceMode)}
                     title={voiceMode ? "Disable Voice Mode" : "Enable Voice Mode"}
                     className={`p-1.5 rounded-lg transition-colors ${voiceMode ? 'text-rose-300 hover:text-white hover:bg-white/20' : 'text-slate-300 hover:text-white hover:bg-white/20'}`}
                   >
                     {voiceMode ? <Mic size={16} /> : <MicOff size={16} />}
                   </button>
                 )}
-                <button 
-                  onClick={handleReset} 
+                <button
+                  onClick={handleReset}
                   title="Reset Conversation"
                   className="p-1.5 text-indigo-200 hover:text-white hover:bg-white/20 rounded-lg transition-colors"
                 >
                   <RotateCcw size={16} />
                 </button>
-                <button 
-                  onClick={handleClose} 
+                <button
+                  onClick={handleClose}
                   className="p-1.5 text-indigo-200 hover:text-white hover:bg-white/20 rounded-lg transition-colors"
                 >
                   <X size={20} />
@@ -421,42 +447,41 @@ export default function SupportBot() {
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
               <AnimatePresence>
                 {messages.map((m, idx) => (
-                  <motion.div 
+                  <motion.div
                     key={idx}
-                    initial={{ opacity: 0, x: m.role === 'user' ? 20 : -20, scale: 0.95 }}
-                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
                     transition={{ type: "spring", stiffness: 300, damping: 25 }}
                     className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
-                    <div 
-                      className={`max-w-[85%] p-3.5 rounded-2xl text-sm leading-relaxed shadow-sm backdrop-blur-sm ${
-                        m.role === 'user' 
-                          ? 'bg-indigo-600 text-white rounded-br-none shadow-indigo-600/20' 
+                    <div
+                      className={`max-w-[85%] p-3.5 rounded-2xl text-sm leading-relaxed shadow-sm backdrop-blur-sm ${m.role === 'user'
+                          ? 'bg-indigo-600 text-white rounded-br-none shadow-indigo-600/20'
                           : 'bg-white/90 border border-slate-200/60 text-slate-800 rounded-bl-none shadow-slate-200/50'
-                      }`}
+                        }`}
                       dangerouslySetInnerHTML={m.role === 'user' ? { __html: m.content.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>') } : parseMarkdown(m.content)}
                     />
                   </motion.div>
                 ))}
               </AnimatePresence>
-              
+
               {/* Cute Loading Animation */}
               {isLoading && (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
                   className="flex justify-start"
                 >
                   <div className="bg-white/90 backdrop-blur-sm border border-slate-200/60 p-3 rounded-2xl rounded-bl-none shadow-sm flex flex-col gap-2">
                     <div className="flex items-center gap-3">
-                      <motion.div 
-                        animate={{ scale: [1, 1.15, 1], rotate: [-5, 5, -5] }} 
+                      <motion.div
+                        animate={{ scale: [1, 1.15, 1], rotate: [-5, 5, -5] }}
                         transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
                         className="w-5 h-5 drop-shadow-md flex items-center justify-center"
                       >
                         <img src={emoImage} alt="EMO" className="w-full h-full object-contain" />
                       </motion.div>
-                      <motion.div 
+                      <motion.div
                         animate={{ opacity: [0.4, 1, 0.4] }}
                         transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
                         className="text-xs text-indigo-500 font-black uppercase tracking-widest"
@@ -475,15 +500,15 @@ export default function SupportBot() {
 
             {/* Input / Cooldown Area */}
             {cooldownExpiry ? (
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 className="bg-amber-50/95 backdrop-blur-xl border-t border-amber-200 shrink-0 relative overflow-hidden flex flex-col p-5 rounded-b-3xl"
               >
                 {/* Tired Bot Animation */}
                 <div className="flex justify-center mb-4 pt-2">
-                  <motion.div 
-                    animate={{ y: [0, -8, 0] }} 
+                  <motion.div
+                    animate={{ y: [-8, 0, -8] }}
                     transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
                     className="relative"
                   >
@@ -491,22 +516,22 @@ export default function SupportBot() {
                       <Sparkles size={28} className="text-white opacity-90" />
                     </div>
                     {/* Zzz floating */}
-                    <motion.div 
-                      animate={{ opacity: [0, 1, 0], y: [0, -15], x: [0, 5] }}
+                    <motion.div
+                      animate={{ opacity: [0, 1, 0], y: [-15, 5, -15] }}
                       transition={{ repeat: Infinity, duration: 2, ease: "easeOut", delay: 0 }}
                       className="absolute -top-3 -right-2 text-orange-600 font-black text-sm drop-shadow-sm"
                     >
                       Z
                     </motion.div>
-                    <motion.div 
-                      animate={{ opacity: [0, 1, 0], y: [0, -20], x: [0, 10] }}
+                    <motion.div
+                      animate={{ opacity: [0, 1, 0], y: [-20, 10, -20] }}
                       transition={{ repeat: Infinity, duration: 2, ease: "easeOut", delay: 0.6 }}
                       className="absolute -top-6 -right-5 text-orange-600 font-black text-lg drop-shadow-sm"
                     >
                       z
                     </motion.div>
-                    <motion.div 
-                      animate={{ opacity: [0, 1, 0], y: [0, -25], x: [0, 15] }}
+                    <motion.div
+                      animate={{ opacity: [0, 1, 0], y: [-25, 15, -25] }}
                       transition={{ repeat: Infinity, duration: 2, ease: "easeOut", delay: 1.2 }}
                       className="absolute -top-10 -right-8 text-orange-600 font-black text-xl drop-shadow-sm"
                     >
@@ -526,7 +551,7 @@ export default function SupportBot() {
                     <span>{formatTime(timeRemaining)}</span>
                   </div>
                   <div className="h-2.5 bg-amber-200/50 rounded-full overflow-hidden shadow-inner">
-                    <motion.div 
+                    <motion.div
                       className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full"
                       initial={{ width: `${cooldownProgress}%` }}
                       animate={{ width: `${cooldownProgress}%` }}
@@ -539,13 +564,13 @@ export default function SupportBot() {
                 <div className="text-center border-t border-amber-200/50 pt-3">
                   <p className="text-[10px] font-bold text-amber-700/80 mb-2">Need help urgently? 🚨</p>
                   {showEmergency ? (
-                    <motion.div 
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
                       className="bg-white rounded-xl p-3 shadow-sm border border-amber-100"
                     >
                       <p className="text-[10px] font-bold text-slate-700 leading-snug">
-                        Please email our lead architect Arup Bhowmik Pritom directly at: <br/>
+                        Please email our lead architect Arup Bhowmik Pritom directly at: <br />
                         <a href="mailto:arupbhowmikpritom@gmail.com" className="text-indigo-600 hover:text-indigo-700 underline mt-1.5 block">arupbhowmikpritom@gmail.com</a>
                       </p>
                       <p className="text-[9px] font-semibold text-slate-500 mt-1.5">He will get back to you within 24 hours!</p>
@@ -566,14 +591,14 @@ export default function SupportBot() {
                   Hi! I'm Emo. 🤖 Would you like to talk using your voice? It makes things faster!
                 </p>
                 <div className="flex gap-2">
-                  <button 
-                    onClick={() => handleVoiceChoice(true)} 
+                  <button
+                    onClick={() => handleVoiceChoice(true)}
                     className="flex-1 py-2.5 bg-indigo-600 text-white text-xs font-black rounded-xl hover:bg-indigo-700 shadow-sm transition-colors"
                   >
                     Yes, Enable Voice 🎤
                   </button>
-                  <button 
-                    onClick={() => handleVoiceChoice(false)} 
+                  <button
+                    onClick={() => handleVoiceChoice(false)}
                     className="flex-1 py-2.5 bg-slate-200 text-slate-700 text-xs font-black rounded-xl hover:bg-slate-300 shadow-sm transition-colors"
                   >
                     No, Text Only ⌨️
@@ -614,14 +639,14 @@ export default function SupportBot() {
                 </div>
               </form>
             )}
-            
+
             {/* Listening Animation Overlay */}
             <AnimatePresence>
               {isMicActive && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   className="absolute bottom-20 right-4 bg-white/95 backdrop-blur-md p-3.5 rounded-2xl shadow-xl border border-indigo-100 flex items-center gap-3 z-50"
                 >
                   <motion.div

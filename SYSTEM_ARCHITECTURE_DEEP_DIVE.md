@@ -37,6 +37,9 @@ graph TD
     Arxiv["arXiv API"]
     OpenAlex["OpenAlex API"]
     EPMC["Europe PMC"]
+    Unpaywall["Unpaywall API"]
+    PMC_Meta["PMC Metadata API"]
+    CORE["CORE API"]
 
     Groq["Groq LPU — Llama 3.1"]
     OpenRouter["OpenRouter Fallback"]
@@ -49,7 +52,7 @@ graph TD
     FastAPI -- "Validates JWT / RLS-Backed Queries" --> SupabaseDB
     FastAPI -- "Role & Auth Management" --> Auth
 
-    FastAPI --> NCBI & Arxiv & OpenAlex & EPMC
+    FastAPI --> NCBI & Arxiv & OpenAlex & EPMC & Unpaywall & PMC_Meta & CORE
     FastAPI -- "Context-Aware Prompts (Key Rotation)" --> Groq
     Groq -- "429 / 401 Exhausted" --> OpenRouter
     OpenRouter -- "Exhausted" --> TogetherAI
@@ -60,9 +63,9 @@ graph TD
 | Layer | Technology | Role |
 |---|---|---|
 | **Frontend** | React 19 / Vite / Tailwind CSS v4 | UI rendering, optimistic state, session-scoped caching |
-| **Backend Gateway** | FastAPI (async Python) | Auth middleware, portal routing, AI orchestration |
-| **AI Inference** | Groq LPU (Llama 3.1 8B Instruct) | 800+ tokens/sec synthesis, chat, outreach, lit-review |
-| **Database** | Supabase PostgreSQL + **RLS** | User data, usage logs, device fingerprints, bookmarks |
+| **Backend Gateway** | FastAPI (async Python) | Auth middleware, portal routing, AI orchestration, Unpaywall & PMC integrations |
+| **AI Inference** | Groq LPU (Llama 3.1 8B Instruct) | 800+ tokens/sec synthesis, chat, outreach, lit-review, gap-analysis |
+| **Database** | Supabase PostgreSQL + **RLS** | User data, usage logs, device fingerprints, bookmarks, audit_history |
 | **Auth** | Supabase Auth + Cloudflare Turnstile | JWT issuance, CAPTCHA bot-prevention on all auth flows |
 
 ---
@@ -138,9 +141,9 @@ user_res = requests.get(
 
 | Tier | Daily AI Summaries | Portals | Devices |
 |---|---|---|---|
-| **Free** | 3 / day | 1 (field-locked) | 2 |
-| **Starter** | 50 / day | 1 (field-locked) | 2 |
-| **Pro** | 100 / day | All 7 portals | 2 |
+| **Free** | 3 / day | All 7 portals (Unlocked) | 2 |
+| **Starter** | 50 / day | All 7 portals (Unlocked) | 2 |
+| **Pro** | 100 / day | All 7 portals (Unlocked) | 2 |
 
 *Note: In addition to daily quotas, a strict **Burst Rate Limit** (Anti-Token Squeezing) is enforced via `usage_logs`. Users are strictly capped at 5 AI requests per minute to prevent script-based API abuse.*
 
@@ -279,23 +282,30 @@ if (isSignificantEvent) {
 
 ## 5. AI Intelligence Layer — Inference, Truncation & Key Rotation
 
-### 5.1 — Smart Truncation Pipeline (`routers/ai.py`)
+### 5.1 — Smart Truncation Pipeline (`routers/ai.py` & `Auditor.jsx`)
+
+To ensure that the context budget is utilized effectively without causing a total mismatch or missing selected papers, ScholarHub implements an **Adaptive Truncation** context builder:
+
+1. **Titles & Numbers Pre-loading:**
+   The context builder always includes the Titles and Numbers (1 to X) of **all** selected papers at the beginning of the context payload. This ensures that the AI is fully aware of every paper's existence in the workspace, even if the abstract is truncated.
+2. **Abstract Character Allocation:**
+   The remaining character budget (up to 15,000 characters) is then incrementally filled with article abstracts, prioritizing higher-ranked papers (Q1/Q2 journal quartile SJR rankings).
 
 ```mermaid
 flowchart LR
-    Input["User Requests AI Summary\n/ Chat / Lit-Review / Gap-Analysis"] --> Router["FastAPI AI Router /ai/*"]
-    Router --> Extract["Extract Abstracts\nTop 5–15 Papers (tier-dependent)\nFree=5 / Starter=10 / Pro=15"]
-    Extract --> Check{"Total chars > 15,000?"}
-    Check -- "Yes" --> Truncate["Truncate to 15,000 chars\n+ append truncation notice"]
-    Check -- "No" --> Prompt
-    Truncate --> Prompt["Build System + User Prompts\nwith portal-specific context"]
+    Input["User Requests AI Summary\n/ Chat / Lit-Review / Gap-Analysis"] --> ContextBuilder["Adaptive Context Builder\n1. Titles & Numbers of 1..X\n2. Abstracts up to 15k limit\n(Priority: Q1 -> Q2 -> Q3 -> Q4)"]
+    ContextBuilder --> Prompt["Build System + User Prompts\nwith user profile & portal context"]
     Prompt --> Groq["Groq LPU 800+ tokens/sec"]
     Groq -- "Success" --> Output["Structured Output\nSynthesis + Gaps / Chat reply"]
     Groq -- "429 / 401" --> Rotate["Rotate to next Groq API Key"]
     Rotate --> Groq
 ```
 
-### 5.2 — Three-Tier AI Key Rotation (`services/ai_service.py`)
+### 5.2 — AI Identity Guard & Persona-Aware Alignment
+- **AI Identity Guard:** The backend routers enforce a strict prompt constraint: *"You have been provided with a list of X papers. Even if some abstracts are brief, you must acknowledge every paper by its number. Never claim a paper does not exist if it is within the range 1 to X."*
+- **Persona-Aware Alignment:** The frontend `executeAudit` passes the user's `profile.academic_field` and `profile.academic_status` context to the `/ai/audit` endpoint. The backend uses this to generate a personalized **Relevance Match Meter** percentage score and a 1-sentence justification for top papers.
+
+### 5.3 — Three-Tier AI Key Rotation (`services/ai_service.py`)
 
 All keys are **randomly shuffled per request** to distribute load evenly across keys. Exceptions are caught generically — the rotation loop handles 429 (rate limit), 401 (auth failure), and network timeouts identically.
 
@@ -457,12 +467,13 @@ erDiagram
     users ||--o{ usage_logs : "tracks daily AI summary limits"
     users ||--o{ coupon_redemptions : "atomic one-time usage"
     users ||--o{ bookmarks : "saves paper references"
+    users ||--o{ audit_history : "saves Auditor chat sessions"
 
     profiles {
         uuid id PK
         string full_name
         string academic_field
-        string unlocked_portal
+        string academic_status
         string user_tier "free / starter / pro"
         timestamp plan_expiry_date "Auto-downgraded on expiry"
     }
@@ -482,6 +493,16 @@ erDiagram
         string device_name "Windows PC / Mac / Mobile Device"
     }
 
+    audit_history {
+        uuid id PK
+        uuid user_id FK
+        string title
+        jsonb papers
+        jsonb chat_history
+        timestamp created_at
+        timestamp updated_at
+    }
+
     coupons ||--o{ coupon_redemptions : "validates"
     coupons {
         string code PK
@@ -494,11 +515,59 @@ erDiagram
 
 ---
 
-## 10. Future Roadmap
+## 10. Diagram Viewer & Mermaid Graphics Engine
+
+ScholarHub features an interactive visual diagramming system integrated directly into the conversational feed using Mermaid.js.
+
+### 10.1 — Semantic Coloring System
+The AI is instructed to apply styled CSS classes to Mermaid nodes:
+*   **Outcomes / Results:** Green fill (`#dcfce7`), stroke (`#166534`), and text (`#14532d`).
+*   **Methodology / Processes:** Blue fill (`#dbeafe`), stroke (`#1e40af`), and text (`#1e3a8a`).
+*   **Observations / Data:** Amber fill (`#fff7ed`), stroke (`#9a3412`), and text (`#7c2d12`).
+
+### 10.2 — specialized Zoom & Pan Controls
+The Diagram Viewer modal employs `react-zoom-pan-pinch` for dynamic manipulation of Mermaid SVGs:
+*   **Scroll-wheel sensitivity:** Scaled down to a factor of 0.1 for high-resolution precision.
+*   **Interaction:** Full support for Drag & Grab panning. SVGs are normalized with `height: 100%` and `width: auto` to prevent clipping or viewport overflows.
+*   **Mobile-First Design:** Buttons ([Zoom Controls], [Download PNG], [Close X]) fit cleanly on a single row without wrapping on mobile viewports.
+
+### 10.3 — Blob-Based Clean Canvas Export
+To bypass browser canvas taint errors (`SecurityError: Tainted canvases may not be exported`):
+1. The Mermaid SVG string is encoded and converted into a binary `Blob`.
+2. A clean, non-tainted `Image` object is initialized using the Blob URL.
+3. The image is drawn to an offscreen HTML5 `<canvas>` and exported cleanly as a high-resolution PNG file.
+
+---
+
+## 11. Full-Text & Asset Discovery Engine (V5.0)
+
+ScholarHub V5.0 bridges the gap between text metadata and actual research assets.
+
+### 11.1 — Unpaywall Integration
+- **Mechanism:** A parallel background call to the Unpaywall API retrieves the open access status and PDF download link for any DOI found during the search process.
+- **Frontend Interaction:** If a valid Open Access PDF link (`pdf_url`) is detected, a high-visibility `"📥 Download PDF"` button is rendered on the Paper Detail view.
+
+### 11.2 — PMC Figure & Image Extraction
+- **Mechanism:** If PubMed papers contain an associated PubMed Central ID (`PMCID`), the PMC Metadata API is queried to fetch associated figure descriptions and high-resolution graphic URLs.
+- **Gallery Section:** Polish-rendered Gallery inside `PaperDetail.jsx` showing figures, graphs, and study data.
+
+---
+
+## 12. Asset Attachment & Popover UI Framework
+
+A ChatGPT/Elicit-style asset attachment framework is integrated into the input prompter across all Auditor workflows:
+- **Unified '+' Button:** Slate-100 minimalist button triggers an action menu popover.
+- **Action Popover Options:**
+  - *Attach File:* Launches a secure PDF file upload toast ("Feature Coming Soon").
+  - *Add from Library:* Opens the library injection modal to select and add bookmarked articles.
+
+---
+
+## 13. Future Roadmap
 
 ```mermaid
 gantt
-    title ScholarHub AI Engineering Roadmap
+    title ScholarHub AI Engineering Roadmap (Updated)
     dateFormat  YYYY-MM-DD
 
     section Phase 1 — Core Infrastructure (COMPLETE)
@@ -511,17 +580,20 @@ gantt
     ISO Timestamp & Date Parsing Fix      :done, des6b, 2026-06-11, 1d
     Final Pre-Deployment QA (5-Point)     :done, des6c, 2026-06-11, 1d
 
-    section Phase 2 — Upcoming Enhancements
-    Vector DB & PDF RAG Integration       :active, des7, 2026-06-15, 14d
-    Redis Centralized Caching Engine      :        des8, after des7, 10d
+    section Phase 2 — Database Persistence (COMPLETE)
+    audit_history DB Storage              :done, des7, 2026-07-14, 2026-07-15
 
-    section Phase 3 — Enterprise Features
-    Real-Time Collaborative Workspace     :        des9,  2026-07-10, 20d
-    Institutional SSO / SAML Integration  :        des10, 2026-07-25, 15d
+    section Phase 3 — Graphical & Asset Discovery (COMPLETE)
+    Mermaid Diagram Engine & Zoom/Pan     :done, des8, 2026-07-16, 2026-07-17
+    Unpaywall OA PDF & PMC Fig Gallery    :done, des9, 2026-07-17, 1d
+    Asset Attachment Popover UI           :done, des10, 2026-07-17, 1d
+
+    section Phase 4 — System Hardening (IN PROGRESS)
+    Auth-State Loops & Layout Jitter Fixes:active, des11, 2026-07-18, 1d
 ```
 
 ---
 
 *Document Generated by ScholarHub AI Architecture Audit Team.*
 *Validated against: `utils/api.js`, `supabaseClient.js`, `Auth.jsx`, `routers/ai.py`, `routers/unified.py`, `middleware/rate_limiter.py`, `parsers/arxiv_parser.py`, `parsers/openalex_parser.py`, `components/PaperDetail.jsx`, `utils/deviceSync.js`, `vercel.json`, `main.py`, `config.py`, `models/schemas.py`.*
-*Last full QA audit: June 11, 2026. All 5 integration points verified — **GO status confirmed**. No known defects at time of publication.*
+*Last full QA audit: July 18, 2026. All integration points verified — **GO status confirmed**.*

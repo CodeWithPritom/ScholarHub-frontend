@@ -1,19 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Search, BookOpen, AlertCircle, Bookmark, Check, Loader2, Library, 
-  FolderPlus, Calendar, Users, Copy, Database, ChevronUp, 
-  Filter, RefreshCcw, LayoutGrid, Quote, X, List
+import {
+  Search, BookOpen, AlertCircle, Bookmark, Check, Loader2, Library,
+  FolderPlus, Calendar, Users, Copy, Database, ChevronUp,
+  Filter, RefreshCcw, LayoutGrid, Quote, X, List, SlidersHorizontal, FileSpreadsheet,
+  CheckCircle
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { generateCitation } from '../utils/citationUtils';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 
 const SkeletonCard = () => (
-  <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/60 p-6 animate-pulse">
+  <div className="bg-white/80 backdrop-blur-sm rounded-[12px] border border-slate-200/60 p-4 sm:p-6 animate-pulse">
     <div className="flex justify-between items-start mb-4">
-      <div className="h-6 bg-slate-200 rounded-lg w-3/4"></div>
+      <div className="h-6 bg-slate-200 rounded-[12px] w-3/4"></div>
       <div className="h-6 bg-slate-200 rounded-full w-24"></div>
     </div>
     <div className="space-y-3 mb-6">
@@ -21,7 +23,7 @@ const SkeletonCard = () => (
       <div className="h-4 bg-slate-200 rounded w-full"></div>
     </div>
     <div className="flex justify-end pt-4">
-      <div className="h-10 bg-slate-200 rounded-xl w-full"></div>
+      <div className="h-10 bg-slate-200 rounded-[12px] w-full"></div>
     </div>
   </div>
 );
@@ -33,14 +35,14 @@ const getExternalUrl = (pmid, source) => {
   return `https://pubmed.ncbi.nlm.nih.gov/${pmid}`;
 };
 
-const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, onBookmarkSaved }) => {
+const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, onBookmarkSaved, onPaperClick, isSelected, onToggleSelect }) => {
   const navigate = useNavigate();
   const [bookmarkStatus, setBookmarkStatus] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'exists'
   const [showAlbumPicker, setShowAlbumPicker] = useState(false);
   const [albums, setAlbums] = useState([]);
   const [newAlbumName, setNewAlbumName] = useState('');
   const albumRef = useRef(null);
-  
+
   const title = article?.title || 'No Title Available';
   const pmid = article?.pmid || 'N/A';
   const abstract = article?.abstract || 'No abstract text available for this study.';
@@ -49,10 +51,15 @@ const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, o
   const authors = article?.authors || 'Authors not listed';
   const keywords = article?.keywords || [];
 
-  const isLimitReached = userTier === 'free' && bookmarkCount >= 20;
+  const limit = 200;
+  const isLimitReached = bookmarkCount >= limit;
 
   const handleOpenDetail = () => {
-    navigate(`/paper/${encodeURIComponent(pmid)}`, { state: { article } });
+    if (onPaperClick) {
+      onPaperClick(article);
+    } else {
+      navigate(`/paper/${encodeURIComponent(pmid)}`, { state: { article } });
+    }
   };
 
   const showToast = (message, type = 'success') => {
@@ -97,7 +104,10 @@ const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, o
       if (onAuthRequired) onAuthRequired();
       return;
     }
-    if (isLimitReached) return;
+    if (isLimitReached) {
+      showToast('Library limit reached (200 papers). Remove papers to save more.', 'warning');
+      return;
+    }
     await fetchAlbums();
     setShowAlbumPicker(true);
   };
@@ -124,9 +134,9 @@ const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, o
         else if (journal.toLowerCase().includes('arxiv') || String(pmid).includes('.')) finalSource = 'arxiv';
         else finalSource = 'ncbi';
       }
-      
-      const finalUrl = article.url || getExternalUrl(pmid, finalSource);
-      const insertData = { user_id: user.id, pmid, title, journal, source: finalSource, url: finalUrl };
+
+      const finalUrl = article.redirection_url || article.url || getExternalUrl(pmid, finalSource);
+      const insertData = { user_id: user.id, pmid, title, journal, source: finalSource, url: finalUrl, full_metadata: article };
       if (albumId) insertData.album_id = albumId;
       const { error } = await supabase.from('bookmarks').insert(insertData);
       if (error) throw error;
@@ -156,35 +166,56 @@ const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, o
   };
 
   return (
-    <motion.div 
+    <motion.div
       layout
-      className="group bg-white hover:bg-slate-50/30 rounded-[2rem] border border-slate-100 hover:border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.08)] transition-all duration-500 overflow-hidden flex flex-col cursor-pointer relative"
+      className="group bg-white rounded-[2rem] border border-slate-100 hover:border-blue-200 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-sm hover:shadow-blue-500/10 hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col cursor-pointer relative"
       onClick={handleOpenDetail}
     >
 
       <div className="p-8 flex-1">
         <div className="flex items-start justify-between gap-3 mb-6">
-          <div className="flex flex-wrap gap-2">
-            <div className="flex items-center gap-1.5">
-              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black bg-blue-50 text-blue-600 border border-blue-100 uppercase tracking-widest">
+          <div className="flex flex-wrap items-center gap-3">
+            {onToggleSelect && (
+              <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => onToggleSelect(article)}
+                  className="w-4 h-4 rounded border-slate-300 text-[#171717] focus:ring-slate-900/20 cursor-pointer accent-slate-900"
+                />
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-[12px] text-[10px] font-black bg-blue-50 text-blue-600 border border-blue-100 uppercase tracking-widest">
                 <BookOpen size={14} />
                 {journal}
               </span>
+              {(article.verified_metadata || article.full_metadata?.verified_metadata || (article.sources && article.sources.length > 1) || (article.full_metadata?.sources && article.full_metadata.sources.length > 1)) && (
+                <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-[12px] text-[10px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase tracking-widest shadow-sm">
+                  <CheckCircle size={12} className="text-indigo-500" />
+                  Verified Metadata
+                </span>
+              )}
               {article.journal_quartile && (
-                <span className={`inline-flex items-center px-2 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${
-                  article.journal_quartile === 'Q1' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 shadow-sm shadow-emerald-100' :
-                  article.journal_quartile === 'Q2' ? 'bg-indigo-50 text-indigo-600 border-indigo-200 shadow-sm shadow-indigo-100' :
-                  article.journal_quartile === 'Q3' ? 'bg-amber-50 text-amber-600 border-amber-200 shadow-sm shadow-amber-100' :
-                  'bg-slate-50 text-slate-500 border-slate-200 shadow-sm shadow-slate-100'
-                }`}>
+                <span className={`inline-flex items-center justify-center h-7 w-10 shrink-0 rounded-[12px] text-[10px] font-black uppercase tracking-widest border ${article.journal_quartile === 'Q1' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 shadow-sm shadow-emerald-100' :
+                    article.journal_quartile === 'Q2' ? 'bg-indigo-50 text-indigo-600 border-indigo-200 shadow-sm shadow-indigo-100' :
+                      article.journal_quartile === 'Q3' ? 'bg-amber-50 text-amber-600 border-amber-200 shadow-sm shadow-amber-100' :
+                        'bg-slate-50 text-slate-700 border-slate-200 shadow-sm shadow-slate-100'
+                  }`}>
                   {article.journal_quartile}
                 </span>
               )}
             </div>
             {article.citationCount !== undefined && article.citationCount !== null && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black bg-amber-50 text-amber-600 border border-amber-100 uppercase tracking-widest" title={`${article.influentialCitationCount || 0} Influential`}>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[12px] text-[10px] font-black bg-amber-50 text-amber-600 border border-amber-100 uppercase tracking-widest">
                 <Quote size={12} />
                 {article.citationCount} Citations
+              </span>
+            )}
+            {article.influentialCitationCount !== undefined && article.influentialCitationCount !== null && article.influentialCitationCount > 0 && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[12px] text-[10px] font-black bg-rose-50 text-rose-600 border border-rose-100 uppercase tracking-widest">
+                <AlertCircle size={12} className="text-rose-500" />
+                {article.influentialCitationCount} Influential
               </span>
             )}
           </div>
@@ -192,17 +223,16 @@ const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, o
             <button
               onClick={handleBookmarkClick}
               disabled={bookmarkStatus === 'saving' || isLimitReached}
-              className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${
-                isLimitReached
-                  ? 'bg-slate-50 border-2 border-slate-100 text-slate-300 cursor-not-allowed opacity-60'
+              className={`shrink-0 w-10 h-10 rounded-[12px] flex items-center justify-center transition-all duration-300 ${isLimitReached
+                  ? 'bg-slate-50 border-2 border-slate-100 text-slate-600 cursor-not-allowed opacity-60'
                   : bookmarkStatus === 'saved'
-                  ? 'bg-green-50 border-2 border-green-200 text-green-600 shadow-lg shadow-green-100 scale-110'
-                  : bookmarkStatus === 'exists'
-                  ? 'bg-amber-50 border-2 border-amber-200 text-amber-600'
-                  : bookmarkStatus === 'saving'
-                  ? 'bg-blue-50 border-2 border-blue-200 text-blue-600 animate-pulse'
-                  : 'bg-white border-2 border-slate-100 text-slate-300 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 hover:shadow-lg hover:shadow-blue-100 hover:scale-110'
-              }`}
+                    ? 'bg-green-50 border-2 border-green-200 text-green-600 shadow-sm shadow-green-100 scale-110'
+                    : bookmarkStatus === 'exists'
+                      ? 'bg-amber-50 border-2 border-amber-200 text-amber-600'
+                      : bookmarkStatus === 'saving'
+                        ? 'bg-blue-50 border-2 border-blue-200 text-blue-600 animate-pulse'
+                        : 'bg-white border-2 border-slate-100 text-slate-600 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 hover:shadow-sm hover:shadow-blue-100 hover:scale-110'
+                }`}
               title={isLimitReached ? "Upgrade to Starter for unlimited storage" : (bookmarkStatus === 'saved' ? 'Saved!' : 'Save to Library')}
             >
               {bookmarkStatus === 'saving' ? (
@@ -217,21 +247,21 @@ const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, o
             <AnimatePresence>
               {showAlbumPicker && (
                 <motion.div
-                  initial={{ opacity: 0, y: -5, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -5, scale: 0.95 }}
-                  className="absolute top-12 right-0 z-30 w-64 bg-white rounded-2xl border border-slate-200 shadow-2xl shadow-slate-200/50 overflow-hidden"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute top-12 right-0 z-30 w-64 bg-white rounded-[12px] border border-slate-200 shadow-sm shadow-slate-200/50 overflow-hidden"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="p-3 border-b border-slate-100">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Save to Album</p>
+                    <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Save to Album</p>
                   </div>
                   <div className="max-h-48 overflow-y-auto">
                     <button
                       onClick={() => saveToAlbum(null)}
                       className="w-full text-left px-4 py-3 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors flex items-center gap-2"
                     >
-                      <Library size={14} className="text-slate-400" /> General (Default)
+                      <Library size={14} className="text-slate-600" /> General (Default)
                     </button>
                     {albums.map(album => (
                       <button
@@ -239,7 +269,7 @@ const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, o
                         onClick={() => saveToAlbum(album.id)}
                         className="w-full text-left px-4 py-3 text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors flex items-center gap-2"
                       >
-                        <FolderPlus size={14} className="text-slate-400" /> {album.name}
+                        <FolderPlus size={14} className="text-slate-600" /> {album.name}
                       </button>
                     ))}
                   </div>
@@ -250,10 +280,10 @@ const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, o
                         value={newAlbumName}
                         onChange={(e) => setNewAlbumName(e.target.value)}
                         placeholder="New album name..."
-                        className="flex-1 px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-xs font-semibold outline-none focus:border-blue-300 text-slate-700"
+                        className="flex-1 px-3 py-2 bg-slate-50 border border-slate-100 rounded-[12px] text-xs font-semibold outline-none focus:border-blue-300 text-slate-700"
                         onClick={(e) => e.stopPropagation()}
                       />
-                      <button type="submit" className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors">
+                      <button type="submit" className="px-3 py-2 bg-blue-600 text-white rounded-[12px] text-xs font-bold hover:bg-blue-700 transition-colors">
                         <FolderPlus size={14} />
                       </button>
                     </form>
@@ -264,17 +294,17 @@ const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, o
           </div>
         </div>
 
-        <h3 className="text-xl font-black text-slate-900 group-hover:text-blue-600 transition-colors leading-tight mb-4 line-clamp-2">
+        <h3 className="text-xl font-black font-sds-content text-[#171717] group-hover:text-blue-600 transition-colors leading-tight mb-4 line-clamp-3 font-sds-content">
           {title}
         </h3>
 
-        <div className="flex flex-wrap items-center gap-5 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">
+        <div className="flex flex-wrap items-center gap-5 text-[10px] font-black text-slate-600 uppercase tracking-widest mb-4">
           <div className="flex items-center gap-2">
-            <Calendar size={14} className="text-slate-300" />
+            <Calendar size={14} className="text-slate-600" />
             {date}
           </div>
           <div className="flex items-center gap-2 max-w-[150px]">
-            <Users size={14} className="text-slate-300 shrink-0" />
+            <Users size={14} className="text-slate-600 shrink-0" />
             <span className="truncate">{authors}</span>
           </div>
         </div>
@@ -282,31 +312,30 @@ const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, o
         {keywords.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-6">
             {keywords.slice(0, 3).map((kw, i) => (
-              <span key={i} className="px-2 py-0.5 bg-slate-50 text-slate-500 text-[9px] font-bold rounded border border-slate-100">
+              <span key={i} className="px-2 py-0.5 bg-slate-50 text-slate-700 text-[9px] font-bold rounded border border-slate-100">
                 {kw}
               </span>
             ))}
             {keywords.length > 3 && (
-              <span className="px-2 py-0.5 text-slate-300 text-[9px] font-bold">+{keywords.length - 3}</span>
+              <span className="px-2 py-0.5 text-slate-600 text-[9px] font-bold">+{keywords.length - 3}</span>
             )}
           </div>
         )}
 
         <div className="relative">
-          <div className="overflow-hidden text-slate-600 text-sm leading-relaxed line-clamp-3 font-medium">
+          <div className="overflow-hidden text-slate-600 text-sm leading-relaxed line-clamp-3 font-sds-content font-medium">
             {abstract}
           </div>
-          <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white group-hover:from-slate-50/50 to-transparent"></div>
+          <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent"></div>
         </div>
 
         <div className="mt-6 flex items-center justify-start">
           <button
             onClick={handleCopyCitation}
-            className={`relative flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-              citationCopied
+            className={`relative flex items-center gap-2 px-3 py-1.5 rounded-[12px] text-[10px] font-black uppercase tracking-widest transition-all ${citationCopied
                 ? 'bg-green-50 text-green-600 border border-green-200'
-                : 'bg-white text-slate-400 border border-slate-200 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50'
-            }`}
+                : 'bg-white text-slate-600 border border-slate-200 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50'
+              }`}
           >
             {citationCopied ? <Check size={12} /> : <Copy size={12} />}
             {citationCopied ? 'Copied!' : 'Copy Citation'}
@@ -315,11 +344,22 @@ const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, o
       </div>
 
       <div className="px-8 py-5 bg-slate-50/30 border-t border-slate-50 flex items-center justify-between">
-        <span className="text-[10px] font-black text-slate-400 flex items-center gap-2 uppercase tracking-[0.2em]">
-          <Database size={12} />
-          PMID: {pmid}
-        </span>
-        <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-300 group-hover:text-blue-600 group-hover:border-blue-200 transition-all">
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] font-black text-slate-600 flex items-center gap-2 uppercase tracking-[0.2em]">
+            <Database size={12} />
+            PMID: {pmid}
+          </span>
+          {article.figures && article.figures.length > 0 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); handleOpenDetail(); }}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-[12px] text-[10px] font-black bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 transition-colors uppercase tracking-widest cursor-pointer shadow-2xs"
+            >
+              <Sparkles size={11} className="text-blue-500" />
+              <span>View Research Gallery ({article.figures.length})</span>
+            </button>
+          )}
+        </div>
+        <div className="w-8 h-8 rounded-[12px] bg-white border border-slate-200 flex items-center justify-center text-slate-600 group-hover:text-blue-600 group-hover:border-blue-200 transition-all">
           <ChevronUp size={14} className="rotate-90" />
         </div>
       </div>
@@ -327,7 +367,7 @@ const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, o
   );
 };
 
-const TableRow = ({ article, user, userTier, bookmarkCount, onAuthRequired, onBookmarkSaved }) => {
+const TableRow = ({ article, user, userTier, bookmarkCount, onAuthRequired, onBookmarkSaved, onPaperClick, isSelected, onToggleSelect }) => {
   const navigate = useNavigate();
   const [bookmarkStatus, setBookmarkStatus] = useState('idle');
   const [showAlbumPicker, setShowAlbumPicker] = useState(false);
@@ -342,10 +382,15 @@ const TableRow = ({ article, user, userTier, bookmarkCount, onAuthRequired, onBo
   const date = article?.date || 'Undated';
   const authors = article?.authors || 'Authors not listed';
 
-  const isLimitReached = userTier === 'free' && bookmarkCount >= 20;
+  const limit = 200;
+  const isLimitReached = bookmarkCount >= limit;
 
   const handleOpenDetail = () => {
-    navigate(`/paper/${encodeURIComponent(pmid)}`, { state: { article } });
+    if (onPaperClick) {
+      onPaperClick(article);
+    } else {
+      navigate(`/paper/${encodeURIComponent(pmid)}`, { state: { article } });
+    }
   };
 
   const showToast = (message, type = 'success') => {
@@ -390,7 +435,10 @@ const TableRow = ({ article, user, userTier, bookmarkCount, onAuthRequired, onBo
       if (onAuthRequired) onAuthRequired();
       return;
     }
-    if (isLimitReached) return;
+    if (isLimitReached) {
+      showToast('Library limit reached (200 papers). Remove papers to save more.', 'warning');
+      return;
+    }
     await fetchAlbums();
     setShowAlbumPicker(true);
   };
@@ -417,9 +465,9 @@ const TableRow = ({ article, user, userTier, bookmarkCount, onAuthRequired, onBo
         else if (journal.toLowerCase().includes('arxiv') || String(pmid).includes('.')) finalSource = 'arxiv';
         else finalSource = 'ncbi';
       }
-      
-      const finalUrl = article.url || getExternalUrl(pmid, finalSource);
-      const insertData = { user_id: user.id, pmid, title, journal, source: finalSource, url: finalUrl };
+
+      const finalUrl = article.redirection_url || article.url || getExternalUrl(pmid, finalSource);
+      const insertData = { user_id: user.id, pmid, title, journal, source: finalSource, url: finalUrl, full_metadata: article };
       if (albumId) insertData.album_id = albumId;
       const { error } = await supabase.from('bookmarks').insert(insertData);
       if (error) throw error;
@@ -450,28 +498,57 @@ const TableRow = ({ article, user, userTier, bookmarkCount, onAuthRequired, onBo
   };
 
   return (
-    <tr 
+    <tr
       onClick={handleOpenDetail}
       className="hover:bg-slate-50/70 cursor-pointer transition-colors duration-200 group relative border-b border-slate-100/80"
     >
+      {onToggleSelect && (
+        <td className="px-6 py-4 w-10" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-center">
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => onToggleSelect(article)}
+              className="w-4 h-4 rounded border-slate-300 text-[#171717] focus:ring-slate-900/20 cursor-pointer accent-slate-900"
+            />
+          </div>
+        </td>
+      )}
       {/* Column 1: Title & Source */}
       <td className="px-6 py-4 max-w-lg min-w-[280px]">
         <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-black text-slate-800 group-hover:text-blue-600 transition-colors line-clamp-2 leading-snug">
+          <span className="text-sm font-black text-slate-800 group-hover:text-blue-600 transition-colors line-clamp-3 font-sds-content leading-snug">
             {title}
           </span>
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 text-blue-600 text-[9px] font-black uppercase tracking-widest border border-blue-100/50">
               {journal}
             </span>
+            {(article.verified_metadata || article.full_metadata?.verified_metadata || (article.sources && article.sources.length > 1) || (article.full_metadata?.sources && article.full_metadata.sources.length > 1)) && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 text-[9px] font-black uppercase tracking-widest">
+                <CheckCircle size={10} className="text-indigo-500" />
+                Verified
+              </span>
+            )}
             {article.journal_quartile && (
-              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border ${
-                article.journal_quartile === 'Q1' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                article.journal_quartile === 'Q2' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
-                article.journal_quartile === 'Q3' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                'bg-slate-50 text-slate-500 border-slate-100'
-              }`}>
+              <span className={`inline-flex items-center justify-center px-1.5 py-0.5 min-w-[2rem] shrink-0 rounded text-[9px] font-black uppercase tracking-widest border ${article.journal_quartile === 'Q1' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                  article.journal_quartile === 'Q2' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
+                    article.journal_quartile === 'Q3' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                      'bg-slate-50 text-slate-700 border-slate-100'
+                }`}>
                 {article.journal_quartile}
+              </span>
+            )}
+            {article.citationCount !== undefined && article.citationCount !== null && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 text-[9px] font-black uppercase tracking-widest border border-amber-100">
+                <Quote size={10} />
+                {article.citationCount} Citations
+              </span>
+            )}
+            {article.influentialCitationCount !== undefined && article.influentialCitationCount !== null && article.influentialCitationCount > 0 && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 text-[9px] font-black uppercase tracking-widest border border-rose-100">
+                <AlertCircle size={10} className="text-rose-500" />
+                {article.influentialCitationCount} Influential
               </span>
             )}
           </div>
@@ -480,21 +557,21 @@ const TableRow = ({ article, user, userTier, bookmarkCount, onAuthRequired, onBo
 
       {/* Column 2: Authors */}
       <td className="px-6 py-4 max-w-[220px]">
-        <span className="text-xs font-semibold text-slate-500 line-clamp-2 leading-relaxed">
+        <span className="text-xs font-semibold text-slate-700 line-clamp-3 font-sds-content leading-relaxed">
           {authors}
         </span>
       </td>
 
       {/* Column 3: Date */}
       <td className="px-6 py-4 whitespace-nowrap">
-        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+        <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
           {date}
         </span>
       </td>
 
       {/* Column 4: PMID / Database ID */}
       <td className="px-6 py-4 whitespace-nowrap">
-        <span className="text-xs font-black text-slate-400 tracking-widest uppercase">
+        <span className="text-xs font-black text-slate-600 tracking-widest uppercase">
           {pmid}
         </span>
       </td>
@@ -502,15 +579,14 @@ const TableRow = ({ article, user, userTier, bookmarkCount, onAuthRequired, onBo
       {/* Column 5: Actions */}
       <td className="px-6 py-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-end gap-2 relative">
-          
+
           {/* Copy Citation Button */}
           <button
             onClick={handleCopyCitation}
-            className={`flex items-center justify-center w-8 h-8 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
-              citationCopied
+            className={`flex items-center justify-center w-8 h-8 rounded-[12px] text-xs font-black uppercase tracking-widest transition-all ${citationCopied
                 ? 'bg-green-50 text-green-600 border border-green-200'
-                : 'bg-white text-slate-400 border border-slate-200 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50'
-            }`}
+                : 'bg-white text-slate-600 border border-slate-200 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50'
+              }`}
             title="Copy Citation"
           >
             {citationCopied ? <Check size={12} /> : <Copy size={12} />}
@@ -521,17 +597,16 @@ const TableRow = ({ article, user, userTier, bookmarkCount, onAuthRequired, onBo
             <button
               onClick={handleBookmarkClick}
               disabled={bookmarkStatus === 'saving' || isLimitReached}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 ${
-                isLimitReached
-                  ? 'bg-slate-50 border border-slate-100 text-slate-300 cursor-not-allowed opacity-60'
+              className={`w-8 h-8 rounded-[12px] flex items-center justify-center transition-all duration-300 ${isLimitReached
+                  ? 'bg-slate-50 border border-slate-100 text-slate-600 cursor-not-allowed opacity-60'
                   : bookmarkStatus === 'saved'
-                  ? 'bg-green-50 border border-green-200 text-green-600 shadow-lg shadow-green-100'
-                  : bookmarkStatus === 'exists'
-                  ? 'bg-amber-50 border border-amber-200 text-amber-600'
-                  : bookmarkStatus === 'saving'
-                  ? 'bg-blue-50 border border-blue-200 text-blue-600 animate-pulse'
-                  : 'bg-white border border-slate-200 text-slate-300 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50'
-              }`}
+                    ? 'bg-green-50 border border-green-200 text-green-600 shadow-sm shadow-green-100'
+                    : bookmarkStatus === 'exists'
+                      ? 'bg-amber-50 border border-amber-200 text-amber-600'
+                      : bookmarkStatus === 'saving'
+                        ? 'bg-blue-50 border border-blue-200 text-blue-600 animate-pulse'
+                        : 'bg-white border border-slate-200 text-slate-600 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50'
+                }`}
               title={isLimitReached ? "Upgrade to Starter" : "Save to Library"}
             >
               {bookmarkStatus === 'saving' ? (
@@ -547,20 +622,20 @@ const TableRow = ({ article, user, userTier, bookmarkCount, onAuthRequired, onBo
             <AnimatePresence>
               {showAlbumPicker && (
                 <motion.div
-                  initial={{ opacity: 0, y: -5, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -5, scale: 0.95 }}
-                  className="absolute right-0 top-10 z-30 w-56 bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden text-left"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute right-0 top-10 z-30 w-56 bg-white rounded-[12px] border border-slate-200 shadow-sm overflow-hidden text-left"
                 >
                   <div className="p-2 border-b border-slate-100">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Save to Album</p>
+                    <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Save to Album</p>
                   </div>
                   <div className="max-h-36 overflow-y-auto">
                     <button
                       onClick={() => saveToAlbum(null)}
                       className="w-full text-left px-3 py-2 text-[10px] font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors flex items-center gap-1.5"
                     >
-                      <Library size={12} className="text-slate-400" /> Default
+                      <Library size={12} className="text-slate-600" /> Default
                     </button>
                     {albums.map(album => (
                       <button
@@ -568,7 +643,7 @@ const TableRow = ({ article, user, userTier, bookmarkCount, onAuthRequired, onBo
                         onClick={() => saveToAlbum(album.id)}
                         className="w-full text-left px-3 py-2 text-[10px] font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors flex items-center gap-1.5"
                       >
-                        <FolderPlus size={12} className="text-slate-400" /> {album.name}
+                        <FolderPlus size={12} className="text-slate-600" /> {album.name}
                       </button>
                     ))}
                   </div>
@@ -592,9 +667,9 @@ const TableRow = ({ article, user, userTier, bookmarkCount, onAuthRequired, onBo
           </div>
 
           {/* Arrow Detail Button */}
-          <button 
-            onClick={handleOpenDetail} 
-            className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-300 group-hover:text-blue-600 group-hover:border-blue-200 transition-all"
+          <button
+            onClick={handleOpenDetail}
+            className="w-8 h-8 rounded-[12px] bg-white border border-slate-200 flex items-center justify-center text-slate-600 group-hover:text-blue-600 group-hover:border-blue-200 transition-all"
           >
             <ChevronUp size={12} className="rotate-90" />
           </button>
@@ -604,12 +679,42 @@ const TableRow = ({ article, user, userTier, bookmarkCount, onAuthRequired, onBo
   );
 };
 
-const ArticleGrid = ({ 
-  articles, hasSearched, clearFilters, user, userTier, bookmarkCount, 
-  fetchBookmarkCount, setShowAuthModal, loading, error, searchPubMed, portal, cancelSearch 
+const ArticleGrid = ({
+  articles, hasSearched, clearFilters, user, userTier, bookmarkCount,
+  fetchBookmarkCount, setShowAuthModal, loading, error, searchPubMed, portal, cancelSearch, onPaperClick,
+  selectedPapers = [], onToggleSelect, onToggleSelectAll, isSyncing = false, onRetryDeviceSync
 }) => {
   const [loadingStage, setLoadingStage] = useState(0);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
+
+  const handleExportSessionToExcel = () => {
+    if (!articles || articles.length === 0) {
+      toast.error('No articles to export.');
+      return;
+    }
+
+    try {
+      const data = articles.map(p => ({
+        Title: p.title || '—',
+        Author: p.authors ? (Array.isArray(p.authors) ? p.authors.join(', ') : p.authors) : '—',
+        Journal: p.journal || '—',
+        DOI: p.doi || '—',
+        Citations: p.citationCount ?? '—',
+        'Abstract Summary': p.abstract || '—'
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Research Articles");
+
+      const filename = `ScholarHub_Export_Session.xlsx`;
+      XLSX.writeFile(wb, filename);
+      toast.success('Session exported to Excel successfully!');
+    } catch (err) {
+      console.error('Session Export Error:', err);
+      toast.error('Failed to export session to Excel.');
+    }
+  };
 
   useEffect(() => {
     if (!loading) {
@@ -622,7 +727,7 @@ const ArticleGrid = ({
   }, [loading]);
 
   const getPortalLoadingSteps = () => {
-    switch(portal) {
+    switch (portal) {
       case 'eng': return [
         { text: "Connecting to arXiv Engineering Hub...", icon: <RefreshCcw size={24} className="text-blue-600 animate-spin" /> },
         { text: "Pulling Computer Science Preprints...", icon: <Database size={24} className="text-indigo-600 animate-pulse" /> },
@@ -668,6 +773,35 @@ const ArticleGrid = ({
   };
   const loadingSteps = getPortalLoadingSteps();
 
+  const [selectedQuartileIndex, setSelectedQuartileIndex] = useState(0); // 0 = All, 1 = Q4, 2 = Q3, 3 = Q2, 4 = Q1
+  const [showFilterPopover, setShowFilterPopover] = useState(false);
+  const filterPopoverRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (filterPopoverRef.current && !filterPopoverRef.current.contains(e.target)) {
+        setShowFilterPopover(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  const steps = ['All', 'Q4', 'Q3', 'Q2', 'Q1'];
+
+  const visibleArticles = articles.filter(article => {
+    if (selectedQuartileIndex === 0) return true;
+    const quartile = article.journal_quartile;
+    if (!quartile) return false;
+    const qNum = parseInt(quartile.replace('Q', ''));
+    const limitNum = 5 - selectedQuartileIndex;
+    return qNum <= limitNum;
+  });
+
+  const isAllSelected = visibleArticles.length > 0 && visibleArticles.every(art =>
+    selectedPapers.some(p => p.pmid === art.pmid)
+  );
+
   return (
     <>
       {!hasSearched ? (
@@ -677,26 +811,36 @@ const ArticleGrid = ({
             <div className="w-28 h-28 bg-blue-50 text-blue-600 rounded-[2.5rem] flex items-center justify-center mx-auto mb-10 shadow-inner group-hover:scale-110 transition-transform duration-500">
               <Search size={56} />
             </div>
-            <h4 className="text-4xl font-black text-slate-900 mb-4 tracking-tight">System Idle.</h4>
-            <p className="text-slate-500 max-sm:px-6 max-w-sm mx-auto font-semibold leading-relaxed">
+            <h4 className="text-4xl font-black font-sds-content text-[#171717] mb-4 tracking-tight">System Idle.</h4>
+            <p className="text-slate-700 max-sm:px-6 max-w-sm mx-auto font-semibold leading-relaxed">
               Awaiting academic query parameters. Enter a topic above to initiate multi-threaded synchronization with the research hub.
             </p>
           </div>
         </div>
       ) : error ? (
-        <div className="bg-red-50 border border-red-100 rounded-[3rem] p-20 text-center max-w-4xl mx-auto shadow-2xl shadow-red-100">
+        <div className="bg-red-50 border border-red-100 rounded-[3rem] p-16 text-center w-full 2xl:px-12 mx-auto shadow-sm shadow-red-100">
           <AlertCircle size={64} className="text-red-600 mx-auto mb-8" />
-          <h4 className="text-3xl font-black text-red-900 mb-4 tracking-tight">Sync Interrupted</h4>
+          <h4 className="text-3xl font-black font-sds-content text-red-900 mb-4 tracking-tight">Sync Interrupted</h4>
           <p className="text-red-700/70 mb-10 font-bold text-lg leading-relaxed">{error}</p>
-          <button 
-            onClick={() => searchPubMed()}
-            className="px-12 py-5 bg-red-600 text-white text-xs font-black rounded-2xl hover:bg-red-700 transition-all shadow-2xl shadow-red-200 uppercase tracking-widest"
-          >
-            Retry Protocol
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <button
+              onClick={() => searchPubMed && searchPubMed()}
+              className="px-8 py-4 bg-red-600 text-white text-xs font-black rounded-[12px] hover:bg-red-700 transition-all shadow-sm shadow-red-200 uppercase tracking-widest cursor-pointer"
+            >
+              Retry Protocol
+            </button>
+            {onRetryDeviceSync && (
+              <button
+                onClick={onRetryDeviceSync}
+                className="px-8 py-4 bg-slate-900 text-white text-xs font-black rounded-[12px] hover:bg-slate-800 transition-all shadow-sm shadow-slate-200 uppercase tracking-widest cursor-pointer"
+              >
+                Retry Device Registration
+              </button>
+            )}
+          </div>
         </div>
       ) : loading ? (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -705,36 +849,40 @@ const ArticleGrid = ({
           <div className="flex flex-col items-center gap-6">
             <div className="relative mb-8 w-24 h-24 flex items-center justify-center">
               <div className="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
-              <motion.div 
+              <motion.div
                 className="absolute inset-0 border-4 border-transparent border-t-blue-600 rounded-full"
                 animate={{ rotate: 360 }}
                 transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
               />
-              {loadingSteps[loadingStage].icon}
+              {isSyncing ? (
+                <RefreshCcw size={24} className="text-blue-600 animate-spin" />
+              ) : (
+                loadingSteps[loadingStage].icon
+              )}
             </div>
-            
-            <motion.p 
-              key={loadingStage}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
+
+            <motion.p
+              key={isSyncing ? "syncing" : loadingStage}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               className="text-sm font-black uppercase tracking-[0.2em] text-slate-600 text-center"
             >
-              {loadingSteps[loadingStage].text}
+              {isSyncing ? "Synchronizing with Global Research Cloud..." : loadingSteps[loadingStage].text}
             </motion.p>
-            
+
             <div className="w-64 h-2 bg-slate-100 rounded-full overflow-hidden mt-4">
-              <motion.div 
+              <motion.div
                 className="h-full bg-blue-600"
                 initial={{ width: '0%' }}
-                animate={{ width: `${((loadingStage + 1) / 3) * 100}%` }}
+                animate={{ width: isSyncing ? '33%' : `${((loadingStage + 1) / 3) * 100}%` }}
                 transition={{ duration: 0.5 }}
               />
             </div>
-            
+
             {cancelSearch && (
-              <button 
+              <button
                 onClick={cancelSearch}
-                className="px-6 py-2.5 bg-white border border-slate-200 text-slate-500 hover:text-red-600 hover:border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 mx-auto mt-8 relative z-50"
+                className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 hover:text-red-600 hover:border-red-100 rounded-[12px] text-[10px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 mx-auto mt-8 relative z-50"
               >
                 <X size={14} />
                 Cancel Search
@@ -745,40 +893,164 @@ const ArticleGrid = ({
             {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
           </div>
         </motion.div>
-      ) : hasSearched && articles.length === 0 ? (
-        <div className="text-center py-40 bg-white rounded-[3.5rem] border border-slate-100 shadow-sm">
-          <div className="w-28 h-28 bg-slate-50 text-slate-300 rounded-[2.5rem] flex items-center justify-center mx-auto mb-10">
-            <Filter size={56} />
+      ) : hasSearched && visibleArticles.length === 0 ? (
+        <div className="text-center py-20 px-8 bg-white rounded-[3.5rem] border border-slate-100 shadow-sm w-full 2xl:px-12 mx-auto">
+          <div className="w-20 h-20 bg-slate-50 text-slate-600 rounded-[12px] flex items-center justify-center mx-auto mb-6">
+            <Filter size={40} />
           </div>
-          <h4 className="text-3xl font-black text-slate-900 mb-4">No Records Found</h4>
-          <p className="text-slate-400 max-w-sm mx-auto font-bold mb-10 uppercase tracking-widest text-xs">Adjust your search parameters or date range for better results.</p>
-          <button onClick={clearFilters} className="text-blue-600 text-sm font-black uppercase tracking-widest hover:underline">Reset Search Filters</button>
+          <h4 className="text-2xl font-black font-sds-content text-[#171717] mb-2">
+            {articles && articles.length > 0 ? "No records match your active filters" : "No Academic Papers Found"}
+          </h4>
+          <p className="text-slate-700 max-w-md mx-auto font-medium text-xs leading-relaxed mb-8">
+            {articles && articles.length > 0
+              ? `You have ${articles.length} validated articles loaded, but they are filtered out by your active SJR Quality setting.`
+              : "We couldn't find exact matches for your search query. Try one of our recommended high-yield research topics below:"}
+          </p>
+
+          {articles && articles.length > 0 && selectedQuartileIndex !== 0 ? (
+            <button
+              onClick={() => { setSelectedQuartileIndex(0); if (clearFilters) clearFilters(); }}
+              className="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest rounded-[12px] transition-all shadow-md shadow-blue-200 cursor-pointer"
+            >
+              Reset Quality Filter ({articles.length} Papers Available)
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-[11px] font-black uppercase tracking-widest text-slate-600 mb-3">Suggested Research Queries</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {[
+                  "CRISPR-Cas9 Gene Editing Innovations",
+                  "Deep Learning for Protein Structure Folding",
+                  "Single-Cell RNA Sequencing Cancer Genomics",
+                  "Quantum Computing Error Correction",
+                  "Transformer Models in Biomedical NLP"
+                ].map((suggestedQuery) => (
+                  <button
+                    key={suggestedQuery}
+                    onClick={() => searchPubMed && searchPubMed(null, suggestedQuery)}
+                    className="px-4 py-2.5 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 border border-slate-200 hover:border-blue-200 rounded-[12px] text-xs font-semibold text-slate-700 transition-all flex items-center gap-2 cursor-pointer shadow-2xs"
+                  >
+                    <Search size={12} className="text-slate-600" />
+                    <span>{suggestedQuery}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-6 w-full max-w-full">
           {/* Layout View Toggle Selector */}
-          <div className="flex justify-between items-center bg-white border border-slate-100 px-6 py-3.5 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-              Found {articles.length} academic papers
-            </span>
-            <div className="flex items-center gap-1 bg-slate-50 border border-slate-100 p-1 rounded-xl">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white border border-slate-100 px-6 py-3.5 rounded-[12px] shadow-[0_1px_3px_rgba(0,0,0,0.02)] relative w-full max-w-full">
+            {/* Left Side: Select All & Count */}
+            <div className="flex items-center gap-5 w-full sm:w-auto justify-between sm:justify-start">
+              {onToggleSelectAll && (
+                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    onChange={(e) => onToggleSelectAll(visibleArticles, e.target.checked)}
+                    className="w-4 h-4 rounded border-slate-300 text-[#171717] focus:ring-slate-900/20 cursor-pointer accent-slate-900"
+                  />
+                  Select All
+                </label>
+              )}
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">
+                Found {visibleArticles.length} academic papers
+              </span>
+            </div>
+
+            {/* Middle: Filter Popover & Export Session */}
+            <div className="flex items-center justify-center gap-3 w-full sm:w-auto relative" ref={filterPopoverRef}>
+              <button
+                onClick={() => setShowFilterPopover(!showFilterPopover)}
+                className={`flex items-center gap-2 px-4 py-3 rounded-[12px] text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                  selectedQuartileIndex !== 0
+                    ? 'bg-slate-900 text-white shadow-md border border-slate-900'
+                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                <SlidersHorizontal size={12} />
+                Filter {selectedQuartileIndex !== 0 && `(${steps[selectedQuartileIndex]})`}
+              </button>
+
+              <button
+                onClick={handleExportSessionToExcel}
+                className="flex items-center gap-2 px-4 py-3 bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200 rounded-[12px] text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+              >
+                <FileSpreadsheet size={12} />
+                Export Session
+              </button>
+
+              <AnimatePresence>
+                {showFilterPopover && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute bottom-12 sm:bottom-auto sm:top-12 left-1/2 -translate-x-1/2 z-[100] w-72 bg-white border border-slate-200 rounded-[12px] shadow-sm p-6"
+                  >
+                    <div className="space-y-3.5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-800">
+                          Journal Quality
+                        </span>
+                        {selectedQuartileIndex !== 0 && (
+                          <button
+                            onClick={() => setSelectedQuartileIndex(0)}
+                            className="text-[9px] font-bold uppercase tracking-wider text-slate-600 hover:text-slate-700 transition-colors cursor-pointer"
+                          >
+                            Reset
+                          </button>
+                        )}
+                      </div>
+                      
+                      <div className="bg-slate-50 border border-slate-100 p-1 rounded-[12px] flex gap-1 w-full">
+                        {steps.map((step, idx) => (
+                          <button
+                            key={step}
+                            type="button"
+                            onClick={() => setSelectedQuartileIndex(idx)}
+                            className={`flex-1 py-3 rounded-[12px] text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                              idx === selectedQuartileIndex
+                                ? 'bg-slate-900 text-white shadow-sm'
+                                : 'text-slate-600 hover:text-slate-650'
+                            }`}
+                          >
+                            {step}
+                          </button>
+                        ))}
+                      </div>
+
+                      <p className="text-[9.5px] text-slate-600 font-semibold leading-normal">
+                        {selectedQuartileIndex === 0
+                          ? 'Showing all papers regardless of quartile.'
+                          : `Showing papers ranked ${steps[selectedQuartileIndex]} or higher.`}
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Right: Layout Toggle */}
+            <div className="flex items-center gap-1 bg-slate-50 border border-slate-100 p-1 rounded-[12px] w-full sm:w-auto justify-center">
               <button
                 onClick={() => setViewMode('grid')}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
-                  viewMode === 'grid'
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 py-3 rounded-[12px] text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${viewMode === 'grid'
                     ? 'bg-white text-blue-600 shadow-sm border border-slate-200/50'
-                    : 'text-slate-400 hover:text-slate-600'
-                }`}
+                    : 'text-slate-600 hover:text-slate-600'
+                  }`}
               >
                 <LayoutGrid size={12} /> Grid
               </button>
               <button
                 onClick={() => setViewMode('table')}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
-                  viewMode === 'table'
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 py-3 rounded-[12px] text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${viewMode === 'table'
                     ? 'bg-white text-blue-600 shadow-sm border border-slate-200/50'
-                    : 'text-slate-400 hover:text-slate-600'
-                }`}
+                    : 'text-slate-600 hover:text-slate-600'
+                  }`}
               >
                 <List size={12} /> Table
               </button>
@@ -786,42 +1058,46 @@ const ArticleGrid = ({
           </div>
 
           {viewMode === 'grid' ? (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
             >
-              {articles.map((article, idx) => (
-                <ArticleCard 
+              {visibleArticles.map((article, idx) => (
+                <ArticleCard
                   key={`${article.pmid}-${idx}`}
-                  article={article} 
-                  user={user} 
+                  article={article}
+                  user={user}
                   userTier={userTier}
                   bookmarkCount={bookmarkCount}
                   onBookmarkSaved={fetchBookmarkCount}
                   onAuthRequired={() => setShowAuthModal(true)}
+                  onPaperClick={onPaperClick}
+                  isSelected={selectedPapers.some(p => p.pmid === article.pmid)}
+                  onToggleSelect={onToggleSelect}
                 />
               ))}
             </motion.div>
           ) : (
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               className="w-full overflow-x-auto bg-white rounded-[2rem] border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)]"
             >
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50/50">
-                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Title & Journal</th>
-                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Authors</th>
-                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Published Date</th>
-                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">PMID / Database ID</th>
-                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
+                    {onToggleSelect && <th className="px-6 py-4 w-10"></th>}
+                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-600">Title & Journal</th>
+                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-600">Authors</th>
+                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-600">Published Date</th>
+                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-600">PMID / Database ID</th>
+                    <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-600 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100/60">
-                  {articles.map((article, idx) => (
-                    <TableRow 
+                  {visibleArticles.map((article, idx) => (
+                    <TableRow
                       key={`${article.pmid}-${idx}`}
                       article={article}
                       user={user}
@@ -829,6 +1105,9 @@ const ArticleGrid = ({
                       bookmarkCount={bookmarkCount}
                       onBookmarkSaved={fetchBookmarkCount}
                       onAuthRequired={() => setShowAuthModal(true)}
+                      onPaperClick={onPaperClick}
+                      isSelected={selectedPapers.some(p => p.pmid === article.pmid)}
+                      onToggleSelect={onToggleSelect}
                     />
                   ))}
                 </tbody>

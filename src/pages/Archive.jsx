@@ -31,16 +31,16 @@ const Archive = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-700 flex flex-col">
+    <div className="min-h-screen bg-[#f8fafc] text-[#171717] font-sans selection:bg-blue-100 selection:text-blue-700 flex flex-col">
       
       {/* Navbar Minimal */}
       <nav className="border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-6 h-20 flex items-center justify-between">
+        <div className="w-full 2xl:px-12 mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
               <Dna size={20} />
             </div>
-            <span className="text-xl font-black tracking-tighter text-slate-900">ScholarHub<span className="text-blue-600">AI</span></span>
+            <span className="text-xl font-black tracking-tighter text-[#171717]">ScholarHub<span className="text-blue-600">AI</span></span>
           </div>
           <button 
             onClick={() => navigate('/research')}
@@ -51,15 +51,15 @@ const Archive = () => {
         </div>
       </nav>
 
-      <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-16">
+      <main className="flex-1 w-full 2xl:px-12 w-full mx-auto px-6 py-16">
         
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-12">
           <div>
-            <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2 flex items-center gap-3">
+            <h1 className="text-4xl font-black text-[#171717] tracking-tight mb-2 flex items-center gap-3">
               <Clock className="text-blue-600" size={32} />
               Session Archive
             </h1>
-            <p className="text-slate-500 font-medium">Your local history of recently viewed research papers.</p>
+            <p className="text-slate-700 font-medium">Your local history of recently viewed research papers.</p>
           </div>
           
           {history.length > 0 && (
@@ -74,14 +74,14 @@ const Archive = () => {
 
         {history.length === 0 ? (
           <motion.div 
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             className="bg-white rounded-3xl p-16 border border-slate-200 shadow-sm text-center flex flex-col items-center justify-center gap-4"
           >
-            <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300">
+            <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-600">
               <BookOpen size={24} />
             </div>
-            <h3 className="text-xl font-black text-slate-900">Your archive is empty.</h3>
-            <p className="text-slate-500 text-sm font-medium mb-4 max-w-sm mx-auto">
+            <h3 className="text-xl font-black text-[#171717]">Your archive is empty.</h3>
+            <p className="text-slate-700 text-sm font-medium mb-4 max-w-sm mx-auto">
               Any research papers you open during this session will be temporarily saved here for quick access.
             </p>
             <button 
@@ -97,9 +97,9 @@ const Archive = () => {
               {history.map((paper) => (
                 <motion.div 
                   key={paper.pmid}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow group flex flex-col sm:flex-row gap-6 items-start sm:items-center justify-between"
                 >
                   <div className="flex-1">
@@ -108,11 +108,11 @@ const Archive = () => {
                         <BookOpen size={10} />
                         <span className="truncate max-w-[200px]">{paper.journal || 'Unknown Journal'}</span>
                       </span>
-                      <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1.5 uppercase tracking-widest">
+                      <span className="text-[10px] font-bold text-slate-600 flex items-center gap-1.5 uppercase tracking-widest">
                         <Calendar size={12} /> {paper.date || 'Unknown Date'}
                       </span>
                     </div>
-                    <h4 className="text-base font-bold text-slate-900 leading-snug line-clamp-2">
+                    <h4 className="text-base font-bold text-[#171717] leading-snug line-clamp-2">
                       {paper.title}
                     </h4>
                   </div>
@@ -120,7 +120,7 @@ const Archive = () => {
                   <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto">
                     <button
                       onClick={() => handleRemove(paper.pmid)}
-                      className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                      className="p-3 text-slate-600 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
                       title="Remove from history"
                     >
                       <Trash2 size={16} />

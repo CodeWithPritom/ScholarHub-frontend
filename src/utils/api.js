@@ -31,8 +31,9 @@ window.fetch = async function(resource, config) {
     }
     return res;
   } catch (error) {
-    // Only attempt fallback if the request was targeting our backend
-    if (urlStr && (urlStr.startsWith(PRIMARY_URL) || urlStr.startsWith(BASE_URL))) {
+    // Only attempt backup fallback for production backend URLs, not localhost development
+    const isLocalhost = urlStr && (urlStr.includes('localhost') || urlStr.includes('127.0.0.1'));
+    if (!isLocalhost && urlStr && (urlStr.startsWith(PRIMARY_URL) || urlStr.startsWith(BASE_URL))) {
       // Silently retry on Backup API
       
       let newUrlStr = urlStr.replace(PRIMARY_URL, BACKUP_URL);

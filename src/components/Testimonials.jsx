@@ -86,7 +86,7 @@ const Testimonials = () => {
 
   return (
     <section className="py-32 relative z-10 bg-slate-900 border-t border-slate-800 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-6 mb-16 text-center">
+      <div className="w-full 2xl:px-12 mx-auto px-6 mb-16 text-center">
         <h2 className="text-4xl md:text-5xl font-black mb-6 text-white">Trusted by Scholars Worldwide</h2>
         <p className="text-slate-400 font-medium max-w-2xl mx-auto text-lg">
           See what top researchers and institutions are saying about ScholarHub AI.
@@ -189,9 +189,9 @@ const Testimonials = () => {
             className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm"
           >
             <motion.div 
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               onClick={(e) => e.stopPropagation()}
               className="bg-white border border-slate-200 rounded-[2rem] p-6 sm:p-10 w-full max-w-2xl relative shadow-2xl"

@@ -141,3 +141,56 @@ export async function ensureDeviceIsRegistered(userId, onDeviceLimitReached) {
     _syncInProgress = false;
   }
 }
+
+/**
+ * Automatically clears all old registered devices for a user and registers the current device
+ * as the new occupied active device. Called during Password Reset / Password Recovery flow.
+ * 
+ * @param {string} userId - The authenticated user's UUID
+ * @returns {Promise<{success: boolean, deviceId: string}>}
+ */
+export async function handlePasswordResetDeviceOverride(userId) {
+  if (!userId) return { success: false, deviceId: null };
+
+  const deviceId = getOrCreateDeviceId();
+
+  try {
+    console.log('[DeviceSync] Password Reset Device Override Triggered for User:', userId);
+
+    // Step 1: Delete all previous registered devices for this user
+    const { error: deleteError } = await supabase
+      .from('user_devices')
+      .delete()
+      .eq('user_id', userId);
+
+    if (deleteError) {
+      console.warn('[DeviceSync] Error clearing old devices on password reset:', deleteError.message);
+    } else {
+      console.log('[DeviceSync] ✓ Cleared all previous active device sessions for user.');
+    }
+
+    // Step 2: Register current device as the new primary occupied device
+    const { error: insertError } = await supabase
+      .from('user_devices')
+      .insert({
+        user_id: userId,
+        device_id: deviceId,
+        device_name: getDeviceName()
+      });
+
+    if (insertError) {
+      if (insertError.code === '23505') {
+        // Unique constraint violation - already registered
+        return { success: true, deviceId };
+      }
+      console.error('[DeviceSync] Failed to register current device on password reset:', insertError.message);
+      return { success: false, deviceId };
+    }
+
+    console.log('[DeviceSync] ✓ Password Reset Device Override Complete! Occupied current device:', deviceId.substring(0, 8) + '...');
+    return { success: true, deviceId };
+  } catch (err) {
+    console.error('[DeviceSync] Unexpected error during password reset device override:', err);
+    return { success: false, deviceId };
+  }
+}

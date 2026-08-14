@@ -4,11 +4,11 @@
  * This file only manages: Auth state, Presence, and Route definitions.
  */
 
-import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react'
+import React, { useState, useEffect, useCallback, Suspense, lazy, useRef } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from './supabaseClient'
-import { ensureDeviceIsRegistered } from './utils/deviceSync'
+import { ensureDeviceIsRegistered, handlePasswordResetDeviceOverride } from './utils/deviceSync'
 import { SESSION_EXPIRED_EVENT } from './utils/api'
 import { Dna, AlertTriangle, X, CreditCard } from 'lucide-react'
 import { Toaster } from 'sonner'
@@ -16,8 +16,22 @@ import { Toaster } from 'sonner'
 // Pages
 import Auth from './Auth'
 import LandingPage from './pages/LandingPage'
+import AgentFeature from './pages/features/AgentFeature'
+import VisionRagFeature from './pages/features/VisionRagFeature'
+import DiscoveryFeature from './pages/features/DiscoveryFeature'
+import HubFeature from './pages/features/HubFeature'
+import AcademyFeature from './pages/features/AcademyFeature'
+import AuditorFeature from './pages/features/AuditorFeature'
+import PrivacyPolicy from './pages/PrivacyPolicy'
+import TermsOfService from './pages/TermsOfService'
 const ResearchPage = lazy(() => import('./ResearchPage'))
 const SuccessStories3D = lazy(() => import('./pages/SuccessStories3D'))
+const Auditor = lazy(() => import('./pages/Auditor'))
+const HistoryExplorer = lazy(() => import('./pages/HistoryExplorer'))
+const SharedAudit = lazy(() => import('./pages/SharedAudit'))
+const NewsHub = lazy(() => import('./pages/NewsHub'))
+const OpportunityHub = lazy(() => import('./pages/OpportunityHub'))
+const AcademyHub = lazy(() => import('./pages/AcademyHub'))
 import MyLibrary from './MyLibrary'
 import Settings from './Settings'
 import VerifyEmail from './VerifyEmail'
@@ -26,8 +40,6 @@ import Resources from './pages/Resources'
 import Pricing from './pages/Pricing'
 import AdminPanel from './pages/AdminPanel'
 import Profile from './pages/Profile'
-import PrivacyPolicy from './pages/PrivacyPolicy'
-import TermsOfService from './pages/TermsOfService'
 import About from './pages/About'
 
 // Components
@@ -54,6 +66,7 @@ function SessionExpiryRedirector({ sessionExpired, onRedirected }) {
 const ProfileSetupModal = ({ isOpen, user, onClose }) => {
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || '');
   const [academicField, setAcademicField] = useState('Genetic Eng. & Biotech (GEB)');
+  const [customField, setCustomField] = useState('');
   const [academicStatus, setAcademicStatus] = useState('Undergrad');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -66,42 +79,34 @@ const ProfileSetupModal = ({ isOpen, user, onClose }) => {
       setError('Please provide your full name.');
       return;
     }
+    if (academicField === 'Others' && !customField.trim()) {
+      setError('Please specify your domain.');
+      return;
+    }
     setLoading(true);
     setError(null);
-    
-    const fieldMap = {
-      'Genetic Eng. & Biotech (GEB)': 'geb',
-      'Pharmacy & Pharmacology': 'pharma',
-      'Engineering/CS': 'eng',
-      'Physics': 'physics',
-      'Mathematics': 'math',
-      'Social Sciences': 'social',
-      'Law / Legal Studies': 'law',
-      'Chemistry / Pharmacy': 'chem'
-    };
-    const unlockedPortal = fieldMap[academicField] || 'geb';
-    
+
+    const finalField = academicField === 'Others' ? customField.trim() : academicField;
+
     try {
       const { error: updateError } = await supabase.auth.updateUser({
         data: {
           full_name: fullName,
-          academic_field: academicField,
-          academic_status: academicStatus,
-          unlocked_portal: unlockedPortal
+          academic_field: finalField,
+          academic_status: academicStatus
         }
       });
       if (updateError) throw updateError;
-      
+
       if (user) {
         const { error: profileError } = await supabase.from('profiles').update({
-            full_name: fullName,
-            academic_field: academicField,
-            status: academicStatus,
-            unlocked_portal: unlockedPortal
+          full_name: fullName,
+          academic_field: finalField,
+          status: academicStatus
         }).eq('id', user.id);
         if (profileError) console.error("Profile update error:", profileError);
       }
-      
+
       onClose();
     } catch (err) {
       setError(err.message);
@@ -115,16 +120,16 @@ const ProfileSetupModal = ({ isOpen, user, onClose }) => {
       <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
           className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full relative z-10"
         >
           <div className="text-center mb-6">
             <h2 className="text-2xl font-black text-slate-900 tracking-tight">Complete Your Profile</h2>
             <p className="text-sm font-medium text-slate-500 mt-2">Just a few more details to personalize your workspace.</p>
           </div>
-          
+
           {error && (
             <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm font-bold mb-4">
               {error}
@@ -151,8 +156,17 @@ const ProfileSetupModal = ({ isOpen, user, onClose }) => {
                 <option value="Social Sciences">Social Sciences</option>
                 <option value="Law / Legal Studies">Law / Legal Studies</option>
                 <option value="Chemistry / Pharmacy">Chemistry / Pharmacy</option>
+                <option value="Others">Others</option>
               </select>
             </div>
+            {academicField === 'Others' && (
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Specify Domain</label>
+                <input type="text" required placeholder="e.g. Zoology, Botany, Nuclear Physics" value={customField} onChange={e => setCustomField(e.target.value)} disabled={loading}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                />
+              </div>
+            )}
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Academic Status</label>
               <select value={academicStatus} onChange={e => setAcademicStatus(e.target.value)} disabled={loading}
@@ -176,6 +190,12 @@ const ProfileSetupModal = ({ isOpen, user, onClose }) => {
   );
 }
 
+const ProtectedRoute = React.memo(({ user, children }) => {
+  if (!user) return <Navigate to="/auth" replace />
+  if (user && !user.email_confirmed_at) return <Navigate to="/verify-email" replace />
+  return <>{children}</>
+});
+
 function App() {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
@@ -187,6 +207,15 @@ function App() {
   const [sessionExpired, setSessionExpired] = useState(false)
   const [expiryMessage, setExpiryMessage] = useState('')
   const [needsOnboarding, setNeedsOnboarding] = useState(false)
+  const isFirstLoad = useRef(true)
+  const isFirstMount = useRef(true)
+  const initialLoadComplete = useRef(false)
+  const isInitialLoad = useRef(true)
+  const userRef = useRef(user)
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   // ─── Global 402 Session Expiry Handler ───
   // Listens for the custom 'scholarhub:session-expired' event fired by
@@ -226,7 +255,7 @@ function App() {
   // ─── Auth State Listener & Profile Fetcher ───
   useEffect(() => {
     let isMounted = true;
-    
+
     const fetchAndSetProfile = async (sessionUser) => {
       if (!sessionUser) {
         if (isMounted) {
@@ -234,17 +263,19 @@ function App() {
           setProfile(null);
           setIsAdmin(false);
           setIsInitializing(false);
+          initialLoadComplete.current = true;
+          isInitialLoad.current = false;
         }
         return;
       }
-      
+
       const isFounder = sessionUser.email === 'arupbhowmikpritom@gmail.com';
       if (isMounted) setUser(sessionUser);
-      
+
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('role, full_name, academic_field, status, user_tier, unlocked_portal')
+          .select('role, full_name, academic_field, status, user_tier')
           .eq('id', sessionUser.id)
           .maybeSingle();
 
@@ -265,10 +296,9 @@ function App() {
           } else {
             setNeedsOnboarding(true);
             const field = sessionUser?.user_metadata?.academic_field || 'Genetic Eng. & Biotech (GEB)';
-            setProfile({ 
-              user_tier: 'free', 
-              tier: 'free', 
-              unlocked_portal: 'geb', 
+            setProfile({
+              user_tier: 'free',
+              tier: 'free',
               academic_field: field,
               academic_status: sessionUser?.user_metadata?.academic_status || 'Undergrad',
               role: 'user',
@@ -280,10 +310,9 @@ function App() {
       } catch {
         if (isMounted) {
           setNeedsOnboarding(true);
-          setProfile({ 
-            user_tier: 'free', 
-            tier: 'free', 
-            unlocked_portal: 'geb', 
+          setProfile({
+            user_tier: 'free',
+            tier: 'free',
             academic_field: 'Genetic Eng. & Biotech (GEB)',
             academic_status: 'Undergrad',
             role: 'user',
@@ -292,33 +321,93 @@ function App() {
           setIsAdmin(isFounder);
         }
       } finally {
-        if (isMounted) setIsInitializing(false);
+        if (isMounted) {
+          setIsInitializing(false);
+          initialLoadComplete.current = true;
+          isInitialLoad.current = false;
+          isFirstMount.current = false;
+          isFirstLoad.current = false;
+        }
+      }
+    };
+
+    // Password Recovery Device Session Override helper
+    const checkPasswordRecoveryOverride = async (sess, evt) => {
+      const isRecovery = evt === 'PASSWORD_RECOVERY' || 
+                         window.location.hash.includes('type=recovery') || 
+                         window.location.search.includes('type=recovery');
+      if (isRecovery && sess?.user?.id) {
+        console.log('[App] Password Recovery detected! Overriding device locks for user:', sess.user.id);
+        await handlePasswordResetDeviceOverride(sess.user.id);
+        if (isMounted) setDeviceLimitWarning(false);
       }
     };
 
     // Initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
       fetchAndSetProfile(session?.user ?? null);
+      if (session?.user) {
+        checkPasswordRecoveryOverride(session, null);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      // ─── CRITICAL: Only show loading spinner for meaningful auth transitions ───
-      // Supabase fires TOKEN_REFRESHED on every tab re-focus (via its internal
-      // visibilitychange listener). Showing the loading screen for that event
-      // unmounts all child components, wiping AdminPanel/ResearchPage state.
-      const isSignificantEvent = (
+      if (session?.user && _event === 'PASSWORD_RECOVERY') {
+        checkPasswordRecoveryOverride(session, _event);
+      }
+
+      // ─── CRITICAL: Silent Auth & Token Refresh Guard ───
+      const isSignificantEvent = _event === 'SIGNED_IN' || _event === 'SIGNED_OUT' || _event === 'USER_UPDATED' || _event === 'PASSWORD_RECOVERY';
+      if (_event === 'TOKEN_REFRESHED' || !isSignificantEvent || !isInitialLoad.current) {
+        if (isMounted && session?.user && (!userRef.current || userRef.current.id !== session.user.id)) {
+          setUser(session.user);
+        }
+        return;
+      }
+
+      if (initialLoadComplete.current) {
+        if (isMounted) {
+          if (session?.user) {
+            if (!userRef.current || userRef.current.id !== session.user.id || userRef.current.email !== session.user.email) {
+              setUser(session.user);
+            }
+          } else if (_event === 'SIGNED_OUT') {
+            setUser(null);
+            setProfile(null);
+            setIsAdmin(false);
+          }
+        }
+        if ((_event === 'SIGNED_IN' || _event === 'INITIAL_SESSION') && session?.user) {
+          const isRecovery = window.location.hash.includes('type=recovery') || window.location.search.includes('type=recovery');
+          if (isRecovery) {
+            handlePasswordResetDeviceOverride(session.user.id).then(() => {
+              if (isMounted) setDeviceLimitWarning(false);
+            });
+          } else {
+            ensureDeviceIsRegistered(session.user.id, () => {
+              if (isMounted) setDeviceLimitWarning(true);
+            }).catch((err) => {
+              console.warn('[App] Device sync failed silently:', err);
+            });
+          }
+        }
+        return;
+      }
+
+      const needsFullFetch = (
         _event === 'SIGNED_IN' ||
         _event === 'SIGNED_OUT' ||
-        _event === 'INITIAL_SESSION' ||
         _event === 'USER_UPDATED' ||
         _event === 'PASSWORD_RECOVERY'
       );
 
-      if (isSignificantEvent) {
-        if (isMounted) setIsInitializing(true);
+      if (needsFullFetch) {
+        if (!initialLoadComplete.current && isFirstLoad.current) {
+          setIsInitializing(true);
+        }
         fetchAndSetProfile(session?.user ?? null);
       } else {
-        // TOKEN_REFRESHED — silently update user object without flashing UI
+        // TOKEN_REFRESHED, INITIAL_SESSION, or custom events — silently update user object
         if (isMounted && session?.user) {
           setUser(session.user);
         }
@@ -351,7 +440,7 @@ function App() {
           const isFounder = sessionUser.email === 'arupbhowmikpritom@gmail.com';
           supabase
             .from('profiles')
-            .select('role, full_name, academic_field, status, user_tier, unlocked_portal')
+            .select('role, full_name, academic_field, status, user_tier')
             .eq('id', sessionUser.id)
             .maybeSingle()
             .then(({ data, error }) => {
@@ -433,12 +522,6 @@ function App() {
     )
   }
 
-  const ProtectedRoute = ({ children }) => {
-    if (!user) return <Navigate to="/auth" replace />
-    if (!user.email_confirmed_at) return <Navigate to="/verify-email" replace />
-    return children
-  }
-
   return (
     <BrowserRouter>
       <Toaster position="top-right" richColors />
@@ -446,7 +529,7 @@ function App() {
         <ProfileSetupModal isOpen={true} user={user} onClose={() => setNeedsOnboarding(false)} />
       ) : (
         <>
-          <SupportBot />
+          <SupportBot user={user} />
           <SessionExpiryRedirector sessionExpired={sessionExpired} onRedirected={() => setSessionExpired(false)} />
 
           {sessionExpired && expiryMessage && (
@@ -496,22 +579,43 @@ function App() {
 
           <Routes>
             <Route path="/" element={user && !user.email_confirmed_at ? <Navigate to="/verify-email" replace /> : <LandingPage liveUsersCount={liveUsersCount} totalMembersCount={totalMembersCount} user={user} profile={profile} onLogout={handleLogout} />} />
+            <Route path="/features/agent" element={<AgentFeature user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
+            <Route path="/features/vision-rag" element={<VisionRagFeature user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
+            <Route path="/features/discovery" element={<DiscoveryFeature user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
+            <Route path="/features/hub" element={<HubFeature user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
+            <Route path="/features/academy" element={<AcademyFeature user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
+            <Route path="/features/auditor" element={<AuditorFeature user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
+            <Route path="/privacy" element={<PrivacyPolicy user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
+            <Route path="/terms" element={<TermsOfService user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
             <Route path="/verify-email" element={user && !user.email_confirmed_at ? <VerifyEmail user={user} /> : <Navigate to="/" replace />} />
-            <Route path="/research" element={<ProtectedRoute><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#f8fafc]"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}><ResearchPage user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense></ProtectedRoute>} />
+            <Route path="/research" element={<ProtectedRoute user={user}><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#f8fafc]"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}><ResearchPage user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense></ProtectedRoute>} />
             <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
-            <Route path="/library" element={<ProtectedRoute><MyLibrary user={user} onLogout={handleLogout} /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><Settings user={user} /></ProtectedRoute>} />
+            <Route path="/library" element={<ProtectedRoute user={user}><MyLibrary user={user} onLogout={handleLogout} /></ProtectedRoute>} />
+            <Route path="/auditor" element={<ProtectedRoute user={user}><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}><Auditor user={user} onLogout={handleLogout} /></Suspense></ProtectedRoute>} />
+            <Route path="/history" element={<ProtectedRoute user={user}><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}><HistoryExplorer user={user} onLogout={handleLogout} /></Suspense></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute user={user}><Settings user={user} /></ProtectedRoute>} />
             <Route path="/archive" element={<Archive />} />
             <Route path="/resources" element={<Resources />} />
+            <Route path="/news" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}><NewsHub user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense>} />
+            <Route path="/opportunities" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div></div>}><OpportunityHub user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense>} />
+            <Route path="/academy" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div></div>}><AcademyHub user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense>} />
             <Route path="/pricing" element={<Pricing user={user} profile={profile} />} />
-            <Route path="/admin" element={<AdminPanel user={user} profile={profile} liveUsersCount={liveUsersCount} />} />
+            <Route 
+              path="/admin" 
+              element={
+                <ProtectedRoute user={user}>
+                  {isAdmin ? <AdminPanel user={user} profile={profile} liveUsersCount={liveUsersCount} /> : <Navigate to="/" replace />}
+                </ProtectedRoute>
+              } 
+            />
             <Route path="/success-stories" element={<Suspense fallback={<div className="h-screen w-screen bg-[#020617] text-white flex items-center justify-center font-bold tracking-widest uppercase text-sm">Loading 3D Engine...</div>}><SuccessStories3D /></Suspense>} />
-            <Route path="/profile" element={<ProtectedRoute><Profile user={user} /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute user={user}><Profile user={user} /></ProtectedRoute>} />
             <Route path="/paper/*" element={<PaperDetail user={user} profile={profile} />} />
             <Route path="/ai-report" element={<AIReport />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/about" element={<About />} />
+            <Route path="/shared/:shareToken" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-950 text-white"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>}><SharedAudit user={user} /></Suspense>} />
           </Routes>
         </>
       )}

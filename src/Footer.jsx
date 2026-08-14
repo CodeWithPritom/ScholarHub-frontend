@@ -7,7 +7,7 @@ import logo from './assets/images/logo.png'
 const Footer = ({ user, onAuthRequired }) => {
   return (
     <footer className="bg-slate-900 pt-16 md:pt-20 pb-8 md:pb-10 text-slate-300 border-t border-slate-800">
-      <div className="max-w-7xl mx-auto px-6">
+      <div className="w-full 2xl:px-12 mx-auto px-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 md:gap-12 mb-12 md:mb-16">
           
           {/* Column 1: About */}

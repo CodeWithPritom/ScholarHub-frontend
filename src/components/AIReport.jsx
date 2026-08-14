@@ -57,13 +57,13 @@ const AIReport = () => {
   if (!summary) return null
 
   return (
-    <div className="min-h-screen bg-slate-50 selection:bg-blue-100 selection:text-blue-700">
+    <div className="min-h-screen bg-[#FAFAF8] selection:bg-blue-100 selection:text-blue-700">
       {/* Report Header */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-100 print:hidden">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#FAFAF8]/80 backdrop-blur-xl border-b border-slate-100 print:hidden">
+        <div className="w-full 2xl:px-12 mx-auto px-6 py-4 flex items-center justify-between">
           <button 
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-sm font-black text-slate-600 hover:text-blue-600 transition-colors uppercase tracking-widest group"
+            className="flex items-center gap-2 text-sm font-black text-slate-500 hover:text-blue-600 transition-colors uppercase tracking-widest group"
           >
             <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
             Back to Search
@@ -98,27 +98,27 @@ const AIReport = () => {
         }
       `}} />
 
-      <main className="pt-32 pb-32 max-w-6xl mx-auto px-6">
+      <main className="pt-32 pb-32 w-full 2xl:px-12 mx-auto px-6">
         <div className="grid lg:grid-cols-4 gap-12">
           {/* Sidebar Metadata */}
           <aside className="lg:col-span-1 order-2 lg:order-1 print:hidden">
             <div className="sticky top-32 space-y-8">
-              <div className="p-8 bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40">
+              <div className="p-8 bg-[#FAFAF8] rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white">
                     <Sparkles size={20} />
                   </div>
-                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest">Analysis Metadata</h4>
+                  <h4 className="text-xs font-black text-[#171717] uppercase tracking-widest">Analysis Metadata</h4>
                 </div>
                 
                 <div className="space-y-6">
                   <div>
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Original Query</span>
-                    <p className="text-sm font-bold text-slate-900 bg-slate-50 px-3 py-2 rounded-lg border border-slate-100">"{keyword}"</p>
+                    <p className="text-sm font-bold text-[#171717] bg-[#FAFAF8] px-3 py-2 rounded-lg border border-slate-100">"{keyword}"</p>
                   </div>
                   <div>
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Analysis Scope</span>
-                    <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <p className="text-sm font-bold text-[#171717] flex items-center gap-2">
                       <FileText size={14} className="text-blue-500" />
                       {sourceCount} Analyzed Papers
                     </p>
@@ -135,9 +135,9 @@ const AIReport = () => {
                 </div>
               </div>
 
-              <div className="p-8 bg-slate-900 rounded-[2.5rem] text-white print:hidden">
+              <div className="p-8 bg-[#FAFAF8] rounded-[2.5rem] text-white print:hidden">
                 <h5 className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-4">Research Note</h5>
-                <p className="text-xs text-slate-400 leading-relaxed font-medium">
+                <p className="text-xs text-slate-400 leading-[1.75] font-sds-content font-medium">
                   This report is synthesized using advanced LLM technology. Please cross-reference with PMIDs for clinical decisions.
                 </p>
               </div>
@@ -146,12 +146,12 @@ const AIReport = () => {
 
           {/* Main Content */}
           <div className="lg:col-span-3 order-1 lg:order-2">
-            <div className="bg-white rounded-[3rem] p-12 md:p-20 border border-slate-100 shadow-2xl shadow-slate-200/50">
+            <div className="bg-[#FAFAF8] rounded-[3rem] p-12 md:p-20 border border-slate-100 shadow-2xl shadow-slate-200/50">
               <div className="mb-12 border-b border-slate-100 pb-12">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black bg-blue-50 text-blue-600 border border-blue-100 uppercase tracking-widest mb-6">
                   Executive Intelligence Report
                 </div>
-                <h1 className="text-4xl md:text-5xl font-black text-slate-900 leading-tight tracking-tight mb-4">
+                <h1 className="text-4xl md:text-5xl font-black text-[#171717] leading-tight tracking-tight mb-4">
                   Scientific Synthesis: {keyword}
                 </h1>
                 <p className="text-slate-400 text-sm font-bold uppercase tracking-[0.3em]">
@@ -166,7 +166,7 @@ const AIReport = () => {
                   className={`pb-4 text-xs font-black uppercase tracking-widest transition-all border-b-2 ${
                     activeTab === 'synthesis'
                       ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-slate-400 hover:text-slate-600'
+                      : 'border-transparent text-slate-400 hover:text-slate-500'
                   }`}
                 >
                   Executive Synthesis
@@ -176,7 +176,7 @@ const AIReport = () => {
                   className={`pb-4 text-xs font-black uppercase tracking-widest transition-all border-b-2 flex items-center gap-2 ${
                     activeTab === 'gaps'
                       ? 'border-amber-500 text-amber-500'
-                      : 'border-transparent text-slate-400 hover:text-slate-600'
+                      : 'border-transparent text-slate-400 hover:text-slate-500'
                   }`}
                 >
                   Identified Research Gaps
@@ -189,21 +189,21 @@ const AIReport = () => {
               {/* Dynamic View container */}
               <div className="print:hidden">
                 {activeTab === 'synthesis' ? (
-                  <article className="prose prose-slate max-w-none">
-                    <div className="font-serif text-lg text-slate-800 leading-relaxed antialiased" style={{ fontFamily: "'Merriweather', serif" }}>
+                  <article className="prose prose-slate font-sds-content leading-[1.75] max-w-none">
+                    <div className="font-serif text-lg text-[#171717] leading-[1.75] font-sds-content antialiased" style={{ fontFamily: "'Merriweather', serif" }}>
                       {formatMarkdown(mainSummary || summary)}
                     </div>
                   </article>
                 ) : (
-                  <article className="prose prose-slate max-w-none">
-                    <div className="font-serif text-lg text-slate-800 leading-relaxed antialiased" style={{ fontFamily: "'Merriweather', serif" }}>
+                  <article className="prose prose-slate font-sds-content leading-[1.75] max-w-none">
+                    <div className="font-serif text-lg text-[#171717] leading-[1.75] font-sds-content antialiased" style={{ fontFamily: "'Merriweather', serif" }}>
                       {gapsContent ? (
                         <div className="space-y-6">
                           <p className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Unanswered Questions & Conflicting Findings:</p>
                           {formatMarkdown(gapsContent)}
                         </div>
                       ) : (
-                        <div className="py-12 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                        <div className="py-12 text-center bg-[#FAFAF8] rounded-2xl border border-dashed border-slate-200">
                           <p className="text-slate-400 text-xs font-black uppercase tracking-widest">No specific gaps identified</p>
                           <p className="text-slate-400 text-xs font-medium mt-2">Initiate a new search session to trigger research gap analysis.</p>
                         </div>
@@ -216,15 +216,15 @@ const AIReport = () => {
               {/* Print Layout */}
               <div className="hidden print:block space-y-12">
                 <section>
-                  <h2 className="text-lg font-bold uppercase tracking-wider text-slate-900 border-b pb-2 mb-4">Executive Synthesis</h2>
-                  <div className="font-serif text-sm text-slate-800 leading-relaxed" style={{ fontFamily: "'Merriweather', serif" }}>
+                  <h2 className="text-lg font-bold uppercase tracking-wider text-[#171717] border-b pb-2 mb-4">Executive Synthesis</h2>
+                  <div className="font-serif text-sm text-[#171717] leading-[1.75] font-sds-content" style={{ fontFamily: "'Merriweather', serif" }}>
                     {formatMarkdown(mainSummary || summary)}
                   </div>
                 </section>
                 {gapsContent && (
                   <section className="pt-8 border-t border-dashed border-slate-200">
                     <h2 className="text-lg font-bold uppercase tracking-wider text-amber-600 border-b pb-2 mb-4">Identified Research Gaps</h2>
-                    <div className="font-serif text-sm text-slate-800 leading-relaxed animate-pulse" style={{ fontFamily: "'Merriweather', serif" }}>
+                    <div className="font-serif text-sm text-[#171717] leading-[1.75] font-sds-content animate-pulse" style={{ fontFamily: "'Merriweather', serif" }}>
                       {formatMarkdown(gapsContent)}
                     </div>
                   </section>
@@ -233,16 +233,16 @@ const AIReport = () => {
 
               <div className="mt-20 pt-12 border-t border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300">
+                  <div className="w-12 h-12 bg-[#FAFAF8] rounded-2xl flex items-center justify-center text-slate-300">
                     <Database size={24} />
                   </div>
                   <div>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data Source</p>
-                    <p className="text-xs font-bold text-slate-900">National Library of Medicine (NCBI)</p>
+                    <p className="text-xs font-bold text-[#171717]">National Library of Medicine (NCBI)</p>
                   </div>
                 </div>
                 <div className="w-32 h-10 opacity-20 grayscale">
-                  <div className="flex items-center gap-1 font-black text-2xl tracking-tighter text-slate-900">
+                  <div className="flex items-center gap-1 font-black text-2xl tracking-tighter text-[#171717]">
                     <Dna size={24} className="text-blue-600" />
                     NCBI<span className="text-blue-600">PRO</span>
                   </div>

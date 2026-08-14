@@ -33,12 +33,13 @@ const fadeUp = {
   })
 }
 
-const Dashboard = ({ liveUsersCount, user }) => {
+const Dashboard = ({ liveUsersCount, user, profile }) => {
   const navigate = useNavigate()
   const [totalUsers, setTotalUsers] = useState(0)
   const [loadingUsers, setLoadingUsers] = useState(true)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [userName, setUserName] = useState('')
+  const [academicField, setAcademicField] = useState(profile?.academic_field || 'Genetic Eng. & Biotech (GEB)')
 
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -46,16 +47,23 @@ const Dashboard = ({ liveUsersCount, user }) => {
   }, [])
 
   useEffect(() => {
-    const fetchUserName = async () => {
+    if (profile?.academic_field) {
+      setAcademicField(profile.academic_field);
+    }
+  }, [profile])
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
       if (user) {
         try {
           const { data, error } = await supabase
             .from('profiles')
-            .select('full_name')
+            .select('full_name, academic_field')
             .eq('id', user.id)
             .maybeSingle()
-          if (!error && data?.full_name) {
-            setUserName(data.full_name)
+          if (!error && data) {
+            if (data.full_name) setUserName(data.full_name)
+            if (data.academic_field) setAcademicField(data.academic_field)
           } else {
             setUserName(user.email?.split('@')[0])
           }
@@ -64,7 +72,7 @@ const Dashboard = ({ liveUsersCount, user }) => {
         }
       }
     }
-    fetchUserName()
+    fetchUserProfile()
   }, [user])
 
  const fetchTotalUsers = async () => {
@@ -85,12 +93,94 @@ const Dashboard = ({ liveUsersCount, user }) => {
   }
 }
 
+  const getSuggestedQueries = (field) => {
+    const norm = (field || '').toLowerCase();
+    if (norm.includes('biotech') || norm.includes('genetic') || norm.includes('geb')) {
+      return [
+        { title: 'CRISPR Gene Editing', desc: 'Efficiency of in vivo CRISPR gene editing therapies.', query: 'CRISPR gene editing efficiency in vivo' },
+        { title: 'Synthetic Biology', desc: 'Pathway optimization in synthetic biology.', query: 'Synthetic biology pathway optimization' },
+        { title: 'RNA Sequencing', desc: 'Single-cell RNA sequencing methodology advancements.', query: 'Single-cell RNA sequencing methods' },
+        { title: 'mRNA Vaccines', desc: 'Development and trials of new mRNA vaccines.', query: 'Latest mRNA Vaccine Trials' }
+      ];
+    }
+    if (norm.includes('medicine') || norm.includes('medical') || norm.includes('health')) {
+      return [
+        { title: 'mRNA Vaccine Trials', desc: 'Latest clinical trials for mRNA vaccines.', query: 'Latest mRNA Vaccine Trials' },
+        { title: 'CAR-T Cell Therapy', desc: 'Recent breakthroughs in CAR-T cell cancer therapies.', query: 'CAR-T cell therapy clinical trials' },
+        { title: 'Clinical AI Diagnosis', desc: 'Artificial intelligence performance in clinical settings.', query: 'Artificial intelligence in clinical diagnosis' },
+        { title: 'Oncology Immunotherapy', desc: 'Recent trials in oncology immunotherapy.', query: 'Immunotherapy breakthroughs in oncology' }
+      ];
+    }
+    if (norm.includes('pharm')) {
+      return [
+        { title: 'Nanoparticle Drug Delivery', desc: 'Targeted drug delivery using nanoparticles.', query: 'Targeted drug delivery nanoparticles' },
+        { title: 'Pharmacogenomics', desc: 'Role of genomics in personalized medicine.', query: 'Pharmacogenomics in personalized medicine' },
+        { title: 'Small Molecule Inhibitors', desc: 'Novel small molecule inhibitors for oncology.', query: 'Novel small molecule inhibitors for oncology' },
+        { title: 'Monoclonal Antibodies', desc: 'Monoclonal antibody developments approved recently.', query: 'FDA approved monoclonal antibodies' }
+      ];
+    }
+    if (norm.includes('physic')) {
+      return [
+        { title: 'Quantum Computing', desc: 'Quantum entanglement and computing scalability.', query: 'Quantum entanglement and computing scalability' },
+        { title: 'Superconductivity', desc: 'High-temperature superconductivity mechanisms.', query: 'High-temperature superconductivity mechanisms' },
+        { title: 'Dark Matter Detection', desc: 'Status of experimental dark matter detection.', query: 'Dark matter detection experiments' },
+        { title: 'Fusion Confinement', desc: 'Plasma confinement in thermonuclear fusion.', query: 'Thermonuclear fusion plasma confinement' }
+      ];
+    }
+    if (norm.includes('math')) {
+      return [
+        { title: 'Category Theory in CS', desc: 'Applications of category theory in CS.', query: 'Applications of category theory in computer science' },
+        { title: 'Riemann Hypothesis', desc: 'Numerical verifications of Riemann hypothesis.', query: 'Riemann hypothesis numerical verifications' },
+        { title: 'Mathematical Deep Learning', desc: 'Foundational mathematics of deep learning.', query: 'Deep learning mathematical foundations' },
+        { title: 'Topology in Quantum ECC', desc: 'Topology in quantum error correction.', query: 'Topology in quantum error correction' }
+      ];
+    }
+    if (norm.includes('engineer') || norm.includes('computer') || norm.includes('cs')) {
+      return [
+        { title: 'Neuromorphic Hardware', desc: 'Neuromorphic chips for edge computing.', query: 'Neuromorphic hardware for edge computing' },
+        { title: 'Solid-State Batteries', desc: 'Energy density of solid-state batteries.', query: 'Solid-state battery energy density' },
+        { title: 'Autonomous Path Planning', desc: 'Path planning algorithms in autonomous systems.', query: 'Autonomous vehicle path planning algorithms' },
+        { title: 'LLM Inference Acceleration', desc: 'Accelerating large language model inference.', query: 'Large language model inference acceleration' }
+      ];
+    }
+    if (norm.includes('chem')) {
+      return [
+        { title: 'Green Chemistry Catalysts', desc: 'Catalytic plastic recycling methods.', query: 'Green chemistry catalysts for plastic recycling' },
+        { title: 'Perovskite Solar Cells', desc: 'Degradation mechanisms in perovskites.', query: 'Perovskite solar cell degradation mechanisms' },
+        { title: 'Metal-Organic Frameworks', desc: 'Carbon capture utilizing MOFs.', query: 'Metal-organic frameworks for carbon capture' },
+        { title: 'Automated Synthesis', desc: 'Robotic automated chemical synthesis.', query: 'Automated chemical synthesis using robotics' }
+      ];
+    }
+    if (norm.includes('law') || norm.includes('legal')) {
+      return [
+        { title: 'AI & Copyright Fair Use', desc: 'Legal cases regarding AI and copyright.', query: 'Generative AI copyright fair use cases' },
+        { title: 'LLM Data Privacy', desc: 'Data privacy regulations and LLM training.', query: 'Data privacy regulations in the LLM era' },
+        { title: 'Smart Contract Enforcement', desc: 'Legal frameworks for smart contracts.', query: 'Smart contracts legal enforcement frameworks' },
+        { title: 'Digital Market Antitrust', desc: 'Antitrust laws in modern tech platforms.', query: 'Antitrust regulations in digital markets' }
+      ];
+    }
+    if (norm.includes('social')) {
+      return [
+        { title: 'Algorithmic Polarization', desc: 'Effect of algorithms on political polarization.', query: 'Impact of social media algorithms on polarization' },
+        { title: 'Post-Pandemic Inequality', desc: 'Trends in economic inequality post-pandemic.', query: 'Economic inequality post-pandemic trends' },
+        { title: 'Remote Work Psychology', desc: 'Psychological impacts of remote team structures.', query: 'Remote work psychological effects on teams' },
+        { title: 'Nudges in Public Health', desc: 'Behavioral economics nudges in healthcare.', query: 'Behavioral economics nudges in public health' }
+      ];
+    }
+    return [
+      { title: 'mRNA Vaccine Trials', desc: 'Latest clinical trials for mRNA vaccines.', query: 'Latest mRNA Vaccine Trials' },
+      { title: 'LLM Inference Acceleration', desc: 'Accelerating large language model inference.', query: 'Large language model inference acceleration' },
+      { title: 'Quantum Computing Scaling', desc: 'Quantum entanglement and computing scalability.', query: 'Quantum entanglement and computing scalability' },
+      { title: 'CRISPR Gene Editing', desc: 'Efficiency of in vivo CRISPR gene editing therapies.', query: 'CRISPR gene editing efficiency in vivo' }
+    ];
+  };
+
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans selection:bg-blue-100 selection:text-blue-700">
 
       {/* ─── Navbar ─── */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/70 backdrop-blur-2xl border-b border-slate-100/80">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="w-full 2xl:px-12 mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/25">
               <Dna size={20} />
@@ -128,7 +218,7 @@ const Dashboard = ({ liveUsersCount, user }) => {
         <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-indigo-500/[0.04] rounded-full blur-3xl pointer-events-none" />
         <div className="absolute top-40 right-10 w-[200px] h-[200px] bg-emerald-500/[0.03] rounded-full blur-3xl pointer-events-none" />
 
-        <div className="max-w-5xl mx-auto text-center relative z-10">
+        <div className="w-full 2xl:px-12 mx-auto text-center relative z-10">
           <motion.div variants={fadeUp} initial="hidden" animate="visible" custom={0}>
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 border border-blue-100 mb-8">
               <div className="relative flex h-2 w-2">
@@ -205,7 +295,7 @@ const Dashboard = ({ liveUsersCount, user }) => {
           2. STATS SECTION — 3 Cards
       ═══════════════════════════════════════════════ */}
       <section className="py-24 px-6">
-        <div className="max-w-6xl mx-auto">
+        <div className="w-full 2xl:px-12 mx-auto">
           <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }} custom={0} className="text-center mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black bg-slate-900 text-white uppercase tracking-widest mb-4">
               <Activity size={12} /> Platform Metrics
@@ -220,7 +310,7 @@ const Dashboard = ({ liveUsersCount, user }) => {
             {/* Card 1: Live Researchers */}
             <motion.div 
               variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }} custom={1}
-              className="relative bg-gradient-to-br from-emerald-600 to-emerald-700 p-10 rounded-[2.5rem] shadow-2xl shadow-emerald-600/20 overflow-hidden group"
+              className="relative bg-gradient-to-br from-emerald-600 to-emerald-700 p-10 rounded-[12px] shadow-sm overflow-hidden group"
             >
               <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
                 <Users size={80} />
@@ -241,7 +331,7 @@ const Dashboard = ({ liveUsersCount, user }) => {
             {/* Card 2: Total Members */}
             <motion.div 
               variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }} custom={2}
-              className="relative bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-2xl shadow-slate-200/50 overflow-hidden group hover:border-blue-200 transition-colors"
+              className="relative bg-white p-10 rounded-[12px] border border-[#E5E5DF] shadow-sm overflow-hidden group hover:border-[#315CFF]/30 transition-colors"
             >
               <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
                 <Users size={80} className="text-blue-600" />
@@ -261,7 +351,7 @@ const Dashboard = ({ liveUsersCount, user }) => {
             {/* Card 3: Global Papers Indexed */}
             <motion.div 
               variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }} custom={3}
-              className="relative bg-gradient-to-br from-slate-900 to-slate-800 p-10 rounded-[2.5rem] shadow-2xl shadow-slate-900/20 overflow-hidden group"
+              className="relative bg-white p-10 rounded-[12px] border border-[#E5E5DF] shadow-sm overflow-hidden group hover:border-[#315CFF]/30 transition-colors"
             >
               <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
                 <Database size={80} className="text-indigo-400" />
@@ -271,12 +361,42 @@ const Dashboard = ({ liveUsersCount, user }) => {
                   <div className="w-3 h-3 bg-indigo-400 rounded-full" />
                   <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">PubMed Sync</span>
                 </div>
-                <h3 className="text-6xl font-black text-white mb-3 tracking-tight">35M<span className="text-indigo-400">+</span></h3>
+                <h3 className="text-6xl font-black text-[#171717] mb-3 tracking-tight">35M<span className="text-indigo-600">+</span></h3>
                 <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Global Papers Indexed</p>
               </div>
             </motion.div>
 
           </div>
+
+          {/* Live Intelligence — Suggested Queries based on Academic Field */}
+          <div className="mt-16 pt-16 border-t border-[#E5E5DF]">
+            <h3 className="text-sm font-bold text-[#171717] uppercase tracking-widest mb-6 flex items-center gap-2">
+              <Sparkles size={16} className="text-blue-400" />
+              Live Intelligence Suggestions for <span className="text-blue-400 font-extrabold">{academicField}</span>
+            </h3>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {getSuggestedQueries(academicField).map((item, idx) => (
+                <div 
+                  key={idx}
+                  onClick={() => navigate(`/research?q=${encodeURIComponent(item.query)}`)}
+                  className="bg-white p-6 rounded-[12px] border border-[#E5E5DF] hover:border-[#315CFF]/30 hover:shadow-xs transition-all cursor-pointer group flex flex-col justify-between"
+                >
+                  <div>
+                    <h4 className="text-base font-bold text-[#171717] group-hover:text-[#315CFF] transition-colors mb-2">
+                      {item.title}
+                    </h4>
+                    <p className="text-xs text-slate-700 font-medium leading-relaxed mb-4">
+                      {item.desc}
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-black text-blue-400 uppercase tracking-wider flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                    Search Now <ArrowUpRight size={12} />
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
         </div>
       </section>
 
@@ -285,7 +405,7 @@ const Dashboard = ({ liveUsersCount, user }) => {
       ═══════════════════════════════════════════════ */}
       <section className="py-24 px-6 bg-white relative">
         <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full 2xl:px-12 mx-auto">
           <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }} custom={0} className="text-center mb-20">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black bg-blue-50 text-blue-600 border border-blue-100 uppercase tracking-widest mb-4">
               <BookOpen size={12} /> Platform Workflow Guide
@@ -374,8 +494,8 @@ const Dashboard = ({ liveUsersCount, user }) => {
       {/* ═══════════════════════════════════════════════
           4. MULTI-COLUMN FOOTER
       ═══════════════════════════════════════════════ */}
-      <footer className="bg-slate-900 text-white pt-20 pb-10 px-6">
-        <div className="max-w-6xl mx-auto">
+      <footer className="bg-[#F3F3EF] text-[#171717] border-t border-[#E5E5DF] pt-20 pb-10 px-6">
+        <div className="w-full 2xl:px-12 mx-auto">
           <div className="grid md:grid-cols-3 gap-16 mb-16">
 
             {/* Column 1: About */}
@@ -385,11 +505,11 @@ const Dashboard = ({ liveUsersCount, user }) => {
                   <Dna size={22} />
                 </div>
                 <div>
-                  <h4 className="text-lg font-black tracking-tight leading-none">ScholarHub <span className="text-blue-400">AI</span></h4>
+                  <h4 className="text-lg font-bold tracking-tight leading-none text-[#171717]">ScholarHub <span className="text-[#315CFF]">AI</span></h4>
                   <p className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em]">Advanced Research Hub</p>
                 </div>
               </div>
-              <p className="text-sm text-slate-400 leading-relaxed font-medium mb-6">
+              <p className="text-sm text-slate-700 leading-relaxed font-medium mb-6">
                 A next-generation bioinformatics portal bridging PubMed's 35M+ paper database with AI-powered synthesis, 
                 built to accelerate scientific discovery for university researchers worldwide.
               </p>
@@ -397,7 +517,7 @@ const Dashboard = ({ liveUsersCount, user }) => {
                 <span className="text-[9px] font-black uppercase tracking-widest">Tech Stack:</span>
                 <div className="flex items-center gap-2">
                   {['React', 'FastAPI', 'Supabase'].map((tech, i) => (
-                    <span key={i} className="px-2 py-0.5 bg-slate-800 text-slate-400 text-[9px] font-bold rounded border border-slate-700">
+                    <span key={i} className="px-2 py-0.5 bg-white text-slate-700 text-[9px] font-bold rounded border border-[#E5E5DF]">
                       {tech}
                     </span>
                   ))}

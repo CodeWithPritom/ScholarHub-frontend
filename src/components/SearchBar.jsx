@@ -3,36 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Loader2, Filter, RefreshCcw, Lock, AlertCircle, Database, ArrowUpRight, ChevronUp, ChevronDown, Calendar, Sparkles, LayoutGrid, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const getPortalTheme = (p) => {
-  switch (p) {
-    case 'geb': return { bg: 'bg-emerald-50', border: 'border-emerald-100', text: 'text-emerald-800', textHover: 'text-emerald-600', icon: 'text-emerald-400' }
-    case 'pharma': return { bg: 'bg-violet-50', border: 'border-violet-100', text: 'text-violet-800', textHover: 'text-violet-600', icon: 'text-violet-400' }
-    case 'chem': return { bg: 'bg-teal-50', border: 'border-teal-100', text: 'text-teal-800', textHover: 'text-teal-600', icon: 'text-teal-400' }
-    case 'law': return { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-800', textHover: 'text-slate-600', icon: 'text-slate-400' }
-    case 'social': return { bg: 'bg-amber-50', border: 'border-amber-100', text: 'text-amber-800', textHover: 'text-amber-600', icon: 'text-amber-400' }
-    case 'eng': return { bg: 'bg-indigo-50', border: 'border-indigo-100', text: 'text-indigo-800', textHover: 'text-indigo-600', icon: 'text-indigo-400' }
-    case 'physics': return { bg: 'bg-cyan-50', border: 'border-cyan-100', text: 'text-cyan-800', textHover: 'text-cyan-600', icon: 'text-cyan-400' }
-    case 'math': return { bg: 'bg-rose-50', border: 'border-rose-100', text: 'text-rose-800', textHover: 'text-rose-600', icon: 'text-rose-400' }
-    default: return { bg: 'bg-emerald-50', border: 'border-emerald-100', text: 'text-emerald-800', textHover: 'text-emerald-600', icon: 'text-emerald-400' }
-  }
-};
-
-const getPortalDetails = (p) => {
-  switch (p) {
-    case 'geb': return { name: 'GEB', longName: 'Genetic Eng. & Biotech', icon: '🧬' }
-    case 'pharma': return { name: 'Pharmacy', longName: 'Pharmacy & Pharmacology', icon: '💊' }
-    case 'eng': return { name: 'Engineering', longName: 'Engineering Workspace', icon: '⚙️' }
-    case 'physics': return { name: 'Physics', longName: 'Physics Workspace', icon: '⚛️' }
-    case 'math': return { name: 'Mathematics', longName: 'Mathematics Workspace', icon: '📐' }
-    case 'social': return { name: 'Social Sci', longName: 'Social Sciences', icon: '🏛️' }
-    case 'chem': return { name: 'Chemical Sci', longName: 'Chemical Sciences', icon: '🧪' }
-    case 'law': return { name: 'Law & Legal', longName: 'Law & Legal Studies', icon: '⚖️' }
-    default: return { name: 'GEB', longName: 'Genetic Eng. & Biotech', icon: '🧬' }
-  }
-};
-
 const SearchBar = ({
-  portal, setPortal, userTier, unlockedPortalState, setArticles, setHasSearched,
+  portal, setPortal, userTier, setArticles, setHasSearched,
   suggestionsRef, searchPubMed, setShowSuggestions, searchTerm, handleSearchInput,
   suggestions, loading, resultLimit, setResultLimit, isSearchBlocked, cooldownTime,
   guestCooldown, handleSuggestionClick, showSuggestions, startDate, setStartDate,
@@ -53,143 +25,79 @@ const SearchBar = ({
 
   return (
     <>
-      {/* Portal Selector */}
-      <div className="w-full mb-8 relative">
-        {userTier !== 'pro' ? (
-          <div className="flex flex-wrap justify-center gap-2 pb-2">
-            <div className={`inline-flex items-center gap-2 px-4 py-2.5 border rounded-2xl shadow-sm ${getPortalTheme(portal).bg} ${getPortalTheme(portal).border}`}>
-              <span className="text-sm">
-                {getPortalDetails(portal).icon}
-              </span>
-              <span className={`text-xs font-black uppercase tracking-widest ${getPortalTheme(portal).text}`}>
-                {getPortalDetails(portal).name} - {userTier}
-              </span>
-              <Lock size={12} className={`${getPortalTheme(portal).icon} ml-1`} />
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Desktop Dropdown */}
-            <div className="hidden md:inline-block relative text-left">
-              <button
-                type="button"
-                onClick={() => setIsPortalDropdownOpen(!isPortalDropdownOpen)}
-                className="inline-flex items-center gap-3 px-5 py-3 bg-white border-2 border-slate-100 hover:border-blue-200 rounded-2xl shadow-sm text-sm font-black text-slate-700 uppercase tracking-widest transition-all"
-              >
-                <span className="flex items-center gap-2">
-                  <span>{getPortalDetails(portal).icon}</span>
-                  {getPortalDetails(portal).name}
-                </span>
-                <ChevronDown size={16} className={`text-slate-400 transition-transform ${isPortalDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-  
-              <AnimatePresence>
-                {isPortalDropdownOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="absolute left-0 mt-2 w-56 rounded-2xl bg-white shadow-2xl shadow-slate-200 border border-slate-200 z-[100] overflow-y-auto max-h-80 scrollbar-hide"
-                  >
-                    <div className="p-2 space-y-1">
-                      {['geb', 'pharma', 'eng', 'physics', 'math', 'social', 'law', 'chem'].map(pId => {
-                        const details = getPortalDetails(pId);
-                        const theme = getPortalTheme(pId);
-                        const isSelected = portal === pId;
-                        return (
-                          <button
-                            key={pId}
-                            onClick={() => {
-                              setPortal(pId);
-                              setIsPortalDropdownOpen(false);
-                            }}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
-                              isSelected 
-                                ? `${theme.bg} ${theme.textHover}`
-                                : 'hover:bg-slate-50 text-slate-600'
-                            }`}
-                          >
-                            <span className="text-sm">{details.icon}</span>
-                            {details.name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Mobile Swipeable List */}
-            <div className="md:hidden flex flex-wrap justify-center gap-2 pb-2">
-              {['geb', 'pharma', 'eng', 'physics', 'math', 'social', 'law', 'chem'].map(pId => {
-                const details = getPortalDetails(pId);
-                const theme = getPortalTheme(pId);
-                const isSelected = portal === pId;
-                return (
-                  <button
-                    key={pId}
-                    onClick={() => setPortal(pId)}
-                    className={`inline-flex items-center shrink-0 gap-2 px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border ${
-                      isSelected 
-                        ? `${theme.bg} ${theme.border} ${theme.textHover} shadow-sm`
-                        : 'bg-white border-slate-100 text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    <span className="text-sm">{details.icon}</span>
-                    {details.name}
-                  </button>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </div>
 
       {/* Search Console */}
       <div className="w-full min-h-[140px] md:min-h-[100px] relative" ref={suggestionsRef}>
-        <form onSubmit={(e) => { searchPubMed(e); setShowSuggestions(false); }} className="relative group mb-4">
-          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-500 transition-colors">
-            <Search size={22} />
+        <form onSubmit={(e) => { searchPubMed(e); setShowSuggestions(false); }} className="flex flex-col md:flex-row bg-white border border-slate-200/80 rounded-3xl md:rounded-[2rem] shadow-xl p-3 md:p-2 relative group mb-4 w-full gap-4 md:gap-0">
+          {/* Search Input Wrapper */}
+          <div className="relative w-full md:flex-1 flex items-center min-w-0">
+            <div className="absolute left-3 text-slate-400 group-focus-within:text-slate-600 transition-colors">
+              <Search size={22} />
+            </div>
+            <input
+              type="text"
+              placeholder="Search across all academic databases (NCBI, arXiv, OpenAlex)..."
+              className="w-full pl-11 pr-3 py-3 md:py-4 bg-transparent outline-none text-slate-900 font-semibold placeholder:text-slate-400 border-none focus:ring-0"
+              value={searchTerm}
+              onChange={handleSearchInput}
+              onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+              disabled={loading}
+              autoComplete="off"
+            />
+            
+            {/* Autocomplete Suggestions Dropdown */}
+            <AnimatePresence>
+              {showSuggestions && suggestions.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute left-0 right-0 top-full mt-3 bg-white border border-slate-100 rounded-2xl shadow-2xl shadow-slate-200/60 overflow-hidden z-50"
+                >
+                  <div className="px-4 py-2 border-b border-slate-50">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <Database size={10} />
+                      PubMed Suggestions
+                    </span>
+                  </div>
+                  {suggestions.map((term, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleSuggestionClick(term)}
+                      className="w-full text-left px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors flex items-center gap-3 group/suggest"
+                    >
+                      <Search size={14} className="text-slate-300 group-hover/suggest:text-slate-500 shrink-0" />
+                      <span className="truncate">{term}</span>
+                      <ArrowUpRight size={12} className="ml-auto text-slate-200 group-hover/suggest:text-slate-400 shrink-0" />
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-          <input
-            type="text"
-            placeholder="Query topic (e.g., Cancer Genomics)..."
-            className="w-full pl-12 pr-4 md:pr-48 py-5 bg-white border-2 border-slate-100 rounded-3xl shadow-2xl shadow-slate-200/50 outline-none focus:border-blue-500 transition-all placeholder:text-slate-400 font-semibold"
-            value={searchTerm}
-            onChange={handleSearchInput}
-            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-            disabled={loading}
-            autoComplete="off"
-          />
-          <div className="relative md:absolute md:right-2 md:inset-y-0 mt-3 md:mt-0 flex flex-row items-stretch md:items-center gap-2 w-full md:w-auto">
+
+          {/* Action Buttons Section */}
+          <div className="flex flex-wrap md:flex-nowrap items-center gap-4 md:gap-2 w-full md:w-auto shrink-0 border-t border-slate-100 md:border-none pt-3 md:pt-0">
+            {/* AI Refine Button */}
             <button
               type="button"
               onClick={handleAiRefine}
               disabled={isRefining || !searchTerm.trim() || loading}
               title="Optimize query with AI"
-              className="w-auto md:w-auto px-4 py-4 md:p-3 shrink-0 text-amber-500 hover:text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-2xl transition-all shadow-sm border border-amber-100 disabled:opacity-50 flex items-center justify-center"
+              className="flex-1 md:flex-none px-4 py-3.5 md:p-3 shrink-0 text-amber-500 hover:text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-xl md:rounded-2xl transition-all shadow-sm border border-amber-100/80 disabled:opacity-50 flex items-center justify-center"
             >
               <Sparkles size={18} className={isRefining ? "animate-pulse" : ""} />
             </button>
-            <select 
-              value={resultLimit}
-              onChange={(e) => setResultLimit(Number(e.target.value))}
-              className="flex-1 md:w-auto appearance-none bg-slate-50 border border-slate-100 text-slate-600 text-xs font-black px-3 py-4 md:py-3 rounded-2xl outline-none hover:border-blue-200 transition-colors cursor-pointer"
-            >
-              <option value="10">10</option>
-              <option value="20">20</option>
-              <option value="50" disabled={userTier === 'free'} className={userTier === 'free' ? 'text-slate-300' : ''}>
-                {userTier === 'free' ? '50 🔒' : '50'}
-              </option>
-              <option value="100" disabled={userTier === 'free' || userTier === 'starter'} className={userTier === 'free' || userTier === 'starter' ? 'text-slate-300' : ''}>
-                {userTier === 'free' || userTier === 'starter' ? '100 🔒' : '100'}
-              </option>
-            </select>
+
+
+
+            {/* Fetch Button */}
             <button 
               type="submit"
               disabled={loading || !searchTerm.trim() || isSearchBlocked}
-              className="flex-[2] md:flex-none md:w-auto px-4 py-4 md:py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-black rounded-2xl transition-all shadow-lg shadow-blue-300 disabled:opacity-50 flex items-center gap-2 justify-center shrink-0"
+              className="w-full md:w-auto px-6 py-3.5 md:py-3 bg-slate-900 hover:bg-slate-800 text-white text-sm font-black rounded-xl md:rounded-2xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 flex items-center gap-2 justify-center shrink-0"
             >
               {loading ? (
                 <Loader2 size={18} className="animate-spin" />
@@ -202,7 +110,7 @@ const SearchBar = ({
               )}
             </button>
           </div>
-
+        </form>
           {/* Cooldown Warnings */}
           <AnimatePresence>
             {cooldownTime > 0 && (
@@ -222,59 +130,23 @@ const SearchBar = ({
                 exit={{ opacity: 0, height: 0 }}
                 className="absolute -bottom-10 left-0 text-xs font-black text-amber-600 flex items-center gap-1.5 bg-amber-50 px-4 py-2 rounded-xl border border-amber-100"
               >
-                <AlertCircle size={14} /> Free Tier cooldown — next search in {guestCooldown}s. <span className="text-blue-600 underline cursor-pointer" onClick={() => navigate('/pricing')}>Upgrade to PRO for instant search</span>
+                <AlertCircle size={14} /> Free Tier cooldown — next search in {guestCooldown}s. <span className="text-slate-900 underline cursor-pointer font-black" onClick={() => navigate('/pricing')}>Upgrade to PRO for instant search</span>
               </motion.div>
             )}
           </AnimatePresence>
-
-          {/* Autocomplete Suggestions Dropdown */}
-          <AnimatePresence>
-            {showSuggestions && suggestions.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.15 }}
-                className="absolute left-0 right-0 top-full mt-2 bg-white border border-slate-100 rounded-2xl shadow-2xl shadow-slate-200/60 overflow-hidden z-50"
-              >
-                <div className="px-4 py-2 border-b border-slate-50">
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                    <Database size={10} />
-                    PubMed Suggestions
-                  </span>
-                </div>
-                {suggestions.map((term, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => handleSuggestionClick(term)}
-                    className="w-full text-left px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors flex items-center gap-3 group/suggest"
-                  >
-                    <Search size={14} className="text-slate-300 group-hover/suggest:text-blue-500 shrink-0" />
-                    <span className="truncate">{term}</span>
-                    <ArrowUpRight size={12} className="ml-auto text-slate-200 group-hover/suggest:text-blue-400 shrink-0" />
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </form>
 
         <div className="flex items-center justify-between px-2">
           <button 
+            disabled={userTier === 'free'}
             onClick={() => {
-              if (userTier === 'free') {
-                setStarterUnlockModalOpen(true);
-              } else {
-                setIsFilterOpen(!isFilterOpen);
-              }
+              setIsFilterOpen(!isFilterOpen);
             }}
-            className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-colors ${isFilterOpen ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-colors ${userTier === 'free' ? 'opacity-50 cursor-not-allowed text-slate-400' : isFilterOpen ? 'text-slate-950' : 'text-slate-400 hover:text-slate-600'}`}
           >
             <Filter size={14} />
-            {isFilterOpen ? 'Hide Filters' : 'Advanced Filters'}
+            {isFilterOpen ? 'Hide Filters' : 'Advanced Filters'} {userTier === 'free' && '🔒'}
             {(startDate || endDate || sortBy !== 'relevance') && (
-              <span className="w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-[8px]">
+              <span className="w-5 h-5 bg-slate-900 text-white rounded-full flex items-center justify-center text-[8px]">
                 {(startDate ? 1 : 0) + (endDate ? 1 : 0) + (sortBy !== 'relevance' ? 1 : 0)}
               </span>
             )}
@@ -309,7 +181,7 @@ const SearchBar = ({
                   {/* Column 1: Quick Range */}
                   <div className="min-w-0 space-y-3">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                      <Calendar size={12} className="text-blue-500" />
+                      <Calendar size={12} className="text-slate-500" />
                       Quick Range
                     </label>
                     <div className="flex flex-wrap gap-2">
@@ -322,7 +194,7 @@ const SearchBar = ({
                         <button
                           key={preset.days}
                           onClick={() => applyDatePreset(preset.days)}
-                          className="px-4 py-2.5 bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-blue-600 text-xs font-bold rounded-xl transition-colors border border-slate-100 hover:border-blue-200"
+                          className="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 text-xs font-bold rounded-xl transition-colors border border-slate-100 hover:border-slate-300"
                         >
                           {preset.label}
                         </button>
@@ -333,7 +205,7 @@ const SearchBar = ({
                   {/* Column 2: Custom Date Range */}
                   <div className="min-w-0 space-y-3">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                      <Calendar size={12} className="text-blue-500" />
+                      <Calendar size={12} className="text-slate-500" />
                       Custom Date Range
                     </label>
                     <div className="flex flex-col gap-3">
@@ -342,7 +214,7 @@ const SearchBar = ({
                           type="date" 
                           value={startDate}
                           onChange={(e) => setStartDate(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-100 text-slate-600 text-sm font-semibold px-4 py-3 rounded-2xl outline-none focus:border-blue-500 transition-colors"
+                          className="w-full bg-slate-50 border border-slate-100 text-slate-600 text-sm font-semibold px-4 py-3 rounded-2xl outline-none focus:border-slate-500 transition-colors"
                         />
                         {startDate && (
                           <button onClick={() => setStartDate('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 transition-colors">
@@ -356,7 +228,7 @@ const SearchBar = ({
                           type="date" 
                           value={endDate}
                           onChange={(e) => setEndDate(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-100 text-slate-600 text-sm font-semibold px-4 py-3 rounded-2xl outline-none focus:border-blue-500 transition-colors"
+                          className="w-full bg-slate-50 border border-slate-100 text-slate-600 text-sm font-semibold px-4 py-3 rounded-2xl outline-none focus:border-slate-500 transition-colors"
                         />
                         {endDate && (
                           <button onClick={() => setEndDate('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 transition-colors">
@@ -370,14 +242,14 @@ const SearchBar = ({
                   {/* Column 3: Algorithm Priority */}
                   <div className="min-w-0 space-y-3">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                      <LayoutGrid size={12} className="text-blue-500" />
+                      <LayoutGrid size={12} className="text-slate-500" />
                       Algorithm Priority
                     </label>
                     <div className="flex flex-col bg-slate-50 p-1.5 rounded-2xl border border-slate-100 gap-1">
                       <button
                         onClick={() => setSortBy('relevance')}
                         className={`w-full py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${
-                          sortBy === 'relevance' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                          sortBy === 'relevance' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'
                         }`}
                       >
                         Relevance
@@ -385,7 +257,7 @@ const SearchBar = ({
                       <button
                         onClick={() => setSortBy('date')}
                         className={`w-full py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${
-                          sortBy === 'date' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                          sortBy === 'date' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'
                         }`}
                       >
                         Latest Date
@@ -413,7 +285,7 @@ const SearchBar = ({
                     )}
                     <button 
                       onClick={() => setIsFilterOpen(false)}
-                      className="px-6 py-2.5 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-700 transition-colors shadow-md shadow-blue-200"
+                      className="px-6 py-2.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-colors shadow-md shadow-slate-200"
                     >
                       Apply Filters
                     </button>

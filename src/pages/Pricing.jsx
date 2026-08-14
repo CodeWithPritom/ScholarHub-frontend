@@ -22,8 +22,7 @@ const Pricing = ({ user, profile }) => {
   // Use local state for immediate UI updates, falling back to global profile
   const [localTier, setLocalTier] = useState(null)
   const userTier = localTier || profile?.tier || 'free'
-  const dynamicPortalString = `Access to ${profile?.academic_field || 'Your Chosen Niche'} Portal`
-  const [billingCycle, setBillingCycle] = useState('monthly')
+  const [duration, setDuration] = useState('1 month') // '1 month', '3 months', '6 months', '1 year'
   const [isStudentModalOpen, setStudentModalOpen] = useState(false)
   const [isConfirmModalOpen, setConfirmModalOpen] = useState(false)
   const [isCelebrationModalOpen, setCelebrationModalOpen] = useState(false)
@@ -120,7 +119,7 @@ const Pricing = ({ user, profile }) => {
     }
 
     // 100% discount auto-redeem
-    if (couponStatus?.discount === 100 && (couponStatus?.applicable_tier === 'both' || couponStatus?.applicable_tier === tierName.toLowerCase())) {
+    if (couponStatus?.discount === 100 && isCouponApplicableFor(tierName)) {
       setIsRedeeming(true)
       try {
         const { data: { session } } = await supabase.auth.getSession()
@@ -133,7 +132,7 @@ const Pricing = ({ user, profile }) => {
           body: JSON.stringify({
             code: couponCode,
             target_tier: tierName.toLowerCase(),
-            duration: billingCycle === 'yearly' ? '1 year' : '1 month'
+            duration: duration
           })
         })
         
@@ -155,21 +154,19 @@ const Pricing = ({ user, profile }) => {
 
     // WhatsApp flow
     const email = user.email || 'unknown'
-    const duration = billingCycle === 'yearly' ? 'YEARLY' : 'MONTHLY'
-    // Find price safely
     let baseNum = 0
     let planPriceNum = 0
-    const isCouponApplicable = couponStatus?.success && (couponStatus?.applicable_tier === 'both' || couponStatus?.applicable_tier === tierName.toLowerCase())
+    const isCouponApplicable = isCouponApplicableFor(tierName)
 
     if (tierName.toLowerCase() === 'starter') {
-      baseNum = billingCycle === 'yearly' ? 1500 : 150
+      baseNum = duration === '1 month' ? 150 : duration === '3 months' ? 400 : duration === '6 months' ? 750 : 1200;
       planPriceNum = isCouponApplicable ? Math.floor(baseNum * (1 - couponStatus.discount / 100)) : baseNum
     } else if (tierName.toLowerCase() === 'pro') {
-      baseNum = billingCycle === 'yearly' ? 5000 : 500
+      baseNum = duration === '1 month' ? 500 : duration === '3 months' ? 1350 : duration === '6 months' ? 2500 : 4000;
       planPriceNum = isCouponApplicable ? Math.floor(baseNum * (1 - couponStatus.discount / 100)) : baseNum
     }
     
-    let text = `Hi Pritom, I want to upgrade to [${tierName.toUpperCase()}] [${duration}].\n`
+    let text = `Hi Pritom, I want to upgrade to [${tierName.toUpperCase()}] [${duration.toUpperCase()}].\n`
     text += `Original Price: ৳${baseNum}.\n`
     
     if (isCouponApplicable) {
@@ -184,19 +181,33 @@ const Pricing = ({ user, profile }) => {
     window.open(whatsappUrl, '_blank')
   }
 
+  const isCouponApplicableFor = (tierName) => {
+    if (!couponStatus?.success) return false;
+    const applicable = (couponStatus.applicable_tier || 'both').split(',').map(s => s.trim().toLowerCase());
+    if (applicable.includes('both')) return true;
+    if (applicable.includes(tierName.toLowerCase())) return true;
+    
+    const currentPkg = `${tierName.toLowerCase()}_${duration.replace(' ', '_').toLowerCase()}`;
+    if (applicable.includes(currentPkg)) return true;
+    
+    return false;
+  }
+
   const plans = [
     {
       name: 'FREE',
       price: '৳0',
-      description: 'Perfect for starting your specific niche research.',
+      description: 'Perfect for starting your academic research journey.',
       features: [
-        { name: user ? dynamicPortalString : "Access to 1 Specialized Portal", included: true },
-        { name: '3 AI Power-Uses / Day', included: true },
-        { name: 'Journal Quality Indicators (Limited)', included: true },
-        { name: '20 Saved Papers Limit', included: true },
-        { name: 'Basic Search Speed (5s Delay)', included: true },
+
+        { name: '500 Credits / mo', included: true },
+        { name: '10 Exports / mo', included: true },
+        { name: '200 Saved Papers, Unlimited Albums', included: true },
+        { name: 'All databases (NCBI, arXiv, OpenAlex...)', included: true },
+        { name: 'Basic Search Speed (10s Delay)', included: true },
         { name: 'AI-Powered Email Outreach to Authors', included: false },
-        { name: 'Automated Literature Review Synthesis', included: false },
+        { name: 'Research Report Mode', included: false },
+        { name: 'Literature Review Synthesis', included: false },
         { name: 'AI Research Gap Detection', included: false }
       ],
       color: 'slate',
@@ -206,22 +217,23 @@ const Pricing = ({ user, profile }) => {
     },
     {
       name: 'STARTER',
-      price: billingCycle === 'yearly' ? '৳1500' : '৳150',
-      basePriceNum: billingCycle === 'yearly' ? 1500 : 150,
-      period: billingCycle === 'yearly' ? '/yr' : '/mo',
-      originalPrice: billingCycle === 'yearly' ? '৳3000' : '৳300',
-      savings: billingCycle === 'yearly' ? '1500' : '150',
-      description: 'Higher limits for the same assigned portal.',
+      price: duration === '1 month' ? '৳150' : duration === '3 months' ? '৳400' : duration === '6 months' ? '৳750' : '৳1200',
+      basePriceNum: duration === '1 month' ? 150 : duration === '3 months' ? 400 : duration === '6 months' ? 750 : 1200,
+      period: duration === '1 month' ? '/mo' : duration === '3 months' ? '/3 mo' : duration === '6 months' ? '/6 mo' : '/yr',
+      originalPrice: duration === '1 month' ? null : duration === '3 months' ? '৳450' : duration === '6 months' ? '৳900' : '৳1800',
+      savings: duration === '1 month' ? null : duration === '3 months' ? '50' : duration === '6 months' ? '150' : '600',
+      description: 'Higher limits and advanced filters for active researchers.',
       features: [
-        { name: user ? dynamicPortalString : "Access to 1 Specialized Portal", included: true },
-        { name: '50 AI Power-Uses / Day', included: true },
-        { name: 'Advanced Journal Ranking (Q1-Q4 Tags)', included: true },
-        { name: 'Unlimited Saved Papers', included: true },
-        { name: 'High-Speed Search (1s Delay)', included: true },
+
+        { name: '1500 Credits / mo', included: true },
+        { name: '50 Exports / mo', included: true },
+        { name: '200 Saved Papers, Unlimited Albums', included: true },
+        { name: 'All databases (NCBI, arXiv, OpenAlex...)', included: true },
+        { name: 'High-Speed Search (5s Delay)', included: true },
         { name: 'AI-Powered Email Outreach to Authors', included: true },
-        { name: 'Automated Literature Review Synthesis', included: false },
-        { name: 'AI Research Gap Detection', included: false },
-        { name: 'Priority Private Discord Support', included: true }
+        { name: 'Research Report Mode', included: true },
+        { name: 'Literature Review Synthesis', included: false },
+        { name: 'AI Research Gap Detection', included: false }
       ],
       color: 'blue',
       buttonText: user ? (userTier === 'starter' ? 'Current Plan' : 'Upgrade to Starter') : 'Login to Upgrade',
@@ -231,22 +243,23 @@ const Pricing = ({ user, profile }) => {
     },
     {
       name: 'PRO',
-      price: billingCycle === 'yearly' ? '৳5000' : '৳500',
-      basePriceNum: billingCycle === 'yearly' ? 5000 : 500,
-      originalPrice: billingCycle === 'yearly' ? '৳10000' : '৳1000',
-      savings: billingCycle === 'yearly' ? '5000' : '500',
-      period: billingCycle === 'yearly' ? '/yr' : '/mo',
-      description: 'For power researchers demanding unlimited AI potential.',
+      price: duration === '1 month' ? '৳500' : duration === '3 months' ? '৳1350' : duration === '6 months' ? '৳2500' : '৳4000',
+      basePriceNum: duration === '1 month' ? 500 : duration === '3 months' ? 1350 : duration === '6 months' ? 2500 : 4000,
+      originalPrice: duration === '1 month' ? null : duration === '3 months' ? '৳1500' : duration === '6 months' ? '৳3000' : '৳6000',
+      savings: duration === '1 month' ? null : duration === '3 months' ? '150' : duration === '6 months' ? '500' : '2000',
+      period: duration === '1 month' ? '/mo' : duration === '3 months' ? '/3 mo' : duration === '6 months' ? '/6 mo' : '/yr',
+      description: 'For power researchers demanding the full Unified IDE experience.',
       features: [
-        { name: 'Universal Access: ALL 7 Portals Unlocked', included: true },
-        { name: '100 Premium AI Power-Uses / Day', included: true },
-        { name: 'Full Impact-Factor Intelligence & Q1 Priority Filtering', included: true },
-        { name: 'Unlimited Saved Papers', included: true },
-        { name: 'Instant Search Speed (Zero Delay)', included: true },
+
+        { name: '3000 Credits / mo', included: true },
+        { name: '100 Exports / mo', included: true },
+        { name: '200 Saved Papers, Unlimited Albums', included: true },
+        { name: 'All databases (NCBI, arXiv, OpenAlex...)', included: true },
+        { name: 'Instant Search (Zero Delay & Cooldown)', included: true },
         { name: 'AI-Powered Email Outreach to Authors', included: true },
-        { name: 'Automated Literature Review Synthesis', included: true },
-        { name: 'AI Research Gap Detection', included: true },
-        { name: 'Priority Private Discord Support', included: true }
+        { name: 'Research Report Mode', included: true },
+        { name: 'Literature Review Synthesis', included: true },
+        { name: 'AI Research Gap Detection', included: true }
       ],
       color: 'amber',
       buttonText: user ? (userTier === 'pro' ? 'Current Plan' : 'Upgrade to Pro') : 'Login to Upgrade',
@@ -257,18 +270,18 @@ const Pricing = ({ user, profile }) => {
   ]
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] font-sans selection:bg-blue-100 selection:text-blue-700">
+    <div className="min-h-screen bg-sds-bg font-sans selection:bg-blue-500/30 selection:text-blue-200 text-sds-text">
       
       {/* Navbar Minimal */}
-      <nav className="border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+      <nav className="border-b border-sds-border bg-sds-bg/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="w-full 2xl:px-12 mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleNavigate('/')}>
             <img src={logo} alt="ScholarHub AI" className="h-10 w-auto object-contain" />
-            <span className="text-xl font-black tracking-tighter text-slate-900">ScholarHub<span className="text-blue-600">AI</span></span>
+            <span className="text-xl font-black tracking-tighter text-sds-text">ScholarHub<span className="text-blue-500">AI</span></span>
           </div>
           <button 
             onClick={() => handleNavigate(user ? '/research' : '/auth')}
-            className="text-sm font-bold text-slate-600 hover:text-blue-600 transition-colors"
+            className="text-sm font-bold text-slate-700 hover:text-blue-400 transition-colors"
           >
             {user ? 'Back to Dashboard' : 'Sign In'}
           </button>
@@ -276,21 +289,21 @@ const Pricing = ({ user, profile }) => {
       </nav>
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 pb-48">
+      <main className="w-full 2xl:px-12 mx-auto px-4 sm:px-6 pt-12 sm:pt-20 pb-48">
         {/* Banner if Guest */}
         {!user && (
           <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-12 p-5 bg-blue-50 border border-blue-200 rounded-[2rem] flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mb-12 p-5 bg-blue-50 border border-blue-200 rounded-[12px] flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left"
           >
             <div className="flex flex-col sm:flex-row items-center gap-3">
-              <AlertCircle className="text-blue-600 shrink-0" size={24} />
-              <p className="text-sm font-bold text-blue-900">You must create a free account to activate and manage subscription plans.</p>
+              <AlertCircle className="text-blue-400 shrink-0" size={24} />
+              <p className="text-sm font-bold text-blue-300">You must create a free account to activate and manage subscription plans.</p>
             </div>
             <button 
               onClick={() => handleNavigate('/auth')}
-              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-blue-200"
+              className="px-6 py-2.5 bg-[#315CFF] hover:bg-[#2547d0] text-white text-sds-text text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
             >
               Sign Up Now
             </button>
@@ -299,17 +312,17 @@ const Pricing = ({ user, profile }) => {
 
         {/* Header */}
         <div className="text-center mb-12 sm:mb-20">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight mb-4 sm:mb-6 leading-tight">
-            ScholarHub AI Pricing: <br className="hidden sm:block" /><span className="text-blue-600">Supercharge your Research</span>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-sds-text tracking-tight mb-4 sm:mb-6 leading-tight">
+            ScholarHub AI Pricing: <br className="hidden sm:block" /><span className="text-blue-500">Supercharge your Research</span>
           </h1>
-          <p className="text-lg text-slate-500 font-medium max-w-2xl mx-auto mb-10 leading-relaxed">
+          <p className="text-lg text-slate-700 font-medium max-w-2xl mx-auto mb-10 leading-relaxed">
             Unlock multi-disciplinary AI models, bypass rate limits, and discover breakthroughs faster than ever before.
           </p>
 
           {/* Coupon System */}
           {user && (
-            <div className="max-w-md mx-auto bg-white p-2 rounded-2xl border border-slate-200 shadow-sm flex items-center focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-50 transition-all">
-              <div className="pl-4 text-slate-400">
+            <div className="max-w-md mx-auto bg-white p-2 rounded-[12px] border border-sds-border flex items-center focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all">
+              <div className="pl-4 text-slate-700">
                 <Tag size={20} />
               </div>
               <input 
@@ -317,12 +330,12 @@ const Pricing = ({ user, profile }) => {
                 placeholder="Have a coupon code?" 
                 value={couponCode}
                 onChange={(e) => setCouponCode(e.target.value)}
-                className="flex-1 bg-transparent border-none outline-none px-4 py-3 text-sm font-bold text-slate-700 placeholder:text-slate-400 placeholder:font-medium uppercase"
+                className="flex-1 bg-transparent border-none outline-none px-4 py-3 text-sm font-bold text-sds-text placeholder:text-slate-700 placeholder:font-medium uppercase"
               />
               <button 
                 onClick={handleApplyCoupon}
                 disabled={!couponCode.trim() || couponStatus?.loading}
-                className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-colors disabled:opacity-50"
+                className="px-6 py-3 bg-sds-bg hover:bg-white border border-sds-border text-sds-text text-xs font-black uppercase tracking-widest rounded-xl transition-colors disabled:opacity: 0y-50"
               >
                 {couponStatus?.loading ? <Loader2 size={16} className="animate-spin" /> : 'Apply'}
               </button>
@@ -331,53 +344,44 @@ const Pricing = ({ user, profile }) => {
           
           <AnimatePresence>
             {couponStatus?.error && (
-              <motion.p initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-red-500 text-xs font-bold mt-3">
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-red-400 text-xs font-bold mt-3">
                 {couponStatus.error}
               </motion.p>
             )}
             {couponStatus?.success && (
-              <motion.p initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-green-500 text-sm font-black mt-3 flex items-center justify-center gap-1">
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-green-400 text-sm font-black mt-3 flex items-center justify-center gap-1">
                 <Check size={16} /> {couponStatus.success} ({couponStatus.discount}% OFF)
               </motion.p>
             )}
           </AnimatePresence>
         </div>
 
-        {/* Billing Toggle */}
+        {/* Duration Toggle */}
         <div className="flex justify-center mb-16 relative z-20 w-full overflow-x-auto pb-4">
-          <div className="bg-slate-200/50 p-1.5 rounded-full flex items-center relative gap-1 border border-slate-200 min-w-max">
-            <button
-              onClick={() => setBillingCycle('monthly')}
-              className={`relative px-6 sm:px-8 py-2.5 sm:py-3 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-full transition-colors`}
-            >
-              {billingCycle === 'monthly' && (
-                <motion.div
-                  layoutId="billing-indicator"
-                  className="absolute inset-0 bg-white rounded-full shadow-sm border border-slate-200"
-                  transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                />
-              )}
-              <span className={`relative z-10 ${billingCycle === 'monthly' ? 'text-slate-900' : 'text-slate-500'}`}>Monthly</span>
-            </button>
-            
-            <button
-              onClick={() => setBillingCycle('yearly')}
-              className={`relative px-6 sm:px-8 py-2.5 sm:py-3 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-full transition-colors flex items-center gap-2`}
-            >
-              {billingCycle === 'yearly' && (
-                <motion.div
-                  layoutId="billing-indicator"
-                  className="absolute inset-0 bg-white rounded-full shadow-sm border border-slate-200"
-                  transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                />
-              )}
-              <span className={`relative z-10 flex items-center gap-2 ${billingCycle === 'yearly' ? 'text-slate-900' : 'text-slate-500'}`}>
-                Yearly
-                <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-black tracking-wider border border-emerald-200 shadow-sm">
-                  Save 15%+
+          <div className="bg-white p-1.5 rounded-full flex items-center relative gap-1 border border-sds-border min-w-max">
+            {['1 month', '3 months', '6 months', '1 year'].map(opt => (
+              <button
+                key={opt}
+                onClick={() => setDuration(opt)}
+                className={`relative px-4 sm:px-6 py-2.5 sm:py-3 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-full transition-colors flex items-center gap-2`}
+              >
+                {duration === opt && (
+                  <motion.div
+                    layoutId="billing-indicator"
+                    className="absolute inset-0 bg-sds-bg rounded-full border border-sds-border"
+                    transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                  />
+                )}
+                <span className={`relative z-10 flex items-center gap-1.5 ${duration === opt ? 'text-sds-text' : 'text-slate-700'}`}>
+                  {opt}
+                  {opt === '1 year' && (
+                    <span className="bg-emerald-100 text-emerald-800 text-[9px] px-1.5 py-0.5 rounded-full font-black tracking-wider border border-emerald-300 whitespace-nowrap">
+                      Save 30%+
+                    </span>
+                  )}
                 </span>
-              </span>
-            </button>
+              </button>
+            ))}
           </div>
         </div>
 
@@ -386,21 +390,21 @@ const Pricing = ({ user, profile }) => {
           {plans.map((plan, idx) => (
             <div 
               key={idx} 
-              className={`relative bg-white rounded-[2rem] p-6 md:p-5 lg:p-8 border flex flex-col justify-between transition-all duration-300 hover:-translate-y-2 ${
+              className={`relative bg-white rounded-[12px] p-6 md:p-5 lg:p-8 border flex flex-col justify-between transition-all duration-300 hover:-translate-y-2 ${
                 plan.premium 
-                  ? 'border-2 border-amber-500 shadow-2xl shadow-amber-100 md:scale-105 z-10 bg-gradient-to-b from-amber-50/[0.2] to-transparent' 
+                  ? 'border-2 border-sds-accent shadow-sm md:scale-105 z-10 bg-white' 
                   : plan.popular 
-                  ? 'border-2 border-blue-500 shadow-2xl shadow-blue-100 md:scale-105 z-10 bg-gradient-to-b from-blue-50/[0.2] to-transparent'
-                  : 'border-slate-200 shadow-lg shadow-slate-100'
+                  ? 'border-2 border-blue-600 shadow-sm md:scale-105 z-10 bg-white'
+                  : 'border-sds-border shadow-sm bg-white'
               }`}
             >
               {plan.premium && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[10px] font-black uppercase tracking-[0.2em] px-5 py-1.5 rounded-full shadow-lg shadow-amber-200 flex items-center gap-1.5 whitespace-nowrap">
-                  <Zap size={12} /> UNIVERSAL ACCESS
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-amber-500 text-sds-text text-[10px] font-black uppercase tracking-[0.2em] px-5 py-1.5 rounded-full shadow-none flex items-center gap-1.5 whitespace-nowrap">
+                  <Zap size={12} /> FULL RESEARCH IDE
                 </div>
               )}
               {plan.popular && !plan.premium && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-[0.2em] px-5 py-1.5 rounded-full shadow-lg shadow-blue-200 flex items-center gap-1.5 whitespace-nowrap">
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-sds-text text-[10px] font-black uppercase tracking-[0.2em] px-5 py-1.5 rounded-full shadow-none flex items-center gap-1.5 whitespace-nowrap">
                   <Sparkles size={12} /> MOST POPULAR
                 </div>
               )}
@@ -408,36 +412,36 @@ const Pricing = ({ user, profile }) => {
               <div>
                 <div className="mb-8">
                   <h3 className={`text-xs font-black uppercase tracking-widest mb-4 ${
-                    plan.premium ? 'text-amber-600' : plan.color === 'blue' ? 'text-blue-600' : 'text-slate-500'
+                    plan.premium ? 'text-amber-500' : plan.color === 'blue' ? 'text-blue-400' : 'text-slate-700'
                   }`}>
                     {plan.name}
                   </h3>
                   <div className="flex flex-col mb-4">
                     <div className="flex items-baseline gap-1 flex-wrap">
-                      {couponStatus?.success && plan.isUpgrade && (couponStatus?.applicable_tier === 'both' || couponStatus?.applicable_tier === plan.name.toLowerCase()) ? (
+                      {isCouponApplicableFor(plan.name) && plan.isUpgrade ? (
                         <>
-                          <span className="text-2xl sm:text-3xl font-bold text-slate-400 line-through mr-2">{plan.price}</span>
-                          <span className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight">
+                          <span className="text-2xl sm:text-3xl font-bold text-slate-700 line-through mr-2">{plan.price}</span>
+                          <span className="text-4xl sm:text-5xl font-black text-sds-text tracking-tight">
                             {couponStatus.discount === 100 ? '৳ 0' : `৳ ${Math.floor(plan.basePriceNum * (1 - couponStatus.discount / 100))}`}
                           </span>
                         </>
                       ) : (
                         <>
                           {plan.originalPrice && (
-                            <span className="text-2xl sm:text-3xl font-bold text-slate-400 line-through mr-2">{plan.originalPrice}</span>
+                            <span className="text-2xl sm:text-3xl font-bold text-slate-700 line-through mr-2">{plan.originalPrice}</span>
                           )}
-                          <span className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight">{plan.price.replace('৳', '৳ ')}</span>
+                          <span className="text-4xl sm:text-5xl font-black text-sds-text tracking-tight">{plan.price.replace('৳', '৳ ')}</span>
                         </>
                       )}
-                      {plan.period && <span className="text-slate-500 font-bold">{plan.period}</span>}
+                      {plan.period && <span className="text-slate-700 font-bold">{plan.period}</span>}
                     </div>
-                    {plan.savings && !(couponStatus?.success && (couponStatus?.applicable_tier === 'both' || couponStatus?.applicable_tier === plan.name.toLowerCase())) && (
-                      <div className="mt-2 text-sm font-bold text-emerald-600 bg-emerald-50 self-start px-3 py-1 rounded-full border border-emerald-100">
+                    {plan.savings && !(isCouponApplicableFor(plan.name)) && (
+                      <div className="mt-2 text-sm font-bold text-emerald-800 bg-emerald-100 self-start px-3 py-1 rounded-full border border-emerald-300">
                         You save ৳{plan.savings}
                       </div>
                     )}
                   </div>
-                  <p className="text-sm font-medium text-slate-500 leading-relaxed min-h-[40px]">
+                  <p className="text-sm font-medium text-slate-700 leading-relaxed min-h-[40px]">
                     {plan.description}
                   </p>
                 </div>
@@ -446,11 +450,11 @@ const Pricing = ({ user, profile }) => {
                   {plan.features.map((feature, i) => (
                     <div key={i} className="flex items-start gap-3">
                       <div className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5 ${
-                        feature.included ? 'bg-green-100 text-green-600' : 'bg-slate-50 text-slate-300'
+                        feature.included ? 'bg-green-100 text-green-700 font-bold' : 'bg-sds-bg text-slate-650'
                       }`}>
                         {feature.included ? <Check size={12} strokeWidth={3} /> : <X size={12} strokeWidth={3} />}
                       </div>
-                      <span className={`text-sm font-semibold ${feature.included ? 'text-slate-700' : 'text-slate-400'}`}>
+                      <span className={`text-sm font-semibold ${feature.included ? 'text-slate-600' : 'text-slate-700'}`}>
                         {feature.name}
                       </span>
                     </div>
@@ -462,29 +466,29 @@ const Pricing = ({ user, profile }) => {
                 <button
                   onClick={() => handleAction(plan.name)}
                   disabled={isRedeeming || plan.isCurrent}
-                  className={`w-full py-4.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+                  className={`w-full py-4.5 rounded-[12px] text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
                     plan.isCurrent 
-                      ? 'bg-slate-100 text-slate-400 cursor-default' 
-                      : couponStatus?.discount === 100 && plan.isUpgrade && (couponStatus?.applicable_tier === 'both' || couponStatus?.applicable_tier === plan.name.toLowerCase())
-                      ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-lg shadow-amber-200'
+                      ? 'bg-sds-bg text-slate-700 border border-slate-900 cursor-default' 
+                      : couponStatus?.discount === 100 && plan.isUpgrade && isCouponApplicableFor(plan.name)
+                      ? 'bg-amber-600 hover:bg-amber-700 text-sds-text shadow-none'
                       : plan.premium
-                      ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-xl shadow-amber-200'
-                      : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200'
+                      ? 'bg-[#315CFF] hover:bg-[#2547d0] text-white text-sds-text shadow-none'
+                      : 'bg-[#315CFF] hover:bg-[#2547d0] text-white text-sds-text shadow-none'
                   }`}
                 >
                   {isRedeeming && plan.isUpgrade ? (
                     <Loader2 size={18} className="animate-spin" />
-                  ) : couponStatus?.discount === 100 && plan.isUpgrade && (couponStatus?.applicable_tier === 'both' || couponStatus?.applicable_tier === plan.name.toLowerCase()) ? (
+                  ) : couponStatus?.discount === 100 && plan.isUpgrade && isCouponApplicableFor(plan.name) ? (
                     <>CLAIM FREE ACCESS ✨ <ArrowRight size={16} /></>
                   ) : (
                     <>{plan.buttonText} {!plan.isCurrent && <ArrowRight size={16} />}</>
                   )}
                 </button>
                 
-                {plan.isUpgrade && !(couponStatus?.discount === 100 && (couponStatus?.applicable_tier === 'both' || couponStatus?.applicable_tier === plan.name.toLowerCase())) && user && (
-                  <p className="text-center text-[9px] font-black text-slate-400 uppercase tracking-widest mt-4 leading-tight">
+                {plan.isUpgrade && !(couponStatus?.discount === 100 && isCouponApplicableFor(plan.name)) && user && (
+                  <p className="text-center text-[9px] font-black text-slate-555 uppercase tracking-widest mt-4 leading-tight">
                     Upgrade via WhatsApp<br/>
-                    <span className="opacity-70 text-[8px]">(Manual Activation for 1 or 12 months)</span>
+                    <span className="opacity: 0y-70 text-[8px]">(Manual Activation)</span>
                   </p>
                 )}
               </div>
@@ -493,19 +497,19 @@ const Pricing = ({ user, profile }) => {
         </div>
 
         {/* Visual Social Proof for Quartiles */}
-        <div className="max-w-4xl mx-auto mt-12 mb-8 bg-blue-50/50 border border-blue-100 rounded-3xl p-6 text-center">
-          <p className="text-sm font-bold text-slate-600 flex items-center justify-center gap-3 flex-wrap">
-            <Sparkles className="text-amber-500" size={18} />
-            <span><span className="text-emerald-600 font-black">Q1</span> = Top 25% of journals in the field.</span>
-            <span><span className="text-indigo-600 font-black">Q2</span> = Top 50%.</span>
-            <span className="text-slate-800">Shop smarter, cite better.</span>
+        <div className="w-full 2xl:px-12 mx-auto mt-12 mb-8 bg-white border border-sds-border rounded-[12px] p-6 text-center">
+          <p className="text-sm font-bold text-slate-700 flex items-center justify-center gap-3 flex-wrap">
+            <Sparkles className="text-amber-550" size={18} />
+            <span><span className="text-emerald-450 font-black">Q1</span> = Top 25% of journals in the field.</span>
+            <span><span className="text-indigo-400 font-black">Q2</span> = Top 50%.</span>
+            <span className="text-sds-text">Shop smarter, cite better.</span>
           </p>
         </div>
 
         {/* Student Outreach Program Section */}
-        <div className="mt-20 max-w-4xl mx-auto">
-          <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border-2 border-indigo-100 rounded-[2.5rem] p-10 relative overflow-hidden shadow-xl shadow-indigo-100/50">
-            <div className="absolute -right-10 -top-10 text-indigo-100 opacity-50">
+        <div className="mt-20 w-full 2xl:px-12 mx-auto">
+          <div className="bg-white border-2 border-sds-border rounded-[2.5rem] p-10 relative overflow-hidden shadow-sm">
+            <div className="absolute -right-10 -top-10 text-slate-950/20">
               <GraduationCap size={200} />
             </div>
             <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
@@ -513,16 +517,16 @@ const Pricing = ({ user, profile }) => {
                 <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-black uppercase tracking-widest mb-4">
                   <GraduationCap size={14} /> Student Outreach Program
                 </div>
-                <h3 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight mb-2">
-                  Get 1 Month of <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-indigo-600">PRO Tier</span> for FREE
+                <h3 className="text-3xl md:text-4xl font-black text-sds-text tracking-tight mb-2">
+                  Get 1 Month of <span className="text-amber-500 font-black">PRO Tier</span> for FREE
                 </h3>
-                <p className="text-slate-500 font-medium text-sm max-w-md">
-                  Experience the full power of ScholarHub AI. Unlock 100 daily AI uses, all 7 research portals, and the AI Outreach Architect for 30 days. No credit card required.
+                <p className="text-slate-700 font-medium text-sm max-w-md">
+                  Experience the full power of ScholarHub AI. Unlock 100 daily AI uses, 100 results per search, and the AI Outreach Architect for 30 days. No credit card required.
                 </p>
               </div>
               <button
                 onClick={() => setStudentModalOpen(true)}
-                className="shrink-0 w-full md:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-indigo-200 transition-all hover:-translate-y-1"
+                className="shrink-0 w-full md:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-sds-text rounded-[12px] text-xs font-black uppercase tracking-widest transition-all"
               >
                 ACTIVATE PRO MONTH
               </button>
@@ -539,42 +543,42 @@ const Pricing = ({ user, profile }) => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-sds-bg/60 backdrop-blur-sm"
               onClick={() => setStudentModalOpen(false)}
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-white rounded-[2rem] w-full max-w-md p-8 shadow-2xl overflow-hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="relative bg-white border border-sds-border rounded-[12px] w-full max-w-md p-8 shadow-sm overflow-hidden"
             >
               <button 
                 onClick={() => setStudentModalOpen(false)}
-                className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 transition-colors bg-slate-50 p-2 rounded-full"
+                className="absolute top-6 right-6 text-slate-700 hover:text-sds-text transition-colors bg-sds-bg p-2 rounded-full"
               >
                 <X size={20} />
               </button>
               
-              <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mb-6">
+              <div className="w-16 h-16 bg-indigo-100 text-indigo-700 rounded-[12px] flex items-center justify-center mb-6">
                 <GraduationCap size={32} />
               </div>
               
-              <h3 className="text-2xl font-black text-slate-900 mb-2">Verify Student Status 🎓</h3>
-              <p className="text-sm font-medium text-slate-500 mb-8">
+              <h3 className="text-2xl font-black text-sds-text mb-2">Verify Student Status 🎓</h3>
+              <p className="text-sm font-medium text-slate-700 mb-8">
                 Follow these exact steps to claim your free 1-month PRO plan. Admin approval takes up to 24 hours.
               </p>
               
               <div className="space-y-4 mb-8">
-                <div className="flex items-start gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-black shrink-0 mt-0.5">1</div>
+                <div className="flex items-start gap-3 bg-white p-4 rounded-[12px] border border-slate-100">
+                  <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-black shrink-0 mt-0.5">1</div>
                   <p className="text-sm font-semibold text-slate-700">Upload a clear picture of your Valid Student ID (Front and Back side).</p>
                 </div>
-                <div className="flex items-start gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-black shrink-0 mt-0.5">2</div>
+                <div className="flex items-start gap-3 bg-white p-4 rounded-[12px] border border-slate-100">
+                  <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-black shrink-0 mt-0.5">2</div>
                   <p className="text-sm font-semibold text-slate-700">Provide your institutional (Student) email address.</p>
                 </div>
-                <div className="flex items-start gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-black shrink-0 mt-0.5">3</div>
+                <div className="flex items-start gap-3 bg-white p-4 rounded-[12px] border border-slate-100">
+                  <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-black shrink-0 mt-0.5">3</div>
                   <p className="text-sm font-semibold text-slate-700">Send these details directly to the Founder via WhatsApp.</p>
                 </div>
               </div>
@@ -585,7 +589,7 @@ const Pricing = ({ user, profile }) => {
                   window.open(`https://wa.me/8801853343176?text=${encodeURIComponent(msg)}`, '_blank')
                   setStudentModalOpen(false)
                 }}
-                className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-indigo-200"
+                className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-sds-text rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-none"
               >
                 Send to WhatsApp & Claim
               </button>
@@ -602,41 +606,41 @@ const Pricing = ({ user, profile }) => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-sds-bg/60 backdrop-blur-sm"
               onClick={() => setConfirmModalOpen(false)}
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-white rounded-[2rem] w-full max-w-md p-8 shadow-2xl overflow-hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="relative bg-white border border-sds-border rounded-[12px] w-full max-w-md p-8 shadow-sm overflow-hidden text-sds-text"
             >
               <button 
                 onClick={() => setConfirmModalOpen(false)}
-                className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 transition-colors bg-slate-50 p-2 rounded-full"
+                className="absolute top-6 right-6 text-slate-700 hover:text-sds-text transition-colors bg-sds-bg p-2 rounded-full"
               >
                 <X size={20} />
               </button>
               
-              <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-6">
+              <div className="w-16 h-16 bg-amber-100 text-amber-700 rounded-[12px] flex items-center justify-center mb-6">
                 <Tag size={32} />
               </div>
               
-              <h3 className="text-2xl font-black text-slate-900 mb-2">Confirm Coupon Redemption</h3>
-              <p className="text-sm font-medium text-slate-500 mb-8">
+              <h3 className="text-2xl font-black text-sds-text mb-2">Confirm Coupon Redemption</h3>
+              <p className="text-sm font-medium text-slate-700 mb-8">
                 Are you sure you want to proceed? Once applied, this coupon will be permanently locked to your account and cannot be used again.
               </p>
 
               <div className="flex flex-col gap-3">
                 <button
                   onClick={confirmRedemption}
-                  className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-amber-200"
+                  className="w-full py-4 bg-[#315CFF] hover:bg-[#2547d0] text-white text-sds-text rounded-xl text-xs font-black uppercase tracking-widest transition-all"
                 >
                   Proceed & Apply
                 </button>
                 <button
                   onClick={() => setConfirmModalOpen(false)}
-                  className="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                  className="w-full py-4 bg-sds-bg hover:bg-white border border-sds-border text-slate-600 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
                 >
                   Cancel
                 </button>
@@ -654,23 +658,22 @@ const Pricing = ({ user, profile }) => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-sds-bg/60 backdrop-blur-sm"
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl overflow-hidden text-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="relative bg-white border border-sds-border rounded-[2.5rem] w-full max-w-md p-10 shadow-sm overflow-hidden text-center text-sds-text"
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-amber-50 to-orange-50 opacity-50"></div>
               <div className="relative z-10">
-                <div className="w-24 h-24 bg-gradient-to-br from-amber-400 to-orange-500 text-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl shadow-amber-200">
+                <div className="w-24 h-24 bg-amber-500 text-sds-text rounded-full flex items-center justify-center mx-auto mb-6">
                   <Sparkles size={40} strokeWidth={2.5} />
                 </div>
                 
-                <h3 className="text-3xl font-black text-slate-900 mb-4 tracking-tight">Congratulations! 🎉</h3>
+                <h3 className="text-3xl font-black text-sds-text mb-4 tracking-tight">Congratulations! 🎉</h3>
                 <p className="text-base font-semibold text-slate-600 mb-10 leading-relaxed">
-                  Your account has been upgraded to <span className="text-amber-600 font-black">{upgradedTierText}</span> instantly. Welcome to the elite research hub.
+                  Your account has been upgraded to <span className="text-amber-550 font-black">{upgradedTierText}</span> instantly. Welcome to the elite research hub.
                 </p>
 
                 <button
@@ -679,7 +682,7 @@ const Pricing = ({ user, profile }) => {
                     sessionStorage.removeItem('active_coupon_code')
                     navigate('/research')
                   }}
-                  className="w-full py-5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-sm font-black uppercase tracking-widest transition-all shadow-xl shadow-slate-300 flex items-center justify-center gap-2"
+                  className="w-full py-5 bg-sds-bg hover:bg-white border border-sds-border text-sds-text rounded-[12px] text-sm font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
                 >
                   Go to Workspace <ArrowRight size={18} />
                 </button>
@@ -697,28 +700,28 @@ const Pricing = ({ user, profile }) => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-sds-bg/60 backdrop-blur-sm"
               onClick={() => setShowExitWarning(false)}
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-white rounded-[2rem] w-full max-w-md p-8 shadow-2xl overflow-hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="relative bg-white border border-sds-border rounded-[12px] w-full max-w-md p-8 shadow-sm overflow-hidden text-sds-text"
             >
-              <div className="w-16 h-16 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mb-6">
+              <div className="w-16 h-16 bg-red-100 text-red-700 rounded-[12px] flex items-center justify-center mb-6">
                 <AlertCircle size={32} />
               </div>
               
-              <h3 className="text-2xl font-black text-slate-900 mb-2">Forfeit Discount?</h3>
-              <p className="text-sm font-medium text-slate-500 mb-8">
+              <h3 className="text-2xl font-black text-sds-text mb-2">Forfeit Discount?</h3>
+              <p className="text-sm font-medium text-slate-700 mb-8">
                 You have an active one-time discount applied. If you leave this page, your coupon session will be destroyed and cannot be used again. Are you sure?
               </p>
 
               <div className="flex flex-col gap-3">
                 <button
                   onClick={() => setShowExitWarning(false)}
-                  className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-slate-300"
+                  className="w-full py-4 bg-sds-bg hover:bg-white border border-sds-border text-sds-text rounded-xl text-xs font-black uppercase tracking-widest transition-all"
                 >
                   Stay & Complete Upgrade
                 </button>
@@ -729,7 +732,7 @@ const Pricing = ({ user, profile }) => {
                     setShowExitWarning(false)
                     navigate(pendingPath)
                   }}
-                  className="w-full py-4 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                  className="w-full py-4 bg-red-100 hover:bg-red-200 text-red-700 border border-red-300 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
                 >
                   Lose Discount & Leave
                 </button>

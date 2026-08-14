@@ -14,9 +14,9 @@ export const ForceRefreshModal = ({ isOpen, onClose, onConfirm }) => (
           onClick={onClose}
         />
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
           className="relative bg-white w-full h-full sm:h-auto max-w-md rounded-none sm:rounded-[2.5rem] p-8 shadow-2xl border border-slate-100 overflow-y-auto flex flex-col justify-center max-h-screen sm:max-h-[85vh]"
         >
           <div className="absolute top-0 right-0 p-6">
@@ -68,9 +68,9 @@ export const ProUpgradeModal = ({ isOpen, onClose, navigate, reason }) => (
         />
         
         <motion.div
-          initial={{ scale: 0.9, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.9, opacity: 0, y: 20 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
           className="relative w-full h-full sm:h-auto max-w-md bg-white rounded-none sm:rounded-[2.5rem] p-8 sm:p-10 shadow-2xl border border-slate-100 text-center z-10 overflow-y-auto flex flex-col justify-center max-h-screen sm:max-h-[85vh]"
         >
           <div className="absolute top-0 right-0 p-6">
@@ -89,11 +89,11 @@ export const ProUpgradeModal = ({ isOpen, onClose, navigate, reason }) => (
           <p className="text-slate-500 text-sm font-semibold leading-relaxed mb-8">
             {reason === 'limit_100' ? (
               <>
-                STARTER tier is limited to 50 articles. Upgrade to <strong className="text-slate-900 font-bold">ScholarHub AI PRO</strong> for unlimited access and search up to 100 articles.
+                STARTER tier is limited to 50 articles and 50 AI summaries per day. Upgrade to <strong className="text-slate-900 font-bold">ScholarHub AI PRO</strong> for 100 results per search, 100 daily AI power-uses, and full IDE workspace capabilities.
               </>
             ) : (
               <>
-                Automated Literature Reviews are exclusive to <strong className="text-slate-900 font-bold">ScholarHub AI PRO</strong> members. Upgrade your plan to synthesize up to 15 papers simultaneously with headings (Introduction, Methodology, Gaps, and Conclusion).
+                Automated Literature Reviews are exclusive to <strong className="text-slate-900 font-bold">ScholarHub AI PRO</strong> members. Upgrade your plan to get 100 results per search, 100 daily AI power-uses, and synthesize up to 15 papers simultaneously.
               </>
             )}
           </p>
@@ -134,9 +134,9 @@ export const StarterUpgradeModal = ({ isOpen, onClose, navigate }) => (
         />
         
         <motion.div
-          initial={{ scale: 0.9, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.9, opacity: 0, y: 20 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
           className="relative w-full h-full sm:h-auto max-w-md bg-white rounded-none sm:rounded-[2.5rem] p-8 sm:p-10 shadow-2xl border border-slate-100 text-center z-10 overflow-y-auto flex flex-col justify-center max-h-screen sm:max-h-[85vh]"
         >
           <div className="absolute top-0 right-0 p-6">
@@ -151,7 +151,7 @@ export const StarterUpgradeModal = ({ isOpen, onClose, navigate }) => (
           
           <h3 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">Upgrade to STARTER</h3>
           <p className="text-slate-500 text-sm font-semibold leading-relaxed mb-8">
-            Advanced search filters and higher article fetch limits are exclusive to <strong className="text-slate-900 font-bold">ScholarHub AI STARTER</strong> or PRO members. Upgrade your plan to get advanced filtering (by date and sorting) and fetch up to 50 articles.
+            Advanced search filters, 50 results per search, and 50 daily AI power-uses are exclusive to <strong className="text-slate-900 font-bold">ScholarHub AI STARTER</strong> or PRO members. Upgrade your plan to get advanced filtering, higher quotas, and faster search capabilities.
           </p>
           
           <div className="space-y-3">

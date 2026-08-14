@@ -140,62 +140,14 @@ const AIChatWidget = ({
 
   return (
     <>
-      {/* AI Assistant Elements */}
       <AnimatePresence>
-        {aiPromptVisible && (
-          <motion.div 
-            key="ai-prompt"
-            initial={{ y: 100, opacity: 0, scale: 0.8 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 100, opacity: 0, scale: 0.8 }}
-            className="fixed bottom-0 left-0 right-0 md:bottom-10 md:left-auto md:right-10 z-[90] w-full md:w-[340px] px-4 md:px-0 pb-4 md:pb-0"
-          >
-            <div className="bg-white p-8 rounded-[2.5rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.15)] border border-blue-50 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <Bot size={80} />
-              </div>
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-200">
-                  <Bot size={28} />
-                </div>
-                <div>
-                  <div className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-0.5">Intelligence Suite</div>
-                  <div className="text-sm font-black text-slate-900 uppercase tracking-widest">Assistant Active</div>
-                </div>
-              </div>
-              <p className="text-sm font-bold text-slate-600 leading-relaxed mb-8">
-                The analysis is complete! Would you like a condensed executive summary of the top 5 findings?
-              </p>
-              <div className="flex flex-col gap-3">
-                <button 
-                  onClick={onSummarize}
-                  className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl shadow-blue-200 flex items-center justify-center gap-3 group/btn"
-                >
-                  <Sparkles size={16} className="group-hover/btn:scale-125 transition-transform" />
-                  Yes, Summarize
-                </button>
-                <button 
-                  onClick={() => setAiPromptVisible(false)}
-                  className="w-full py-3 bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
-                >
-                  Maybe Later
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
         {aiChatOpen && (
           <motion.div 
             key="ai-chat"
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ 
-              y: 0, 
-              opacity: 1,
-              height: aiWidgetMode === 'minimized' ? '70px' : 'auto'
-            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1, height: aiWidgetMode === 'minimized' ? '70px' : 'auto' }}
             transition={{ type: 'spring', damping: 20, stiffness: 100 }}
-            exit={{ y: 100, opacity: 0 }}
+            exit={{ opacity: 0 }}
             className={`fixed inset-x-0 bottom-0 md:bottom-10 md:left-auto md:right-10 z-[90] bg-white shadow-[0_48px_96px_-16px_rgba(0,0,0,0.25)] md:border border-slate-100 overflow-hidden flex flex-col w-full ${
               aiWidgetMode === 'maximized' 
                 ? 'md:w-[min(1200px,90vw)] rounded-t-[2.5rem] md:rounded-[3rem] h-[100dvh] md:h-auto' 
@@ -324,8 +276,8 @@ const AIChatWidget = ({
                         return (
                           <>
                             <motion.div 
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
                               className="p-6 bg-white rounded-[2rem] rounded-tl-none border border-slate-100 shadow-sm"
                             >
                               <div className="flex items-center gap-2 mb-3">
@@ -340,8 +292,8 @@ const AIChatWidget = ({
                             {/* Relevance Match Meter */}
                             {relevanceEntries.length > 0 && (
                               <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
                                 transition={{ delay: 0.2 }}
                                 className="p-6 bg-white rounded-[2rem] rounded-tl-none border border-slate-100 shadow-sm"
                               >
@@ -384,8 +336,8 @@ const AIChatWidget = ({
                       {chatHistory.map((msg, idx) => (
                         <motion.div
                           key={idx}
-                          initial={{ opacity: 0, x: msg.role === 'user' ? 20 : -20 }}
-                          animate={{ opacity: 1, x: 0 }}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
                           className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                         >
                           <div className={`max-w-[85%] p-5 rounded-[1.8rem] text-sm font-medium leading-relaxed ${

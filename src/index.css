@@ -1,2 +1,22 @@
 @import "tailwindcss";
+@import "katex/dist/katex.min.css";
+@import "@xyflow/react/dist/style.css";
 
+@theme {
+  --color-sds-bg: #FAFAF8;
+  --color-sds-text: #171717;
+  --color-sds-accent: #315CFF;
+  --color-sds-surface: #F3F3EF;
+  --color-sds-border: #E5E5DF;
+  --font-sds-ui: 'Inter', sans-serif;
+  --font-sds-content: 'Source Serif 4', 'Georgia', serif;
+}
+
+body {
+  background-color: var(--color-sds-bg);
+  color: var(--color-sds-text);
+  font-family: var(--font-sds-ui);
+}
+.research-text {
+  line-height: 1.75;
+}

@@ -1,0 +1,132 @@
+import React, { useMemo, useCallback } from 'react';
+import { ReactFlow, Background, applyNodeChanges, applyEdgeChanges, useReactFlow } from '@xyflow/react';
+import { ZoomIn, ZoomOut, Layout } from 'lucide-react';
+import '@xyflow/react/dist/style.css';
+
+const CustomControls = () => {
+  const { zoomIn, zoomOut, fitView } = useReactFlow();
+
+  return (
+    <div className="absolute bottom-3 right-3 z-50 flex items-center gap-1 bg-white border border-slate-200/90 p-1 rounded-full shadow-md">
+      <button onClick={() => zoomIn()} className="p-1.5 hover:bg-slate-100 rounded-full text-slate-500 hover:text-slate-800 transition-colors cursor-pointer" title="Zoom In">
+        <ZoomIn size={14} />
+      </button>
+      <button onClick={() => zoomOut()} className="p-1.5 hover:bg-slate-100 rounded-full text-slate-500 hover:text-slate-800 transition-colors cursor-pointer" title="Zoom Out">
+        <ZoomOut size={14} />
+      </button>
+      <div className="h-4 w-px bg-slate-200 mx-0.5" />
+      <button onClick={() => fitView({ padding: 0.2 })} className="p-1.5 hover:bg-slate-100 rounded-full text-slate-500 hover:text-slate-800 transition-colors cursor-pointer" title="Reset Zoom">
+        <Layout size={14} />
+      </button>
+    </div>
+  );
+};
+
+/**
+ * React Flow / Mind Map Adapter for UVE Ecosystem
+ * Renders interactive node-based research maps and knowledge graphs inside the UVE framework.
+ */
+export const ReactFlowAdapter = React.memo(({ type, config, onSourceClick }) => {
+  const initialNodes = config?.nodes || [];
+  const initialEdges = config?.edges || [];
+
+  // Provide structured hierarchical layout if nodes lack positions
+  const formattedNodes = useMemo(() => {
+    const total = initialNodes.length;
+    const cols = total <= 3 ? total : Math.ceil(Math.sqrt(total));
+
+    return initialNodes.map((node, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const defaultX = col * 260 + 40;
+      const defaultY = row * 140 + 40;
+
+      return {
+        ...node,
+        id: node.id || `node-${i}`,
+        position: node.position || { x: defaultX, y: defaultY },
+        data: { ...node.data, label: node.data?.label || node.label },
+        style: {
+          background: '#ffffff',
+          border: '1px solid #cbd5e1',
+          borderRadius: '10px',
+          padding: '12px 18px',
+          fontSize: '12px',
+          fontWeight: '700',
+          color: '#0f172a',
+          boxShadow: '0 2px 4px 0 rgba(0, 0, 0, 0.05)',
+          maxWidth: '220px',
+          whiteSpace: 'normal',
+          wordBreak: 'break-word',
+          ...node.style
+        }
+      };
+    });
+  }, [initialNodes]);
+
+  // Task 4 Guard: Filter out dangling edges to eliminate 'Node not found' console errors
+  const formattedEdges = useMemo(() => {
+    const validNodeIds = new Set(formattedNodes.map(n => n.id));
+    return initialEdges
+      .filter(edge => edge && validNodeIds.has(edge.source) && validNodeIds.has(edge.target))
+      .map((edge, i) => ({
+        ...edge,
+        id: edge.id || `edge-${i}`,
+        type: edge.type || 'smoothstep',
+        animated: edge.animated !== undefined ? edge.animated : true,
+        style: { stroke: '#94a3b8', strokeWidth: 1.5, ...edge.style }
+      }));
+  }, [initialEdges, formattedNodes]);
+
+  const [nodes, setNodes] = React.useState(formattedNodes);
+  const [edges, setEdges] = React.useState(formattedEdges);
+
+  React.useEffect(() => {
+    setNodes(formattedNodes);
+    setEdges(formattedEdges);
+  }, [formattedNodes, formattedEdges]);
+
+  const onNodesChange = useCallback(
+    (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
+    []
+  );
+
+  const onEdgesChange = useCallback(
+    (changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
+    []
+  );
+
+  const handleNodeClick = (event, node) => {
+    if (!onSourceClick) return;
+
+    // Extract citation numbers like [1], [2] from the label
+    const label = node.data?.label || '';
+    const matches = [...label.matchAll(/\[(\d+)\]/g)];
+
+    if (matches.length > 0) {
+      const paperIndex = matches[0][1];
+      onSourceClick(paperIndex);
+    }
+  };
+
+  return (
+    <div className="flex-1 w-full h-full min-h-[350px] relative">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onNodeClick={handleNodeClick}
+        fitView
+        fitViewOptions={{ padding: 0.35 }}
+        minZoom={0.2}
+        maxZoom={4}
+        proOptions={{ hideAttribution: true }}
+      >
+        <Background color="#cbd5e1" gap={16} />
+        <CustomControls />
+      </ReactFlow>
+    </div>
+  );
+}, (prevProps, nextProps) => prevProps.type === nextProps.type && JSON.stringify(prevProps.config) === JSON.stringify(nextProps.config));
+export default ReactFlowAdapter;

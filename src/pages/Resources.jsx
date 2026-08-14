@@ -42,8 +42,8 @@ const Resources = () => {
 
   const docs = [
     {
-      title: "1. Core Portal Selection",
-      content: "Switch between portals inside the Research Dashboard. Use GEB / Pharmacy for NCBI PubMed, Engineering for physics & tech papers on arXiv, and Universal (All Fields) for Semantic Scholar's broad database."
+      title: "1. Database Convergence & Multi-source Search",
+      content: "Search across multiple databases simultaneously. ScholarHub AI aggregates and merges results from NCBI PubMed, arXiv, Europe PMC, OpenAlex, and Crossref into a single, unified research feed regardless of topic."
     },
     {
       title: "2. Executing Smart Queries",
@@ -55,7 +55,7 @@ const Resources = () => {
     },
     {
       title: "4. Subscription & Usage Limits",
-      content: "Free users get 3 AI uses/day. Starter allows 50 AI uses and unlocks the Engineering portal. Pro is our premium plan allowing 100 daily AI uses and unrestricted Universal Search."
+      content: "Compute limits vary by tier (Free: 500 Zaps, Starter: 1500 Zaps, Pro: 3000 Zaps). All tiers enjoy universal search access across all databases and a unified 200 paper saved library limit."
     }
   ]
 
@@ -64,12 +64,12 @@ const Resources = () => {
       
       {/* Navbar Minimal */}
       <nav className="border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+        <div className="w-full 2xl:px-12 mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
               <Dna size={20} />
             </div>
-            <span className="text-xl font-black tracking-tighter text-slate-900">ScholarHub<span className="text-blue-600">AI</span></span>
+            <span className="text-xl font-black tracking-tighter text-[#171717]">ScholarHub<span className="text-blue-600">AI</span></span>
           </div>
           <button 
             onClick={() => navigate('/research')}
@@ -81,20 +81,20 @@ const Resources = () => {
       </nav>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-16 space-y-16">
+      <main className="flex-1 w-full 2xl:px-12 w-full mx-auto px-6 py-16 space-y-16">
         
         {/* Header Section */}
         <div className="text-center md:text-left">
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-2 flex items-center justify-center md:justify-start gap-3">
+          <h1 className="text-4xl font-black text-[#171717] tracking-tight mb-2 flex items-center justify-center md:justify-start gap-3">
             <Database className="text-blue-600" size={32} />
             ScholarHub AI Research Resources
           </h1>
-          <p className="text-slate-500 font-medium">Access primary external bibliographic engines and learn how to use the platform effectively.</p>
+          <p className="text-slate-700 font-medium">Access primary external bibliographic engines and learn how to use the platform effectively.</p>
         </div>
 
         {/* Section 1: External Research Tools Grid */}
         <section className="space-y-8">
-          <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+          <h2 className="text-sm font-black text-slate-600 uppercase tracking-widest flex items-center gap-2">
             <ExternalLink size={16} className="text-blue-500" />
             External Research Tools
           </h2>
@@ -103,8 +103,8 @@ const Resources = () => {
             {externalTools.map((tool, idx) => (
               <motion.div 
                 key={idx} 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 transition={{ delay: idx * 0.05 }}
                 className="bg-white rounded-3xl p-8 border border-slate-200 shadow-xl shadow-slate-200/30 flex flex-col justify-between hover:border-blue-300 transition-colors"
               >
@@ -114,8 +114,8 @@ const Resources = () => {
                       {tool.badge}
                     </span>
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-3">{tool.name}</h3>
-                  <p className="text-sm font-medium text-slate-500 leading-relaxed mb-6">{tool.description}</p>
+                  <h3 className="text-lg font-bold text-[#171717] mb-3">{tool.name}</h3>
+                  <p className="text-sm font-medium text-slate-700 leading-relaxed mb-6">{tool.description}</p>
                 </div>
                 <a 
                   href={tool.url}
@@ -131,25 +131,25 @@ const Resources = () => {
         </section>
 
         {/* Section 2: Platform Documentation */}
-        <section className="bg-slate-900 rounded-[2.5rem] p-8 md:p-12 text-white relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 blur-[80px] rounded-full pointer-events-none" />
+        <section className="bg-white border border-[#E5E5DF] rounded-[12px] p-8 md:p-12 text-[#171717] relative overflow-hidden shadow-sm">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 blur-[80px] rounded-full pointer-events-none" />
           
           <div className="relative z-10 space-y-10">
             <div>
-              <h2 className="text-sm font-black text-blue-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+              <h2 className="text-sm font-bold text-[#315CFF] uppercase tracking-widest mb-2 flex items-center gap-2">
                 <FileText size={16} />
                 Platform Documentation
               </h2>
-              <h3 className="text-2xl md:text-3xl font-black tracking-tight text-white leading-none">
+              <h3 className="text-2xl md:text-3xl font-bold tracking-tight text-[#171717] leading-none font-sds-content">
                 How to leverage ScholarHub AI
               </h3>
             </div>
 
             <div className="grid sm:grid-cols-2 gap-8 pt-4">
               {docs.map((doc, idx) => (
-                <div key={idx} className="space-y-3 bg-slate-800/40 p-6 rounded-2xl border border-slate-800">
-                  <h4 className="font-bold text-white text-base">{doc.title}</h4>
-                  <p className="text-slate-400 text-sm leading-relaxed font-medium">{doc.content}</p>
+                <div key={idx} className="space-y-3 bg-[#F3F3EF]/60 p-6 rounded-[12px] border border-[#E5E5DF]">
+                  <h4 className="font-bold text-[#171717] text-base">{doc.title}</h4>
+                  <p className="text-slate-700 text-sm leading-relaxed font-medium">{doc.content}</p>
                 </div>
               ))}
             </div>

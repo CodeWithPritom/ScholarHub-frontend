@@ -18,9 +18,9 @@ const AuthModal = ({ isOpen, onClose }) => {
             onClick={onClose}
           />
           <motion.div 
-            initial={{ opacity: 0, scale: 0.95, y: 20 }} 
-            animate={{ opacity: 1, scale: 1, y: 0 }} 
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }}
             className="fixed inset-0 sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full h-full sm:h-auto sm:max-w-md bg-white rounded-none sm:rounded-[2rem] shadow-2xl z-[101] overflow-y-auto flex flex-col justify-center border border-slate-100"
           >
             <div className="p-8 text-center">
