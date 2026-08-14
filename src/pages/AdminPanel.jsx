@@ -6,7 +6,8 @@ import {
   AlertCircle, Ban, Trash2, CreditCard, ToggleLeft, ToggleRight, Users, Zap,
   Radio, Bell, Megaphone, X, Key, Activity, Clock, FileText, RefreshCcw, RefreshCw,
   Server, Database, Cpu, ArrowUp, DollarSign, Layers, ChevronLeft, ChevronRight, Sliders, Terminal,
-  Percent, CheckCircle2, XCircle, HardDrive, Flame, TrendingUp
+  Percent, CheckCircle2, XCircle, HardDrive, Flame, TrendingUp,
+  Eye, EyeOff, Plus, Copy, MessageSquare
 } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 import { BASE_URL, fireSessionExpired } from '../utils/api'
@@ -96,7 +97,7 @@ const SystemHealthMonitor = ({ apiFetch }) => {
   )
 }
 
-const AIRoutingSettings = ({ authToken }) => {
+const AIRoutingSettings = ({ authToken, apiFetch }) => {
   const [configs, setConfigs] = useState([])
   const [stats, setStats] = useState({})
   const [loading, setLoading] = useState(false)
@@ -206,7 +207,7 @@ const AIRoutingSettings = ({ authToken }) => {
                   <span className="text-sm font-semibold text-slate-700 group-hover:text-indigo-600">Enable DB Config</span>
                 </label>
                 
-                <button onClick={() => handleUpdate(p)} className="px-4 py-1.5 bg-[#FAFAF8] text-white rounded-lg text-sm font-bold shadow-md hover:bg-[#F3F3EF] transition-all flex items-center gap-1.5">
+                <button onClick={() => handleUpdate(p)} className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
                   <CheckCircle2 size={16} /> Save State
                 </button>
               </div>
@@ -217,6 +218,483 @@ const AIRoutingSettings = ({ authToken }) => {
                   <span className="text-rose-500 flex items-center gap-1" title="Failed Requests (24h)"><X size={12}/> {stat[liveSource]?.failed || 0}</span>
                 </div>
                 <span className="text-[10px] uppercase opacity-70 flex items-center gap-1"><Activity size={12}/> 24H Rolling Heartbeat</span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+const AIGatewaySettings = ({ apiFetch }) => {
+  const [features, setFeatures] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [formStates, setFormStates] = useState({})
+  const [showKeys, setShowKeys] = useState({})
+
+  const fetchFeatures = async () => {
+    try {
+      setLoading(true)
+      const data = await apiFetch('/api/admin/ai-gateway/features')
+      setFeatures(data || [])
+      const states = {}
+      data.forEach(f => {
+        states[f.feature_id] = {
+          current_provider: f.current_provider,
+          current_model: f.current_model,
+          fallback_chain: f.fallback_chain || [],
+          custom_fallback_configs: f.custom_fallback_configs || [],
+          is_overridden: f.is_overridden,
+          override_api_key: f.override_api_key || '',
+          custom_api_url: f.custom_api_url || ''
+        }
+      })
+      setFormStates(states)
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to load AI Gateway configuration')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchFeatures()
+  }, [])
+
+  const handleUpdate = async (featureId) => {
+    try {
+      const state = formStates[featureId]
+      
+      // Ensure priority_index matches step sequence order
+      const cleanedFallbacks = (state.custom_fallback_configs || []).map((step, idx) => ({
+        ...step,
+        priority_index: idx
+      }))
+
+      const body = {
+        current_provider: state.current_provider,
+        current_model: state.current_model,
+        fallback_chain: state.fallback_chain || [],
+        custom_fallback_configs: cleanedFallbacks,
+        is_overridden: state.is_overridden,
+        override_api_key: state.override_api_key,
+        custom_api_url: state.custom_api_url
+      }
+
+      await apiFetch(`/api/admin/ai-gateway/features/${featureId}`, {
+        method: 'POST',
+        body: JSON.stringify(body)
+      })
+      toast.success(`Successfully saved configuration for ${featureId}`)
+      fetchFeatures()
+    } catch (err) {
+      console.error(err)
+      toast.error(`Failed to update ${featureId}`)
+    }
+  }
+
+  const handleChange = (featureId, field, val) => {
+    setFormStates(prev => ({
+      ...prev,
+      [featureId]: {
+        ...prev[featureId],
+        [field]: val
+      }
+    }))
+  }
+
+  const handleAddFallback = (featureId) => {
+    setFormStates(prev => {
+      const currentFallbacks = prev[featureId]?.custom_fallback_configs || []
+      const newStep = {
+        id: Math.random().toString(36).substr(2, 9),
+        provider: 'groq',
+        model_id: 'llama-3.1-8b-instant',
+        api_key: '',
+        api_url: '',
+        priority_index: currentFallbacks.length
+      }
+      return {
+        ...prev,
+        [featureId]: {
+          ...prev[featureId],
+          custom_fallback_configs: [...currentFallbacks, newStep]
+        }
+      }
+    })
+    toast.success('Added new fallback step template')
+  }
+
+  const handleDeleteFallback = (featureId, idx) => {
+    setFormStates(prev => {
+      const currentFallbacks = prev[featureId]?.custom_fallback_configs || []
+      const updated = currentFallbacks.filter((_, i) => i !== idx).map((step, newIdx) => ({
+        ...step,
+        priority_index: newIdx
+      }))
+      return {
+        ...prev,
+        [featureId]: {
+          ...prev[featureId],
+          custom_fallback_configs: updated
+        }
+      }
+    })
+    toast.error('Removed fallback step')
+  }
+
+  const handleFallbackChange = (featureId, idx, field, val) => {
+    setFormStates(prev => {
+      const currentFallbacks = [...(prev[featureId]?.custom_fallback_configs || [])]
+      currentFallbacks[idx] = {
+        ...currentFallbacks[idx],
+        [field]: val
+      }
+      return {
+        ...prev,
+        [featureId]: {
+          ...prev[featureId],
+          custom_fallback_configs: currentFallbacks
+        }
+      }
+    })
+  }
+
+  const copyToClipboard = (text) => {
+    if (!text) return
+    navigator.clipboard.writeText(text)
+    toast.success('API Key copied to clipboard')
+  }
+
+  const providers = [
+    { value: 'groq', label: 'Groq Cloud' },
+    { value: 'nvidia', label: 'NVIDIA NIM' },
+    { value: 'mistral', label: 'Mistral AI' },
+    { value: 'gemini', label: 'Google Gemini' },
+    { value: 'openrouter', label: 'OpenRouter' },
+    { value: 'together', label: 'Together AI' },
+    { value: 'custom', label: 'Custom API Endpoint' }
+  ]
+
+  const featureDescriptions = {
+    query_optimization: {
+      name: 'Search Query Optimizer',
+      desc: 'Refines raw user searches into scientific synonyms & high-precision database keywords.'
+    },
+    research_auditor: {
+      name: 'Research Claim Auditor',
+      desc: 'Audits literature tables, parses methodologies, and computes scientific consensus scores.'
+    },
+    ai_mentor: {
+      name: 'AI Mentor Chatbot',
+      desc: 'Handles interactive Q&A grounded in paper context or learning module lessons.'
+    },
+    emo_support_bot: {
+      name: 'EMO Support Bot',
+      desc: 'Central support chat and general researcher assistance assistant.'
+    },
+    news_summarizer: {
+      name: 'RSS News Classifier',
+      desc: 'Extracts categories, tags, and generates 1-sentence summaries for syndication feeds.'
+    },
+    hypothesis_generator: {
+      name: 'Thesis & Outline Generator',
+      desc: 'Creates structured Chapter titles, section layouts, and methodology recommendations.'
+    },
+    outreach_emailer: {
+      name: 'Author Outreach Emailer',
+      desc: 'Generates professional email drafts to primary investigators asking for lab involvement.'
+    },
+    literature_review: {
+      name: 'Literature Review Synthesis',
+      desc: 'Compiles and synthesizes multiple papers into a cohesive structured narrative review.'
+    },
+    gap_analysis: {
+      name: 'AI Research Gap Detector',
+      desc: 'Analyzes limitations and discrepancies in literature to identify unexplored areas.'
+    }
+  }
+
+  if (loading && features.length === 0) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Universal AI Gateway (v3.0)</h2>
+          <p className="text-sm text-slate-500">Configure feature-level dynamic fallback chains and custom credentials.</p>
+        </div>
+        <button
+          onClick={fetchFeatures}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-600 cursor-pointer"
+        >
+          <RefreshCw className="w-3.5 h-3.5" />
+          Refresh
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {features.map(f => {
+          const fs = formStates[f.feature_id] || {}
+          const meta = featureDescriptions[f.feature_id] || { name: f.display_name, desc: '' }
+          const fallbacks = fs.custom_fallback_configs || []
+
+          return (
+            <div
+              key={f.feature_id}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs flex flex-col justify-between"
+            >
+              <div className="space-y-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-bold text-slate-800 dark:text-slate-100">{meta.name}</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">{meta.desc}</p>
+                  </div>
+                  <div>
+                    {fs.is_overridden ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold">
+                        🗄️ DB Override
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-800 text-[10px] font-bold">
+                        ☁️ Vercel ENV
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-2">
+                  <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-2 rounded-lg border border-slate-100 dark:border-slate-900">
+                    <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                      {fs.is_overridden ? "Active Overrides Enabled" : "Using Default ENV Variables"}
+                    </span>
+                    <button
+                      onClick={() => handleChange(f.feature_id, 'is_overridden', !fs.is_overridden)}
+                      className="cursor-pointer"
+                    >
+                      {fs.is_overridden ? (
+                        <ToggleRight className="w-9 h-9 text-blue-600" />
+                      ) : (
+                        <ToggleLeft className="w-9 h-9 text-slate-400" />
+                      )}
+                    </button>
+                  </div>
+
+                  {fs.is_overridden && (
+                    <div className="space-y-4 animate-fadeIn">
+                      <div className="bg-slate-50/50 dark:bg-slate-950/40 p-3 rounded-lg border border-slate-100 dark:border-slate-800/50 space-y-3">
+                        <span className="text-xs font-extrabold text-blue-600 dark:text-blue-400 uppercase tracking-wider block">Primary Layer</span>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-500 mb-1">Provider</label>
+                          <select
+                            value={fs.current_provider || ''}
+                            onChange={e => handleChange(f.feature_id, 'current_provider', e.target.value)}
+                            className="w-full text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-2 focus:ring-1 focus:ring-blue-500 text-slate-800 dark:text-slate-100 font-medium"
+                          >
+                            {providers.map(p => (
+                              <option key={p.value} value={p.value}>{p.label}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {fs.current_provider === 'custom' && (
+                          <div>
+                            <label className="block text-[10px] font-semibold text-slate-500 mb-1">Custom API URL</label>
+                            <input
+                              type="text"
+                              value={fs.custom_api_url || ''}
+                              onChange={e => handleChange(f.feature_id, 'custom_api_url', e.target.value)}
+                              placeholder="https://api.my-endpoint.com/v1/chat/completions"
+                              className="w-full text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-2 focus:ring-1 focus:ring-blue-500 text-slate-800 dark:text-slate-100 font-medium"
+                            />
+                          </div>
+                        )}
+
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-500 mb-1">Model ID</label>
+                          <input
+                            type="text"
+                            value={fs.current_model || ''}
+                            onChange={e => handleChange(f.feature_id, 'current_model', e.target.value)}
+                            placeholder="e.g. llama-3.1-70b-versatile"
+                            className="w-full text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-2 focus:ring-1 focus:ring-blue-500 text-slate-800 dark:text-slate-100 font-medium"
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between items-center mb-1">
+                            <label className="block text-[10px] font-semibold text-slate-500">API Key Override</label>
+                            {fs.override_api_key ? (
+                              <span className="text-[9px] bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200/50 rounded px-1 py-0.2 font-bold scale-90">🗄️ Custom Key</span>
+                            ) : (
+                              <span className="text-[9px] bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border border-slate-200/50 rounded px-1 py-0.2 font-bold scale-90">☁️ System ENV Key</span>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <div className="relative flex-1">
+                              <input
+                                type={showKeys[`p:${f.feature_id}`] ? "text" : "password"}
+                                value={fs.override_api_key || ''}
+                                onChange={e => handleChange(f.feature_id, 'override_api_key', e.target.value)}
+                                placeholder="Blank = Use System ENV Variable"
+                                className="w-full text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-2 pr-8 focus:ring-1 focus:ring-blue-500 text-slate-800 dark:text-slate-100 font-medium"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowKeys(prev => ({ ...prev, [`p:${f.feature_id}`]: !prev[`p:${f.feature_id}`] }))}
+                                className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                              >
+                                {showKeys[`p:${f.feature_id}`] ? <EyeOff size={14} /> : <Eye size={14} />}
+                              </button>
+                            </div>
+                            {fs.override_api_key && (
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(fs.override_api_key)}
+                                className="px-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 cursor-pointer flex items-center justify-center"
+                              >
+                                <Copy size={13} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Fallback Waterfall Layers</span>
+                          <button
+                            type="button"
+                            onClick={() => handleAddFallback(f.feature_id)}
+                            className="flex items-center gap-1 text-[10px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-extrabold text-indigo-600 dark:text-indigo-400 px-2 py-1 rounded-md border border-slate-200/60 dark:border-slate-700/60 cursor-pointer"
+                          >
+                            <Plus size={10} /> Add Backup
+                          </button>
+                        </div>
+
+                        {fallbacks.length === 0 ? (
+                          <div className="text-center p-4 border border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
+                            <span className="text-[11px] text-slate-400 font-medium">No custom fallbacks defined. Will default straight to System ENV default.</span>
+                          </div>
+                        ) : (
+                          <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                            {fallbacks.map((step, idx) => (
+                              <div
+                                key={step.id || idx}
+                                className="bg-slate-50/40 dark:bg-slate-950/20 p-3 rounded-lg border border-slate-200/80 dark:border-slate-800/80 space-y-2 relative"
+                              >
+                                <div className="flex justify-between items-center">
+                                  <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Backup {idx + 1}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteFallback(f.feature_id, idx)}
+                                    className="text-slate-400 hover:text-red-500 dark:hover:text-red-400 p-1 rounded-md cursor-pointer transition-colors"
+                                    title="Delete Backup Step"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="block text-[9px] font-semibold text-slate-500 mb-0.5">Provider</label>
+                                    <select
+                                      value={step.provider || ''}
+                                      onChange={e => handleFallbackChange(f.feature_id, idx, 'provider', e.target.value)}
+                                      className="w-full text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md p-1.5 focus:ring-1 focus:ring-blue-500 text-slate-800 dark:text-slate-100 font-medium"
+                                    >
+                                      {providers.map(p => (
+                                        <option key={p.value} value={p.value}>{p.label}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-[9px] font-semibold text-slate-500 mb-0.5">Model ID</label>
+                                    <input
+                                      type="text"
+                                      value={step.model_id || ''}
+                                      onChange={e => handleFallbackChange(f.feature_id, idx, 'model_id', e.target.value)}
+                                      placeholder="Model identifier"
+                                      className="w-full text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md p-1.5 focus:ring-1 focus:ring-blue-500 text-slate-800 dark:text-slate-100 font-medium"
+                                    />
+                                  </div>
+                                </div>
+
+                                {step.provider === 'custom' && (
+                                  <div>
+                                    <label className="block text-[9px] font-semibold text-slate-500 mb-0.5">Custom API URL</label>
+                                    <input
+                                      type="text"
+                                      value={step.api_url || ''}
+                                      onChange={e => handleFallbackChange(f.feature_id, idx, 'api_url', e.target.value)}
+                                      placeholder="Custom completions URL"
+                                      className="w-full text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md p-1.5 focus:ring-1 focus:ring-blue-500 text-slate-800 dark:text-slate-100 font-medium"
+                                    />
+                                  </div>
+                                )}
+
+                                <div>
+                                  <div className="flex justify-between items-center mb-0.5">
+                                    <label className="block text-[9px] font-semibold text-slate-500">API Key Override</label>
+                                    {step.api_key ? (
+                                      <span className="text-[8px] bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200/30 rounded px-1 py-0.2 font-bold scale-90">🗄️ Custom Key</span>
+                                    ) : (
+                                      <span className="text-[8px] bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 border border-slate-200/30 rounded px-1 py-0.2 font-bold scale-90">☁️ System ENV Key</span>
+                                    )}
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <div className="relative flex-1">
+                                      <input
+                                        type={showKeys[`f:${step.id}`] ? "text" : "password"}
+                                        value={step.api_key || ''}
+                                        onChange={e => handleFallbackChange(f.feature_id, idx, 'api_key', e.target.value)}
+                                        placeholder="Blank = Use System ENV default"
+                                        className="w-full text-xs bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md p-1.5 pr-8 focus:ring-1 focus:ring-blue-500 text-slate-800 dark:text-slate-100 font-medium"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowKeys(prev => ({ ...prev, [`f:${step.id}`]: !prev[`f:${step.id}`] }))}
+                                        className="absolute right-2 top-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                                      >
+                                        {showKeys[`f:${step.id}`] ? <EyeOff size={13} /> : <Eye size={13} />}
+                                      </button>
+                                    </div>
+                                    {step.api_key && (
+                                      <button
+                                        type="button"
+                                        onClick={() => copyToClipboard(step.api_key)}
+                                        className="px-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md text-slate-500 dark:text-slate-400 cursor-pointer flex items-center justify-center"
+                                      >
+                                        <Copy size={12} />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800/60 mt-4 flex justify-end">
+                <button
+                  onClick={() => handleUpdate(f.feature_id)}
+                  className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-colors cursor-pointer"
+                >
+                  Save State
+                </button>
               </div>
             </div>
           )
@@ -312,6 +790,11 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
   const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '', type: 'info' })
   const [creatingAnnounce, setCreatingAnnounce] = useState(false)
   const [announcementMsg, setAnnouncementMsg] = useState(null)
+
+  // Feedback State
+  const [feedbacks, setFeedbacks] = useState([])
+  const [loadingFeedback, setLoadingFeedback] = useState(false)
+  const [fullscreenFeedbackImg, setFullscreenFeedbackImg] = useState(null)
 
   // Modals & Action States
   const [selectedUser, setSelectedUser] = useState(null)
@@ -503,6 +986,15 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
     } catch (err) { console.error(err) }
   }
 
+  const fetchFeedback = async () => {
+    setLoadingFeedback(true)
+    try {
+      const data = await apiFetch('/api/admin/feedback', { method: 'GET' })
+      if (Array.isArray(data)) setFeedbacks(data)
+    } catch (err) { console.error(err) }
+    finally { setLoadingFeedback(false) }
+  }
+
   const fetchPendingPayments = async () => {
     setLoadingPayments(true)
     try {
@@ -542,6 +1034,8 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
       fetchCoupons()
     } else if (activeTab === 'announcements') {
       fetchAnnouncements()
+    } else if (activeTab === 'feedback') {
+      fetchFeedback()
     }
   }, [authToken, isAdmin, activeTab, userPage, tierFilter, statusFilter])
 
@@ -764,7 +1258,7 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
           </div>
           <button
             onClick={() => { fetchMetrics(); fetchUpstashMgmt(); fetchStats(); fetchAllUsers(); fetchPendingPayments(); fetchCoupons(); }}
-            className="px-2.5 py-1.5 sm:px-3.5 bg-[#FAFAF8] hover:bg-[#F3F3EF] text-white rounded-xl text-[10px] sm:text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap"
+            className="px-2.5 py-1.5 sm:px-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[10px] sm:text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap"
           >
             <RefreshCcw size={14} className={loading ? "animate-spin" : ""} /> <span className="hidden sm:inline">Refresh Data</span><span className="sm:hidden">Refresh</span>
           </button>
@@ -776,12 +1270,14 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
         {[
           { id: 'overview', label: 'Overview', icon: LayoutDashboardIcon },
           { id: 'ai_routing', label: 'AI Engine', icon: Cpu },
+          { id: 'ai_gateway', label: 'AI Gateway', icon: Sliders },
           { id: 'upstash', label: 'Upstash', icon: Database },
           { id: 'intelligence', label: 'Intelligence', icon: Radio },
           { id: 'users', label: 'Users', icon: Users },
-          { id: 'payments', label: 'Payments', icon: CreditCard, badge: pendingPayments.length },
+           { id: 'payments', label: 'Payments', icon: CreditCard, badge: pendingPayments.length },
           { id: 'coupons', label: 'Coupons', icon: Percent },
           { id: 'announcements', label: 'Announce', icon: Megaphone },
+          { id: 'feedback', label: 'Feedback', icon: MessageSquare },
           { id: 'logs', label: 'Logs', icon: Terminal }
         ].map(tab => {
           const Icon = tab.icon
@@ -818,12 +1314,14 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
             {[
               { id: 'overview', label: 'Overview & Burn Rate', icon: LayoutDashboardIcon },
               { id: 'ai_routing', label: 'AI Resolver Engine', icon: Cpu },
+              { id: 'ai_gateway', label: 'Universal AI Gateway', icon: Sliders },
               { id: 'upstash', label: 'Upstash & DB Metrics', icon: Database },
               { id: 'intelligence', label: 'Intelligence Hub', icon: Radio },
               { id: 'users', label: 'User Directory', icon: Users },
               { id: 'payments', label: 'Manual Payments', icon: CreditCard, badge: pendingPayments.length },
               { id: 'coupons', label: 'Discounts & Coupons', icon: Percent },
               { id: 'announcements', label: 'Announcements', icon: Megaphone },
+              { id: 'feedback', label: 'User Feedback', icon: MessageSquare },
               { id: 'logs', label: 'System Logs', icon: Terminal }
             ].map(tab => {
               const Icon = tab.icon
@@ -866,7 +1364,10 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
         {/* Dashboard Content */}
         <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
           {activeTab === 'ai_routing' && (
-            <AIRoutingSettings authToken={authToken} />
+            <AIRoutingSettings authToken={authToken} apiFetch={apiFetch} />
+          )}
+          {activeTab === 'ai_gateway' && (
+            <AIGatewaySettings apiFetch={apiFetch} />
           )}
           
           {activeTab === 'overview' && (
@@ -975,7 +1476,7 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
                   <button
                     onClick={handleFlushCache}
                     disabled={opLoading === 'flush'}
-                    className="px-4 py-2 bg-[#FAFAF8] hover:bg-[#F3F3EF] text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     {opLoading === 'flush' ? <Loader2 size={14} className="animate-spin" /> : <HardDrive size={14} />} Flush Redis Cache
                   </button>
@@ -1119,7 +1620,7 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
                         fetchIntelStatus()
                       } catch (err) { toast.error(err.message) }
                     }}
-                    className="mt-3 w-full py-2 bg-[#FAFAF8] hover:bg-[#F3F3EF] text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+                    className="mt-3 w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <RefreshCcw size={14} /> Run Fetch Cycle Now
                   </button>
@@ -1703,8 +2204,112 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
               </div>
             </div>
           )}
+
+          {/* TAB 8: USER FEEDBACK & REPORTS */}
+          {activeTab === 'feedback' && (
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs space-y-6">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <div>
+                  <h2 className="text-sm font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                    <MessageSquare size={16} className="text-indigo-600" /> User Feedback & Bug Reports
+                  </h2>
+                  <p className="text-xs font-semibold text-slate-400 mt-1">Review feedback, suggestions, and screenshots submitted by users.</p>
+                </div>
+                <button 
+                  onClick={fetchFeedback}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                  disabled={loadingFeedback}
+                >
+                  <RefreshCcw size={14} className={loadingFeedback ? "animate-spin" : ""} /> Refresh
+                </button>
+              </div>
+
+              {loadingFeedback ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <Loader2 size={32} className="text-indigo-600 animate-spin" />
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Loading Feedback Records...</span>
+                </div>
+              ) : feedbacks.length === 0 ? (
+                <div className="text-center py-16 text-slate-400">
+                  <MessageSquare size={48} className="mx-auto text-slate-300 mb-3" />
+                  <p className="text-sm font-semibold">No feedback records found.</p>
+                  <p className="text-xs mt-1">When users submit feedback or bug reports, they will show up here.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {feedbacks.map((item) => (
+                    <div key={item.id} className="bg-slate-50 border border-slate-200 rounded-2.5xl p-5 space-y-4 shadow-xs flex flex-col justify-between">
+                      <div className="space-y-3">
+                        {/* Card Header */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
+                              item.category === 'bug' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
+                              item.category === 'feature' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                              item.category === 'billing' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                              'bg-slate-100 text-slate-700 border border-slate-200'
+                            }`}>
+                              {item.category === 'bug' ? 'Bug' : item.category === 'feature' ? 'Feature' : item.category === 'billing' ? 'Billing' : 'Feedback'}
+                            </span>
+                            <h4 className="text-xs font-black text-slate-800 mt-2 truncate max-w-[200px]" title={item.email}>{item.email}</h4>
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-400">
+                            {new Date(item.created_at).toLocaleString()}
+                          </span>
+                        </div>
+
+                        {/* Description Message */}
+                        <p className="text-xs font-semibold text-slate-700 leading-relaxed whitespace-pre-wrap break-words bg-white border border-slate-100 p-3.5 rounded-xl">
+                          {item.message}
+                        </p>
+                      </div>
+
+                      {/* Attached Screenshot Preview */}
+                      {item.image_url && (
+                        <div className="mt-3">
+                          <label className="text-[9px] font-black uppercase text-slate-400 tracking-wider block mb-1">Attached Screenshot</label>
+                          <div 
+                            onClick={() => setFullscreenFeedbackImg(item.image_url)}
+                            className="relative border border-slate-200 rounded-xl overflow-hidden cursor-pointer h-24 hover:opacity-90 transition-opacity bg-white"
+                          >
+                            <img src={item.image_url} alt="Feedback attachment" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/25 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-black text-white uppercase tracking-wider">
+                              View Image
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </main>
       </div>
+
+      {/* ── Fullscreen Screenshot Preview Modal ── */}
+      {fullscreenFeedbackImg && (
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[999] flex items-center justify-center p-4"
+          onClick={() => setFullscreenFeedbackImg(null)}
+        >
+          <div className="relative max-w-4xl w-full max-h-[90vh] flex flex-col items-center justify-center">
+            <button
+              onClick={() => setFullscreenFeedbackImg(null)}
+              className="absolute top-4 right-4 bg-slate-900/60 hover:bg-slate-900/80 p-2 text-white rounded-full transition-colors cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+            <img 
+              src={fullscreenFeedbackImg} 
+              alt="Fullscreen attachment" 
+              className="max-w-full max-h-[85vh] object-contain rounded-2xl border border-white/10 shadow-2xl" 
+              onClick={(e) => e.stopPropagation()} 
+            />
+          </div>
+        </div>
+      )}
 
       {/* ── User Deep Dive Modal ── */}
       {showUserModal && selectedUser && (
@@ -1780,7 +2385,7 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
                             onClick={() => setDurationMonths(d.value)}
                             className={`py-1.5 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
                               durationMonths === d.value
-                                ? 'bg-[#FAFAF8] text-white border-slate-900'
+                                ? 'bg-slate-900 text-white border-slate-900'
                                 : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
                             }`}
                           >
@@ -1835,7 +2440,7 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
                     <button
                       onClick={handleAdjustZaps}
                       disabled={updatingZaps}
-                      className="px-4 py-2 bg-[#FAFAF8] hover:bg-[#F3F3EF] text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
                     >
                       {updatingZaps ? <Loader2 size={14} className="animate-spin" /> : 'Set Zaps'}
                     </button>

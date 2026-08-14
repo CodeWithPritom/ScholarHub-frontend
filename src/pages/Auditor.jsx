@@ -1233,8 +1233,16 @@ const Auditor = ({ user, onLogout }) => {
     toast.success('Citation copied');
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (force = false) => {
+    const container = document.getElementById('auditor-chat-lane');
+    if (!container) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+    const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 250;
+    if (force || isAtBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: force ? 'smooth' : 'auto' });
+    }
   };
 
   useEffect(() => {
@@ -1658,6 +1666,7 @@ const Auditor = ({ user, onLogout }) => {
     sessionStorage.setItem('pending_query', finalQuery);
     setIsAnalyzing(true);
     setChatInitiated(true);
+    setTimeout(() => scrollToBottom(true), 50);
 
     const conversation = [...messages];
     let papersToUse = (explicitPapers && Array.isArray(explicitPapers) && explicitPapers.length > 0)
@@ -2582,7 +2591,7 @@ const Auditor = ({ user, onLogout }) => {
 
   return (
     <WorkspaceLayout user={user} onLogout={onLogout} lockScroll={chatInitiated}>
-      <div className={`bg-slate-50 text-slate-900 ${chatInitiated ? 'h-full w-full overflow-hidden' : 'min-h-full w-full'} flex flex-col relative z-10 font-sans selection:bg-slate-955/10`}>
+      <div className={`bg-slate-50 text-slate-900 ${chatInitiated ? 'h-full w-full overflow-hidden' : 'min-h-full w-full'} flex flex-col relative z-10 font-sans`}>
 
         {/* Hairline progress bar */}
         {isAnalyzing && (

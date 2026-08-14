@@ -531,7 +531,7 @@ const PaperDetail = ({ user, profile }) => {
                   href={article.pdf_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-6 py-3 bg-[#FAFAF8] hover:bg-[#F3F3EF] text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-slate-900/15 shrink-0 text-center flex items-center justify-center gap-2 border border-slate-950"
+                  className="px-6 py-3 bg-[#171717] hover:bg-[#262626] text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-slate-900/15 shrink-0 text-center flex items-center justify-center gap-2 border border-slate-950"
                 >
                   View Document
                   <ExternalLink size={14} />
@@ -572,7 +572,7 @@ const PaperDetail = ({ user, profile }) => {
                           idx={idx} 
                           pmcid={article.pmcid || article.full_metadata?.pmcid} 
                         />
-                        <div className="absolute top-2 right-2 bg-[#FAFAF8]/60 backdrop-blur-sm text-white text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider">
+                        <div className="absolute top-2 right-2 bg-[#171717]/80 backdrop-blur-sm text-white text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider">
                           {fig.id || `Fig ${idx + 1}`}
                         </div>
                       </div>
@@ -737,7 +737,7 @@ const PaperDetail = ({ user, profile }) => {
                     className={`w-full flex items-center justify-center gap-2 py-3 md:py-2.5 rounded-xl text-xs font-bold transition-all ${
                       userTier === 'free' 
                         ? 'bg-slate-100 text-slate-400 cursor-not-allowed blur-[2px]' 
-                        : (!article.author_orcid ? 'hidden' : 'bg-[#F3F3EF] hover:bg-[#FAFAF8] text-white shadow-sm')
+                        : (!article.author_orcid ? 'hidden' : 'bg-[#F3F3EF] hover:bg-[#E5E5DF] text-slate-800 border border-slate-300/40 shadow-sm')
                     }`}
                   >
                     {userTier === 'free' ? (
@@ -812,7 +812,7 @@ const PaperDetail = ({ user, profile }) => {
               <button 
                 onClick={handleFetchRelated}
                 disabled={relatedLoading}
-                className="mt-2 px-6 py-3 bg-[#FAFAF8] hover:bg-[#F3F3EF] disabled:bg-slate-700 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-slate-900/15 flex items-center gap-2 border border-slate-950"
+                className="mt-2 px-6 py-3 bg-[#171717] hover:bg-[#262626] disabled:bg-slate-700 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-slate-900/15 flex items-center gap-2 border border-slate-950"
               >
                 {relatedLoading ? (
                   <>

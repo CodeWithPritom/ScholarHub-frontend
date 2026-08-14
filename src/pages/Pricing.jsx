@@ -270,7 +270,7 @@ const Pricing = ({ user, profile }) => {
   ]
 
   return (
-    <div className="min-h-screen bg-sds-bg font-sans selection:bg-blue-500/30 selection:text-blue-200 text-sds-text">
+    <div className="min-h-screen bg-sds-bg font-sans selection:bg-blue-500/20 text-sds-text">
       
       {/* Navbar Minimal */}
       <nav className="border-b border-sds-border bg-sds-bg/80 backdrop-blur-md sticky top-0 z-50">

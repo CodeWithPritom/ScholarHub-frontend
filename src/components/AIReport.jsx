@@ -135,7 +135,7 @@ const AIReport = () => {
                 </div>
               </div>
 
-              <div className="p-8 bg-[#FAFAF8] rounded-[2.5rem] text-white print:hidden">
+              <div className="p-8 bg-[#171717] rounded-[2.5rem] text-white print:hidden">
                 <h5 className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-4">Research Note</h5>
                 <p className="text-xs text-slate-400 leading-[1.75] font-sds-content font-medium">
                   This report is synthesized using advanced LLM technology. Please cross-reference with PMIDs for clinical decisions.

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import WorkspaceTabs from './WorkspaceTabs';
+import FeedbackModal from './FeedbackModal';
 
 const WorkspaceLayout = React.memo(({ user, profile, onLogout, lockScroll = false, hideNav = false, children }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -13,7 +14,7 @@ const WorkspaceLayout = React.memo(({ user, profile, onLogout, lockScroll = fals
   }, [desktopCollapsed]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-sds-bg font-sans selection:bg-blue-500/30 selection:text-blue-200">
+    <div className="flex h-screen overflow-hidden bg-sds-bg font-sans selection:bg-blue-500/20">
       <Sidebar 
         mobileMenuOpen={mobileMenuOpen}
         setMobileMenuOpen={setMobileMenuOpen}
@@ -39,6 +40,8 @@ const WorkspaceLayout = React.memo(({ user, profile, onLogout, lockScroll = fals
           </div>
         </main>
       </div>
+
+      <FeedbackModal />
     </div>
   );
 });

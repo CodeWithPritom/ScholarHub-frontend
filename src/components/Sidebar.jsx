@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, Microscope, Library, BarChart3, Settings,
   HelpCircle, ChevronLeft, ChevronRight, X, Sparkles, History, Zap, Download,
-  Newspaper, GraduationCap, BookOpen
+  Newspaper, GraduationCap, BookOpen, MessageSquare
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { toast } from 'sonner';
@@ -331,6 +331,24 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
               <span className={`truncate whitespace-nowrap ${collapsed ? 'lg:hidden' : 'block'}`}>
                 Support
               </span>
+            </button>
+
+            {/* Feedback Button */}
+            <button 
+              onClick={() => { setMobileMenuOpen(false); window.dispatchEvent(new Event('open-feedback-modal')); }}
+              className={`w-full relative flex items-center ${collapsed ? 'lg:justify-center' : 'gap-4 px-3'} py-3 rounded-[12px] text-base font-bold text-slate-700 hover:bg-sds-surface hover:text-sds-text transition-all duration-200 group mt-2`}
+            >
+              <div className="shrink-0 text-slate-700 group-hover:text-amber-500">
+                <MessageSquare size={20} />
+              </div>
+              <span className={`truncate whitespace-nowrap ${collapsed ? 'lg:hidden' : 'block'}`}>
+                Feedback
+              </span>
+              {collapsed && (
+                <div className="hidden lg:block absolute left-16 bg-sds-surface text-sds-text text-sm font-bold px-3 py-1.5 rounded-[12px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 shadow-sm border border-sds-border">
+                  Feedback
+                </div>
+              )}
             </button>
             {/* Compute, Export & Storage Mini-Meter */}
             {user && (

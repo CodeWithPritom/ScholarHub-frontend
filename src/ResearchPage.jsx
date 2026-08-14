@@ -1837,6 +1837,12 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
   const suggestionsRef = useRef(null);
   const debounceRef = useRef(null);
 
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
   const [isRefining, setIsRefining] = useState(false);
   const handleAiRefine = async () => {
     if (!searchTerm.trim()) return;
