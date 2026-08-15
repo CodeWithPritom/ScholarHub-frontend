@@ -17,12 +17,16 @@ import {
   Zap,
   ShieldCheck
 } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { BASE_URL } from './utils/api'
 import logo from './assets/images/logo.png'
 import emoImage from './assets/images/EMO.png'
 
 const Auth = () => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const redirectPath = searchParams.get('redirect')
+  const autoForgot = searchParams.get('forgot') === 'true'
   const [isLogin, setIsLogin] = useState(true)
   const [step, setStep] = useState(1)
   const [email, setEmail] = useState('')
@@ -32,7 +36,7 @@ const Auth = () => {
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
   const [captchaToken, setCaptchaToken] = useState('')
-  const [isForgotPassword, setIsForgotPassword] = useState(false)
+  const [isForgotPassword, setIsForgotPassword] = useState(autoForgot)
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
   const [resendTimer, setResendTimer] = useState(300)
   const turnstileRef = useRef(null)
@@ -114,9 +118,22 @@ const Auth = () => {
         redirectTo: `${window.location.origin}/settings`
       })
       if (error) throw error
+
+      // Also call backend to clear all device sessions and invalidate JWTs
+      try {
+        await fetch(`${BASE_URL}/api/auth/password-reset-with-session-clear`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email.trim().toLowerCase() })
+        })
+      } catch (backendErr) {
+        // Non-blocking: if backend call fails, Supabase email was still sent
+        console.warn('[Auth] Backend session clear failed (non-blocking):', backendErr)
+      }
+
       setSuccess(
         <>
-          Password reset link sent! Please check your inbox or <span className="font-black text-emerald-900 bg-emerald-200/60 px-1.5 py-0.5 rounded-md mx-0.5">Spam</span> folder to proceed.
+          Password reset link sent! Please check your inbox or <span className="font-black text-emerald-900 bg-emerald-200/60 px-1.5 py-0.5 rounded-md mx-0.5">Spam</span> folder to proceed. All your previous device sessions have been cleared — after resetting your password, this device will be registered automatically.
         </>
       )
     } catch (err) {
@@ -150,7 +167,7 @@ const Auth = () => {
       localStorage.removeItem('sh_verifying_time');
 
       setSuccess('Account verified successfully! Redirecting...')
-      setTimeout(() => navigate('/research'), 1500)
+      setTimeout(() => navigate(redirectPath || '/research'), 1500)
     } catch (err) {
       setError(err.message || 'Invalid or expired code.')
     } finally {
@@ -167,7 +184,7 @@ const Auth = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: window.location.origin + '/research'
+          redirectTo: window.location.origin + (redirectPath || '/research')
         }
       });
       if (error) throw error;
@@ -218,7 +235,12 @@ const Auth = () => {
             if (!deviceExists) {
               if (devices && devices.length >= 2) {
                 await supabase.auth.signOut()
-                setError("Device Limit Reached. Please remove a device from your profile on an existing device.")
+                setError(
+                  "You are already logged in on 2 devices (maximum allowed). " +
+                  "To access ScholarHub from this device, please reset your password. " +
+                  "Resetting your password will automatically sign out all other devices " +
+                  "and allow this device to take over. Use the 'Forgot Password?' link below."
+                )
                 setLoading(false)
                 return
               } else {
@@ -242,12 +264,12 @@ const Auth = () => {
               .single()
 
             if (profileData?.role === 'admin') {
-              navigate('/admin')
+              navigate(redirectPath || '/admin')
             } else {
-              navigate('/research')
+              navigate(redirectPath || '/research')
             }
           } catch {
-            navigate('/research')
+            navigate(redirectPath || '/research')
           }
         }
       } else {
@@ -362,7 +384,21 @@ const Auth = () => {
                 className="flex items-start gap-3 p-4 bg-rose-50 border border-rose-100 rounded-2xl mb-6"
               >
                 <AlertCircle size={16} className="text-rose-500 shrink-0 mt-0.5" />
-                <p className="text-xs font-bold text-rose-700 leading-snug">{error}</p>
+                <div className="flex-1">
+                  <p className="text-xs font-bold text-rose-700 leading-snug">{error}</p>
+                  {typeof error === 'string' && error.includes('2 devices') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsForgotPassword(true);
+                        setError(null);
+                      }}
+                      className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-rose-200"
+                    >
+                      Reset Password to Clear Devices
+                    </button>
+                  )}
+                </div>
               </motion.div>
             )}
             {success && (

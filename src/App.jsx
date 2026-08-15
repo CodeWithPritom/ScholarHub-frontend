@@ -5,12 +5,12 @@
  */
 
 import React, { useState, useEffect, useCallback, Suspense, lazy, useRef } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from './supabaseClient'
 import { ensureDeviceIsRegistered, handlePasswordResetDeviceOverride } from './utils/deviceSync'
 import { SESSION_EXPIRED_EVENT } from './utils/api'
-import { Dna, AlertTriangle, X, CreditCard } from 'lucide-react'
+import { Dna, AlertTriangle, X, CreditCard, KeyRound } from 'lucide-react'
 import { Toaster } from 'sonner'
 
 // Pages
@@ -61,6 +61,26 @@ function SessionExpiryRedirector({ sessionExpired, onRedirected }) {
     }
   }, [sessionExpired, navigate]);
   return null;
+}
+
+/**
+ * AuthRouteHandler — Handles the /auth route with redirect support.
+ * If user is already logged in and a ?redirect= param exists, navigate there.
+ * Otherwise redirect to home. If not logged in, show the Auth component.
+ */
+function AuthRouteHandler({ user }) {
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get('redirect');
+
+  if (user) {
+    // User is already logged in — honor the redirect param if it's a safe internal path
+    if (redirectTo && redirectTo.startsWith('/')) {
+      return <Navigate to={redirectTo} replace />;
+    }
+    return <Navigate to="/" replace />;
+  }
+
+  return <Auth />;
 }
 
 const ProfileSetupModal = ({ isOpen, user, onClose }) => {
@@ -468,21 +488,44 @@ function App() {
   }, [])
 
   useEffect(() => {
+    let presenceKey = user?.id;
+    if (!presenceKey) {
+      presenceKey = sessionStorage.getItem('scholarhub_presence_guest_id');
+      if (!presenceKey) {
+        presenceKey = 'guest-' + Math.random().toString(36).substring(2, 9);
+        sessionStorage.setItem('scholarhub_presence_guest_id', presenceKey);
+      }
+    }
+
     const channel = supabase.channel('online-users', {
-      config: { presence: { key: user ? user.id : 'guest-' + Math.random().toString(36).substring(2, 9) } },
-    })
+      config: { presence: { key: presenceKey } },
+    });
+
+    let isSubscribed = true;
 
     channel
       .on('presence', { event: 'sync' }, () => {
-        const count = Object.keys(channel.presenceState()).length
-        setLiveUsersCount(count === 0 ? 1 : count)
+        if (!isSubscribed) return;
+        const count = Object.keys(channel.presenceState()).length;
+        setLiveUsersCount(count === 0 ? 1 : count);
       })
       .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') await channel.track({ online_at: new Date().toISOString() })
-      })
+        if (status === 'SUBSCRIBED' && isSubscribed) {
+          try {
+            await channel.track({ online_at: new Date().toISOString() });
+          } catch (e) {
+            // Ignore tracking abort on rapid unmount
+          }
+        }
+      });
 
-    return () => { supabase.removeChannel(channel) }
-  }, [user])
+    return () => {
+      isSubscribed = false;
+      try {
+        supabase.removeChannel(channel);
+      } catch (e) {}
+    };
+  }, [user?.id]);
 
 
 
@@ -555,17 +598,40 @@ function App() {
           )}
 
           {deviceLimitWarning && (
-            <div className="fixed top-4 right-4 z-[9999] max-w-sm animate-in slide-in-from-right">
+            <div className="fixed top-4 right-4 z-[9999] max-w-md animate-in slide-in-from-right">
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 shadow-xl shadow-amber-100/50 flex items-start gap-3">
-                <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                <AlertTriangle size={20} className="text-amber-600 shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <p className="text-sm font-bold text-amber-800 leading-snug">
-                    Device limit reached (2/2).
+                    Device Limit Reached (2 of 2)
                   </p>
-                  <p className="text-xs font-medium text-amber-600 mt-1">
-                    Manage your devices in{' '}
-                    <a href="/profile" className="underline font-bold hover:text-amber-800 transition-colors">Profile</a>.
+                  <p className="text-xs font-medium text-amber-600 mt-1.5 leading-relaxed">
+                    You are already logged in on 2 devices. To access from this new device,
+                    please <strong>reset your password</strong> — this will sign out all
+                    other devices and allow this device to take over.
                   </p>
+                  <div className="flex items-center gap-2 mt-3">
+                    <a
+                      href="/auth"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setDeviceLimitWarning(false);
+                        supabase.auth.signOut().then(() => {
+                          window.location.href = '/auth?forgot=true';
+                        });
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-colors"
+                    >
+                      <KeyRound size={13} />
+                      Reset Password
+                    </a>
+                    <a
+                      href="/profile"
+                      className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg text-xs font-semibold transition-colors"
+                    >
+                      Manage Devices
+                    </a>
+                  </div>
                 </div>
                 <button
                   onClick={() => setDeviceLimitWarning(false)}
@@ -589,7 +655,7 @@ function App() {
             <Route path="/terms" element={<TermsOfService user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
             <Route path="/verify-email" element={user && !user.email_confirmed_at ? <VerifyEmail user={user} /> : <Navigate to="/" replace />} />
             <Route path="/research" element={<ProtectedRoute user={user}><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#f8fafc]"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}><ResearchPage user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense></ProtectedRoute>} />
-            <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
+            <Route path="/auth" element={<AuthRouteHandler user={user} />} />
             <Route path="/library" element={<ProtectedRoute user={user}><MyLibrary user={user} onLogout={handleLogout} /></ProtectedRoute>} />
             <Route path="/auditor" element={<ProtectedRoute user={user}><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}><Auditor user={user} onLogout={handleLogout} /></Suspense></ProtectedRoute>} />
             <Route path="/history" element={<ProtectedRoute user={user}><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}><HistoryExplorer user={user} onLogout={handleLogout} /></Suspense></ProtectedRoute>} />

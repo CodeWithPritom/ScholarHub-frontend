@@ -35,30 +35,16 @@ const cleanProps = ({ style, node, ...rest }) => {
 const SharedMessageContent = ({ content, activePapers, onSelectPaper }) => {
   if (!content) return null;
 
-  let mainContent = content;
-  let relevanceRaw = '';
-
-  const relMapMatch = content.match(/(?:\[Relevance Map\]|###\s*Relevance Map|\*\*Relevance Map\*\*|Relevance Map\b[\s\S]*?(?=RELEVANCE[|:]))/i);
-  if (relMapMatch) {
-    const splitIdx = relMapMatch.index;
-    mainContent = content.substring(0, splitIdx).trim();
-    relevanceRaw = content.substring(splitIdx);
-  } else if (content.includes('[Relevance Map]')) {
-    const parts = content.split('[Relevance Map]');
-    mainContent = parts[0].trim();
-    relevanceRaw = parts[1] || '';
-  }
-
+  // 1. Extract relevance entries line-by-line safely
   const relevanceEntries = (() => {
-    if (!relevanceRaw) return [];
     const entries = [];
-    const lines = relevanceRaw.split(/\r?\n/);
+    const lines = content.split(/\r?\n/);
     for (let line of lines) {
       const trimmed = line.trim();
-      if (!trimmed || (!trimmed.toUpperCase().includes('RELEVANCE|') && !trimmed.toUpperCase().includes('RELEVANCE:'))) {
+      if (!trimmed || (!trimmed.toUpperCase().includes('RELEVANCE:::') && !trimmed.toUpperCase().includes('RELEVANCE|') && !trimmed.toUpperCase().includes('RELEVANCE:'))) {
         continue;
       }
-      const segs = trimmed.split(/\||:/).map(s => s.trim()).filter(Boolean);
+      const segs = trimmed.split(/:::|\||:/).map(s => s.trim()).filter(Boolean);
       if (segs.length > 0 && segs[0].toUpperCase() === 'RELEVANCE') {
         segs.shift();
       }
@@ -72,6 +58,23 @@ const SharedMessageContent = ({ content, activePapers, onSelectPaper }) => {
       if (!cleanTitle || cleanTitle.toLowerCase().includes('paper title') || cleanTitle.toLowerCase() === 'percentage' || cleanTitle.toLowerCase() === 'paper') {
         continue;
       }
+
+      let paperNumMatch = title.match(/\[?(?:Paper\s*)?(\d+)\]?/i) || title.match(/^(\d+)[\.\:\-\s]/);
+      let paperIdx = -1;
+      if (paperNumMatch) {
+        const parsedNum = parseInt(paperNumMatch[1], 10);
+        if (parsedNum > 0 && parsedNum <= (activePapers || []).length) {
+          paperIdx = parsedNum - 1;
+        }
+      }
+      if (paperIdx === -1 && entries.length < (activePapers || []).length) {
+        paperIdx = entries.length;
+      }
+
+      const matchedPaper = (paperIdx >= 0 && activePapers) ? activePapers[paperIdx] : null;
+      const displayTitle = matchedPaper?.title || cleanTitle;
+      const displayQuartile = matchedPaper?.journal_quartile || matchedPaper?.quartile;
+      const displayPaperNumber = paperIdx >= 0 ? (paperIdx + 1) : (entries.length + 1);
 
       let scoreNum = parseInt(rawScore.replace(/[^0-9]/g, ''), 10);
       let reasonScoreNum = parseInt(reason.replace(/[^0-9]/g, ''), 10);
@@ -90,13 +93,23 @@ const SharedMessageContent = ({ content, activePapers, onSelectPaper }) => {
       scoreNum = Math.max(0, Math.min(100, scoreNum));
 
       entries.push({
-        title: cleanTitle,
+        paperIdx,
+        paperNumber: displayPaperNumber,
+        title: displayTitle,
+        quartile: displayQuartile,
+        paper: matchedPaper,
         score: scoreNum,
         reason: reason || 'High contextual relevance match.'
       });
     }
     return entries;
   })();
+
+  // 2. Clean mainContent: Strip only explicit structured [Relevance Map] header markers and raw RELEVANCE lines
+  let mainContent = content
+    .replace(/(?:^|\n)\s*(?:\[Relevance Map\]|###\s*Relevance Map|\*\*Relevance Map\*\*)[\s\S]*?(?=(?:---SUGGESTIONS---|```uve-json|```mermaid|$))/gi, '')
+    .replace(/(?:^|\n)\s*RELEVANCE[^\n]*/gi, '')
+    .trim();
 
   let processedContent = mainContent
     .replace(/(^|[^\[])\[(\d+):\s*"([^"]+)"\]/g, (match, p1, p2, p3) => {
@@ -171,6 +184,15 @@ const SharedMessageContent = ({ content, activePapers, onSelectPaper }) => {
               }
               return <a href={href} target="_blank" rel="noopener noreferrer" {...props}>{children}</a>;
             },
+            p: ({ node, children, ...props }) => {
+              const hasBlock = React.Children.toArray(children).some(
+                child => React.isValidElement(child) && (child.type === 'div' || child.type === 'section' || typeof child.type === 'object' || typeof child.type === 'function')
+              );
+              if (hasBlock) {
+                return <div className="my-2 leading-relaxed" {...props}>{children}</div>;
+              }
+              return <p className="my-2 leading-relaxed" {...props}>{children}</p>;
+            },
             code: ({ node, inline, className, children, ...props }) => {
               const match = /language-([\w-]+)/.exec(className || '');
               const lang = match ? match[1].toLowerCase() : '';
@@ -237,23 +259,45 @@ const SharedMessageContent = ({ content, activePapers, onSelectPaper }) => {
             </div>
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Relevance Match Meter</span>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-2.5">
             {relevanceEntries.map((entry, idx) => (
-              <div key={idx}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <p className="text-xs font-bold text-slate-700 leading-tight line-clamp-1 flex-1 mr-3">{entry.title}</p>
-                  <span className="text-xs font-black text-indigo-600 shrink-0">
+              <div 
+                key={idx}
+                className="p-2.5 rounded-xl hover:bg-slate-50 transition-all border border-slate-100/80 hover:border-slate-200/80 cursor-pointer group bg-white shadow-2xs"
+                onClick={() => {
+                  if (entry.paperIdx >= 0 && onSelectPaper) {
+                    onSelectPaper(entry.paperIdx);
+                  }
+                }}
+              >
+                <div className="flex items-center justify-between mb-1.5 gap-2">
+                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                    <span className="inline-flex items-center justify-center px-1.5 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded text-[10px] font-black shrink-0">
+                      [{entry.paperNumber}]
+                    </span>
+                    {entry.quartile && (
+                      <span className="inline-flex items-center justify-center px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-black shrink-0 font-sans">
+                        {entry.quartile}
+                      </span>
+                    )}
+                    <p className="text-xs font-bold text-slate-800 leading-tight truncate group-hover:text-indigo-600 transition-colors">
+                      {entry.title}
+                    </p>
+                  </div>
+                  <span className="text-xs font-black text-indigo-600 shrink-0 font-mono">
                     {entry.score}%
                   </span>
                 </div>
                 <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                   <div
                     style={{ width: `${entry.score}%` }}
-                    className="h-full rounded-full bg-indigo-500 transition-all duration-1000"
+                    className={`h-full rounded-full transition-all duration-1000 ${
+                      entry.score >= 70 ? 'bg-indigo-500' : entry.score >= 40 ? 'bg-amber-500' : 'bg-slate-400'
+                    }`}
                   />
                 </div>
                 {entry.reason && (
-                  <p className="text-[11px] text-slate-500 mt-1 leading-snug">{entry.reason}</p>
+                  <p className="text-[11px] text-slate-500 mt-1.5 leading-snug">{entry.reason}</p>
                 )}
               </div>
             ))}
@@ -415,22 +459,46 @@ export const SharedAudit = ({ user, onLogout }) => {
             <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center text-red-500 text-2xl font-black">
               <Lock size={24} />
             </div>
-            <h2 className="text-lg font-black text-slate-800">Shared Session Restricted</h2>
+            <h2 className="text-lg font-black text-slate-800">
+              {user ? 'Access Denied' : 'Sign In Required'}
+            </h2>
             <p className="text-xs text-slate-500 leading-relaxed font-medium">{error}</p>
-            <div className="pt-2 flex flex-col gap-2 w-full">
-              <Link
-                to={`/auth?redirect=/shared/${shareToken}`}
-                className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all"
-              >
-                Sign In to Access
-              </Link>
-              <Link
-                to="/auditor"
-                className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all"
-              >
-                Go to Workspace
-              </Link>
-            </div>
+            {user ? (
+              /* User is logged in but doesn't have permission */
+              <div className="pt-2 flex flex-col gap-2 w-full">
+                <p className="text-[11px] text-slate-400 font-medium">
+                  You are signed in as <strong className="text-slate-600">{user.email}</strong>, but you do not have access to this restricted research audit. Ask the owner to invite your email as a collaborator.
+                </p>
+                <Link
+                  to="/auditor"
+                  className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all"
+                >
+                  Go to Workspace
+                </Link>
+                <Link
+                  to="/"
+                  className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all"
+                >
+                  Back to Home
+                </Link>
+              </div>
+            ) : (
+              /* User is not logged in — show sign in option */
+              <div className="pt-2 flex flex-col gap-2 w-full">
+                <Link
+                  to={`/auth?redirect=/shared/${shareToken}`}
+                  className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all"
+                >
+                  Sign In to Access
+                </Link>
+                <Link
+                  to="/"
+                  className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all"
+                >
+                  Back to Home
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </WorkspaceLayout>
@@ -620,9 +688,9 @@ export const SharedAudit = ({ user, onLogout }) => {
               ) : (
                 activePapersList.map((paper, pIdx) => (
                   <div
-                    key={pIdx}
+                    key={paper.pmid || paper.id || paper.doi || `shared-source-${pIdx}`}
                     id={`source-row-${pIdx}`}
-                    className="p-3.5 bg-slate-50/80 hover:bg-white border border-slate-200/80 hover:border-indigo-300 rounded-2xl transition-all shadow-2xs space-y-2 group"
+                    className="p-3.5 bg-slate-50/80 hover:bg-white border border-slate-200/80 hover:border-indigo-300 rounded-2xl transition-colors shadow-2xs space-y-2 group"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[9px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100 truncate max-w-[180px]">

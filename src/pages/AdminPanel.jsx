@@ -190,7 +190,7 @@ const AIRoutingSettings = ({ authToken, apiFetch }) => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Model ID</label>
-                  <input type="text" value={fs.model_id || ''} onChange={e => handleChange(p, 'model_id', e.target.value)} className="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-indigo-500" placeholder="e.g. llama-3.1-8b-instant" />
+                  <input type="text" value={fs.model_id || ''} onChange={e => handleChange(p, 'model_id', e.target.value)} className="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-indigo-500" placeholder="e.g. openai/gpt-oss-20b" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">API Key Override</label>
@@ -311,7 +311,7 @@ const AIGatewaySettings = ({ apiFetch }) => {
       const newStep = {
         id: Math.random().toString(36).substr(2, 9),
         provider: 'groq',
-        model_id: 'llama-3.1-8b-instant',
+        model_id: 'openai/gpt-oss-20b',
         api_key: '',
         api_url: '',
         priority_index: currentFallbacks.length

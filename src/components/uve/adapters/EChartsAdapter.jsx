@@ -58,15 +58,34 @@ export const EChartsAdapter = React.memo(({ type, config, onSourceClick }) => {
 
     const sanitizedOption = deepClean(rawOption);
 
-    // Guarantee series normalization so ECharts NEVER receives a series item without a 'type'
-    const defaultSeriesType = (chartType === 'bar' || chartType === 'line' || chartType === 'pie' || chartType === 'scatter' || chartType === 'radar') ? chartType : 'line';
+    const VALID_ECHARTS_TYPES = new Set(['line', 'bar', 'pie', 'scatter', 'radar']);
+    const normalizeSeriesType = (t) => {
+      const clean = (t || '').toLowerCase().trim();
+      if (clean === 'surface' || clean === '3d' || clean === 'mesh' || clean === 'area') return 'line';
+      if (clean === 'histogram' || clean === 'column') return 'bar';
+      if (VALID_ECHARTS_TYPES.has(clean)) return clean;
+      return 'line';
+    };
+
+    // Guarantee series normalization so ECharts NEVER receives a series item without a valid 'type'
+    const defaultSeriesType = normalizeSeriesType(chartType);
+
+    // Extract legend names if provided
+    let legendNames = [];
+    if (sanitizedOption.legend?.data && Array.isArray(sanitizedOption.legend.data)) {
+      legendNames = sanitizedOption.legend.data.map(d => typeof d === 'string' ? d : d?.name).filter(Boolean);
+    } else if (typeof sanitizedOption.legend === 'string') {
+      legendNames = [sanitizedOption.legend];
+    }
 
     if (Array.isArray(sanitizedOption.series)) {
-      sanitizedOption.series = sanitizedOption.series.map(s => {
-        if (typeof s !== 'object' || !s) return { type: defaultSeriesType, data: s };
+      sanitizedOption.series = sanitizedOption.series.map((s, idx) => {
+        if (typeof s !== 'object' || !s) return { type: defaultSeriesType, data: s, name: legendNames[idx] || `Series ${idx + 1}` };
+        const sType = normalizeSeriesType(s.type || defaultSeriesType);
         return {
-          type: s.type || defaultSeriesType,
-          smooth: s.smooth !== undefined ? s.smooth : (defaultSeriesType === 'line'),
+          type: sType,
+          name: s.name || legendNames[idx] || (sanitizedOption.series.length > 1 ? `Series ${idx + 1}` : undefined),
+          smooth: s.smooth !== undefined ? s.smooth : (sType === 'line'),
           symbolSize: s.symbolSize || 6,
           lineStyle: s.lineStyle || { width: 3 },
           ...s
@@ -74,9 +93,11 @@ export const EChartsAdapter = React.memo(({ type, config, onSourceClick }) => {
       });
     } else if (sanitizedOption.series && typeof sanitizedOption.series === 'object') {
       const s = sanitizedOption.series;
+      const sType = normalizeSeriesType(s.type || defaultSeriesType);
       sanitizedOption.series = [{
-        type: s.type || defaultSeriesType,
-        smooth: s.smooth !== undefined ? s.smooth : (defaultSeriesType === 'line'),
+        type: sType,
+        name: s.name || legendNames[0] || undefined,
+        smooth: s.smooth !== undefined ? s.smooth : (sType === 'line'),
         symbolSize: s.symbolSize || 6,
         lineStyle: s.lineStyle || { width: 3 },
         ...s
@@ -85,16 +106,35 @@ export const EChartsAdapter = React.memo(({ type, config, onSourceClick }) => {
       sanitizedOption.series = [{ type: defaultSeriesType, smooth: true }];
     }
 
+    // Synchronize legend.data with series names to prevent 'series not exists' warning
+    if (Array.isArray(sanitizedOption.series) && sanitizedOption.series.length > 0) {
+      const seriesNames = sanitizedOption.series.map(s => s.name).filter(Boolean);
+      if (seriesNames.length > 0) {
+        sanitizedOption.legend = {
+          left: 'center',
+          textStyle: { fontSize: 11, color: '#475569' },
+          itemGap: 12,
+          ...sanitizedOption.legend,
+          data: seriesNames
+        };
+      }
+    }
+
     // Ensure xAxis & yAxis types and bounds are set properly ONLY for cartesian charts
-    const isCartesian = chartType === 'line' || chartType === 'bar' || chartType === 'scatter';
+    const isCartesian = defaultSeriesType === 'line' || defaultSeriesType === 'bar' || defaultSeriesType === 'scatter';
     if (isCartesian) {
-      if (Array.isArray(sanitizedOption.xAxis)) {
+      if (!sanitizedOption.xAxis) {
+        const categories = config?.categories || ['Category 1', 'Category 2', 'Category 3', 'Category 4'];
+        sanitizedOption.xAxis = { type: 'category', data: categories };
+      } else if (Array.isArray(sanitizedOption.xAxis)) {
         sanitizedOption.xAxis = sanitizedOption.xAxis.map(x => ({ type: 'category', ...x }));
       } else if (sanitizedOption.xAxis && typeof sanitizedOption.xAxis === 'object') {
         sanitizedOption.xAxis = { type: 'category', ...sanitizedOption.xAxis };
       }
 
-      if (Array.isArray(sanitizedOption.yAxis)) {
+      if (!sanitizedOption.yAxis) {
+        sanitizedOption.yAxis = { type: 'value' };
+      } else if (Array.isArray(sanitizedOption.yAxis)) {
         sanitizedOption.yAxis = sanitizedOption.yAxis.map(y => ({ type: 'value', ...y }));
       } else if (sanitizedOption.yAxis && typeof sanitizedOption.yAxis === 'object') {
         sanitizedOption.yAxis = { type: 'value', ...sanitizedOption.yAxis };
@@ -124,9 +164,6 @@ export const EChartsAdapter = React.memo(({ type, config, onSourceClick }) => {
 
     // Legend positioning below title to prevent overlaps
     if (sanitizedOption.legend) {
-      if (typeof sanitizedOption.legend === 'string') {
-        sanitizedOption.legend = { data: [sanitizedOption.legend] };
-      }
       sanitizedOption.legend = {
         top: hasTitle ? 36 : 8,
         left: 'center',

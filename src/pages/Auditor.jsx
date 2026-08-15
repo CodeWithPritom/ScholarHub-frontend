@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -147,50 +147,489 @@ const cleanProps = ({ style, node, ...rest }) => {
   return validStyle ? { style: validStyle, ...rest } : rest;
 };
 
-const TypewriterText = React.memo(({ text = '', isStreaming = false, render }) => {
-  const [displayedText, setDisplayedText] = useState(() => text);
-  const targetTextRef = useRef(text);
-  const frameRef = useRef(null);
+const MessageEditBox = React.memo(({ initialText, onCancel, onSave }) => {
+  const [text, setText] = useState(initialText);
+  return (
+    <div className="w-full flex flex-col gap-2 min-w-[280px] sm:min-w-[400px]">
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        className="w-full p-3 bg-white border border-slate-300 rounded-xl text-sm outline-none focus:border-indigo-500 font-sans shadow-xs text-slate-800"
+        rows={3}
+        autoFocus
+      />
+      <div className="flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            const trimmed = text.trim();
+            if (trimmed) onSave(trimmed);
+          }}
+          className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer shadow-xs"
+        >
+          Save & Submit
+        </button>
+      </div>
+    </div>
+  );
+});
 
-  useEffect(() => {
-    targetTextRef.current = text;
-    if (!isStreaming) {
-      setDisplayedText(text);
-    }
-  }, [text, isStreaming]);
+/**
+ * AuditorChatMessage — Highly optimized memoized message item
+ * Prevents re-parsing Markdown, regexes, and subcomponents for past messages during streaming.
+ */
+const AuditorChatMessage = React.memo(({
+  msg,
+  originalIndex,
+  isAnalyzing,
+  isEditing,
+  onStartEdit,
+  onCancelEdit,
+  onSaveEdit,
+  activePapers,
+  onCitationClick,
+  onRelevanceClick,
+  onRatingFeedback,
+  onDownloadMarkdown,
+  onExportExcel,
+  showRightPane,
+  onToggleRightPane
+}) => {
+  const currentText = msg.content || '';
 
-  useEffect(() => {
-    if (!isStreaming) {
-      setDisplayedText(targetTextRef.current);
-      return;
-    }
+  // 1. Extract relevance entries line-by-line safely
+  const relevanceEntries = useMemo(() => {
+    const entries = [];
+    const lines = currentText.split(/\r?\n/);
+    for (let line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || (!trimmed.toUpperCase().includes('RELEVANCE:::') && !trimmed.toUpperCase().includes('RELEVANCE|') && !trimmed.toUpperCase().includes('RELEVANCE:'))) {
+        continue;
+      }
+      const segs = trimmed.split(/:::|\||:/).map(s => s.trim()).filter(Boolean);
+      if (segs.length > 0 && segs[0].toUpperCase() === 'RELEVANCE') {
+        segs.shift();
+      }
+      if (segs.length < 2) continue;
 
-    let lastTime = performance.now();
-    const updateText = (now) => {
-      if (now - lastTime >= 30) {
-        lastTime = now;
-        setDisplayedText(prev => {
-          const target = targetTextRef.current;
-          if (prev.length >= target.length) {
-            return target;
-          }
-          const backlog = target.length - prev.length;
-          const step = backlog > 300 ? 50 : backlog > 100 ? 20 : backlog > 40 ? 8 : 3;
-          return target.slice(0, prev.length + step);
-        });
+      let title = segs[0] || 'Research Paper';
+      let rawScore = segs[1] || '0';
+      let reason = segs[2] || '';
+
+      let cleanTitle = title.replace(/^[\-\*\d\.\s]+/, '').replace(/^\[|\]$/g, '').trim();
+      if (!cleanTitle || cleanTitle.toLowerCase().includes('paper title') || cleanTitle.toLowerCase() === 'percentage' || cleanTitle.toLowerCase() === 'paper') {
+        continue;
       }
 
-      frameRef.current = requestAnimationFrame(updateText);
-    };
+      let paperNumMatch = title.match(/\[?(?:Paper\s*)?(\d+)\]?/i) || title.match(/^(\d+)[\.\:\-\s]/);
+      let paperIdx = -1;
+      if (paperNumMatch) {
+        const parsedNum = parseInt(paperNumMatch[1], 10);
+        if (parsedNum > 0 && parsedNum <= (activePapers?.length || 0)) {
+          paperIdx = parsedNum - 1;
+        }
+      }
+      if (paperIdx === -1 && entries.length < (activePapers?.length || 0)) {
+        paperIdx = entries.length;
+      }
 
-    frameRef.current = requestAnimationFrame(updateText);
+      const matchedPaper = (paperIdx >= 0 && activePapers) ? activePapers[paperIdx] : null;
+      const displayTitle = matchedPaper?.title || cleanTitle;
+      const displayQuartile = matchedPaper?.journal_quartile || matchedPaper?.quartile;
+      const displayPaperNumber = paperIdx >= 0 ? (paperIdx + 1) : (entries.length + 1);
 
-    return () => {
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
-    };
-  }, [isStreaming]);
+      let scoreNum = parseInt(rawScore.replace(/[^0-9]/g, ''), 10);
+      let reasonScoreNum = parseInt(reason.replace(/[^0-9]/g, ''), 10);
 
-  return render(displayedText);
+      if (isNaN(scoreNum) && !isNaN(reasonScoreNum)) {
+        const temp = rawScore;
+        rawScore = reason;
+        reason = temp;
+        scoreNum = reasonScoreNum;
+      }
+
+      if (isNaN(scoreNum)) {
+        scoreNum = 85;
+      }
+
+      scoreNum = Math.max(0, Math.min(100, scoreNum));
+
+      entries.push({
+        paperIdx,
+        paperNumber: displayPaperNumber,
+        title: displayTitle,
+        quartile: displayQuartile,
+        paper: matchedPaper,
+        score: scoreNum,
+        reason: reason || 'High contextual relevance match.'
+      });
+    }
+    return entries;
+  }, [currentText, activePapers]);
+
+  // 2. Clean mainContent: Strip explicit structured [Relevance Map] headers and raw RELEVANCE lines
+  const processedContent = useMemo(() => {
+    let mainContent = currentText
+      .replace(/(?:^|\n)\s*(?:\[Relevance Map\]|###\s*Relevance Map|\*\*Relevance Map\*\*)[\s\S]*?(?=(?:---SUGGESTIONS---|```uve-json|```mermaid|$))/gi, '')
+      .replace(/(?:^|\n)\s*RELEVANCE[^\n]*/gi, '')
+      .trim();
+
+    let text = mainContent
+      .replace(/(^|[^\[])\[(\d+):\s*"([^"]+)"\]/g, (match, p1, p2, p3) => {
+        return `${p1}[cite-${p2}-quote-${encodeURIComponent(p3)}](#cite-${p2}-quote-${encodeURIComponent(p3)})`;
+      })
+      .replace(/(^|[^\[])\[(\d+)\](?!\]|\()/g, '$1[cite-$2](#cite-$2)');
+
+    // Auto-wrap visual blocks that exist outside existing code fences
+    const parts = text.split(/(```[\s\S]*?```)/g);
+    return parts.map((part, pIdx) => {
+      if (pIdx % 2 === 1) return part;
+      let p = part;
+      if (!p.includes('```mermaid') && !p.includes('```uve-json') && !p.includes('```json')) {
+        p = p.replace(
+          /(?:^|\n)\s*(\{\s*"engine"\s*:\s*"[^"]+"[\s\S]*?\})\s*(?=\n|$)/g,
+          (match, jsonBlock) => `\n\n\`\`\`uve-json\n${jsonBlock.trim()}\n\`\`\`\n\n`
+        );
+        p = p.replace(
+          /(?:^|\n)\s*((?:graph|flowchart|sequenceDiagram|gantt|classDiagram)\s+(?:TD|LR|TB|RL)?[\s\S]*?)(?=\n\n\n|\n\s*\n\s*[A-Z#]|$)/gi,
+          (match, mermaidBlock) => {
+            if (mermaidBlock.includes('{"engine"')) return match;
+            return `\n\n\`\`\`mermaid\n${mermaidBlock.trim()}\n\`\`\`\n\n`;
+          }
+        );
+      }
+      return p;
+    }).join('');
+  }, [currentText]);
+
+  return (
+    <div className="w-full w-full 2xl:px-12 mx-auto flex flex-col gap-1.5">
+      <div className={`flex flex-col gap-1.5 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+        {msg.role === 'user' ? (
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-medium text-slate-400/80 tracking-normal font-sans">
+              {msg.timestamp || getFormattedTimestamp()}
+            </span>
+            {!isAnalyzing && !isEditing && (
+              <button
+                type="button"
+                onClick={onStartEdit}
+                title="Edit prompt & resubmit"
+                className="p-1 text-slate-400 hover:text-indigo-600 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <Pencil size={11} />
+              </button>
+            )}
+          </div>
+        ) : (
+          <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">
+            Research Agent
+          </span>
+        )}
+
+        <div className={`p-4 rounded-2xl text-sm leading-relaxed border ${msg.role === 'user'
+          ? 'bg-slate-50 border-slate-200/60 text-slate-800 rounded-tr-none max-w-[85%] ml-auto'
+          : 'bg-white border-slate-200/60 text-slate-855 rounded-tl-none font-normal shadow-xs w-full'
+        }`}>
+          {msg.role === 'user' && isEditing ? (
+            <MessageEditBox
+              initialText={msg.content}
+              onCancel={onCancelEdit}
+              onSave={onSaveEdit}
+            />
+          ) : (
+            <div className={`prose prose-slate max-w-none text-sm leading-relaxed space-y-4 prose-headings:font-bold prose-headings:text-slate-800 prose-a:text-indigo-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-indigo-900 prose-code:bg-slate-100 prose-code:text-slate-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none ${msg.role === 'user' ? 'text-slate-800' : 'text-slate-700'}`}>
+              <style>{`
+                .prose table {
+                  table-layout: auto !important;
+                  min-width: 800px !important;
+                }
+              `}</style>
+
+              {/* AI Reasoning Console (Streaming CoT) */}
+              {msg.rawThoughts && (
+                <details 
+                  className="mb-4 group bg-slate-50 border border-slate-200 rounded-xl overflow-hidden shadow-sm" 
+                  open={msg.isStreaming}
+                >
+                  <summary className="px-4 py-3 cursor-pointer select-none font-bold text-xs uppercase tracking-wider text-slate-600 hover:text-slate-900 bg-white border-b border-transparent group-open:border-slate-200 flex items-center justify-between transition-colors">
+                    <span className="flex items-center gap-2">
+                      {msg.isStreaming ? (
+                        <span className="flex items-center justify-center w-4 h-4">
+                          <Loader2 size={12} className="text-emerald-500 animate-spin" />
+                        </span>
+                      ) : (
+                        <span className="flex items-center justify-center w-4 h-4">
+                          <CheckCircle size={12} className="text-slate-400" />
+                        </span>
+                      )}
+                      ⚡ AI Reasoning
+                    </span>
+                    <ChevronDown size={14} className="text-slate-400 group-open:rotate-180 transition-transform" />
+                  </summary>
+                  <div className="p-4 text-[11px] font-mono text-slate-500 bg-slate-50/50 whitespace-pre-wrap max-h-[300px] overflow-y-auto leading-relaxed border-t border-slate-100">
+                    {msg.rawThoughts}
+                  </div>
+                </details>
+              )}
+
+              <div className="overflow-x-auto w-full relative">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
+                  components={{
+                    a: ({ node, href, children, ...props }) => {
+                      if (href && href.startsWith('#cite-')) {
+                        const parts = href.replace('#cite-', '').split('-quote-');
+                        const citationNum = parts[0];
+                        let quote = null;
+                        if (parts.length > 1) {
+                          try {
+                            quote = decodeURIComponent(parts[1]);
+                          } catch (e) {
+                            quote = parts[1];
+                          }
+                        }
+                        
+                        return (
+                          <span className="inline-flex items-center gap-0.5 mx-0.5 relative -top-0.5">
+                            <button
+                              type="button"
+                              className="inline-flex items-center justify-center px-1.5 py-0.5 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 hover:border-indigo-600 rounded text-[11px] font-bold transition-colors cursor-pointer shadow-xs no-underline"
+                              onMouseEnter={() => {
+                                const el = document.getElementById(`source-row-${parseInt(citationNum) - 1}`);
+                                if (el) el.classList.add('bg-indigo-50/70', 'shadow-[inset_4px_0_0_0_#6366f1]');
+                              }}
+                              onMouseLeave={() => {
+                                const el = document.getElementById(`source-row-${parseInt(citationNum) - 1}`);
+                                if (el) el.classList.remove('bg-indigo-50/70', 'shadow-[inset_4px_0_0_0_#6366f1]');
+                              }}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                onCitationClick(citationNum, quote);
+                              }}
+                              title={quote ? `Citation [${citationNum}]: "${quote}"` : `View paper #${citationNum}`}
+                            >
+                              [{citationNum}]
+                            </button>
+                          </span>
+                        );
+                      }
+                      return <a href={href} target="_blank" rel="noopener noreferrer" {...props}>{children}</a>;
+                    },
+                    p: ({ node, children, ...props }) => {
+                      const hasBlock = React.Children.toArray(children).some(
+                        child => React.isValidElement(child) && (child.type === 'div' || child.type === 'section' || typeof child.type === 'object' || typeof child.type === 'function')
+                      );
+                      if (hasBlock) {
+                        return <div className="my-2 leading-relaxed" {...props}>{children}</div>;
+                      }
+                      return <p className="my-2 leading-relaxed" {...props}>{children}</p>;
+                    },
+                    code: ({ node, inline, className, children, ...props }) => {
+                      const match = /language-([\w-]+)/.exec(className || '');
+                      const lang = match ? match[1].toLowerCase() : '';
+                      const rawContent = String(children).replace(/\n$/, '').trim();
+
+                      const isUveOrMermaid = !inline && (
+                        lang === 'mermaid' || 
+                        lang === 'uve-json' || 
+                        lang === 'json-uve' || 
+                        lang === 'uve' ||
+                        lang === 'graph' ||
+                        lang === 'flowchart' ||
+                        (lang === 'json' && (rawContent.includes('"visualization"') || rawContent.includes('"engine"') || rawContent.includes('"nodes"') || rawContent.includes('"config"'))) ||
+                        rawContent.includes('{"engine"') ||
+                        rawContent.includes('"engine": "mermaid"') ||
+                        rawContent.includes('"engine": "react-flow"') ||
+                        rawContent.includes('"engine": "echarts"') ||
+                        rawContent.includes('"engine": "d3"') ||
+                        rawContent.startsWith('graph ') ||
+                        rawContent.startsWith('graph\n') ||
+                        rawContent.startsWith('flowchart ') ||
+                        rawContent.startsWith('flowchart\n') ||
+                        rawContent.startsWith('sequenceDiagram')
+                      );
+
+                      if (isUveOrMermaid) {
+                        return (
+                          <VisualDispatcher 
+                            rawJson={rawContent} 
+                            payload={rawContent}
+                            onSourceClick={(paperIdx) => {
+                              onCitationClick(paperIdx);
+                            }} 
+                          />
+                        );
+                      }
+                      
+                      return (
+                        <code className={className} {...props}>
+                          {children}
+                        </code>
+                      );
+                    },
+                    table: (props) => (
+                      <div className="my-6 w-full overflow-x-auto rounded-2xl border border-slate-200/80 shadow-md bg-white">
+                        <table className="w-full text-left text-xs border-collapse font-sans min-w-[700px]" {...cleanProps(props)} />
+                      </div>
+                    ),
+                    thead: (props) => <thead className="bg-slate-100/90 text-slate-800 font-extrabold uppercase tracking-wider text-[11px] border-b border-slate-200" {...cleanProps(props)} />,
+                    th: (props) => <th className="px-4 py-3 border-b border-slate-200 text-slate-800 font-black text-[11px] tracking-wider uppercase text-left bg-slate-50" {...cleanProps(props)} />,
+                    td: (props) => <td className="px-4 py-3.5 border-b border-slate-200/60 text-slate-700 leading-relaxed align-middle whitespace-normal text-xs" {...cleanProps(props)} />
+                  }}
+                >
+                  {processedContent}
+                </ReactMarkdown>
+                {msg.isStreaming && (
+                  <span className="inline-block w-2.5 h-4 ml-1 bg-indigo-600 animate-pulse rounded-xs align-middle" />
+                )}
+              </div>
+
+              {relevanceEntries.length > 0 && (
+                <div className="mt-6 pt-5 border-t border-slate-100/85">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-5 h-5 bg-indigo-50 rounded-md flex items-center justify-center">
+                      <Sparkles size={12} className="text-indigo-600 animate-pulse" />
+                    </div>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Relevance Match Meter</span>
+                  </div>
+                  <div className="space-y-2.5">
+                    {relevanceEntries.map((entry, idx) => (
+                      <div 
+                        key={entry.paperIdx >= 0 ? `rel-entry-${entry.paperIdx}` : `rel-entry-${idx}`}
+                        className="p-2.5 rounded-xl hover:bg-slate-50 transition-colors border border-slate-100/80 hover:border-slate-200/80 cursor-pointer group bg-white shadow-2xs"
+                        onClick={() => onRelevanceClick(entry)}
+                      >
+                        <div className="flex items-center justify-between mb-1.5 gap-2">
+                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                            <span className="inline-flex items-center justify-center px-1.5 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded text-[10px] font-black shrink-0">
+                              [{entry.paperNumber}]
+                            </span>
+                            {entry.quartile && (
+                              <span className="inline-flex items-center justify-center px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10px] font-black shrink-0 font-sans">
+                                {entry.quartile}
+                              </span>
+                            )}
+                            <p className="text-xs font-bold text-slate-800 leading-tight truncate group-hover:text-indigo-600 transition-colors">
+                              {entry.title}
+                            </p>
+                          </div>
+                          <span className="text-xs font-black text-indigo-600 shrink-0 font-mono">
+                            {entry.score}%
+                          </span>
+                        </div>
+                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            style={{ width: `${entry.score}%` }}
+                            className={`h-full rounded-full transition-all duration-1000 ${
+                              entry.score >= 70 ? 'bg-indigo-500' : entry.score >= 40 ? 'bg-amber-500' : 'bg-slate-400'
+                            }`}
+                          />
+                        </div>
+                        {entry.reason && (
+                          <p className="text-[11px] text-slate-500 mt-1.5 leading-snug">{entry.reason}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Response Utility Hub */}
+          {msg.role === 'assistant' && (
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-4 pt-3 border-t border-slate-100/60 text-slate-500">
+              {msg.thinkingTime && (
+                <div className="text-xs font-medium text-slate-500 bg-slate-50 px-2 py-1 rounded-md mr-auto flex items-center gap-1.5 border border-slate-200 shadow-sm font-mono">
+                  <AlertCircle size={12} />
+                  Analyzed in {msg.thinkingTime.toFixed(1)}s
+                </div>
+              )}
+
+              {/* Relevance Rating Controls */}
+              <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 ml-1">
+                <button
+                  type="button"
+                  onClick={() => onRatingFeedback(5)}
+                  className="p-1 hover:text-green-600 transition-colors cursor-pointer"
+                  title="Rate Relevant (5 Stars)"
+                >
+                  <ThumbsUp size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onRatingFeedback(1)}
+                  className="p-1 hover:text-red-500 transition-colors cursor-pointer"
+                  title="Rate Irrelevant (1 Star)"
+                >
+                  <ThumbsDown size={14} />
+                </button>
+              </div>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(msg.content);
+                  toast.success('Response copied to clipboard!');
+                }}
+                title="Copy response to clipboard"
+                className="flex items-center justify-center gap-1.5 p-2.5 sm:px-3 sm:py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 hover:border-slate-300 text-slate-700 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all shadow-2xs cursor-pointer min-h-[40px] min-w-[40px] sm:min-h-0 sm:min-w-0"
+              >
+                <Copy size={16} className="text-slate-500 shrink-0" />
+                <span className="hidden md:inline">Copy</span>
+              </button>
+              <button
+                onClick={() => {
+                  onDownloadMarkdown(msg.content, `audit-response-${originalIndex + 1}.md`);
+                }}
+                title="Download response as Markdown file"
+                className="flex items-center justify-center gap-1.5 p-2.5 sm:px-3 sm:py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 hover:border-slate-300 text-slate-700 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all shadow-2xs cursor-pointer min-h-[40px] min-w-[40px] sm:min-h-0 sm:min-w-0"
+              >
+                <Download size={16} className="text-slate-500 shrink-0" />
+                <span className="hidden md:inline">Download</span>
+              </button>
+              <button
+                onClick={onToggleRightPane}
+                title={showRightPane ? 'Hide Sources Panel' : 'Show Sources Panel'}
+                className="flex items-center justify-center gap-1.5 p-2.5 sm:px-3 sm:py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 hover:border-slate-300 text-slate-700 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all shadow-2xs cursor-pointer min-h-[40px] min-w-[40px] sm:min-h-0 sm:min-w-0"
+              >
+                <Layout size={16} className="text-slate-500 shrink-0" />
+                <span className="hidden md:inline">{showRightPane ? 'Hide Sources' : 'Show Sources'}</span>
+              </button>
+              {msg.content.includes('|') && msg.content.includes('---') && (
+                <button
+                  onClick={() => onExportExcel(msg.content)}
+                  title="Export Markdown Table to Excel"
+                  className="flex items-center justify-center gap-1.5 p-2.5 sm:px-3 sm:py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 hover:border-emerald-300 text-emerald-700 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all shadow-2xs cursor-pointer min-h-[40px] min-w-[40px] sm:min-h-0 sm:min-w-0"
+                >
+                  <FileSpreadsheet size={16} className="shrink-0 text-emerald-600" />
+                  <span className="hidden md:inline">Export Excel</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.msg.content === nextProps.msg.content &&
+    prevProps.msg.isStreaming === nextProps.msg.isStreaming &&
+    prevProps.msg.rawThoughts === nextProps.msg.rawThoughts &&
+    prevProps.msg.thinkingTime === nextProps.msg.thinkingTime &&
+    prevProps.isAnalyzing === nextProps.isAnalyzing &&
+    prevProps.isEditing === nextProps.isEditing &&
+    prevProps.showRightPane === nextProps.showRightPane &&
+    prevProps.activePapers?.length === nextProps.activePapers?.length
+  );
 });
 
 const Auditor = ({ user, onLogout }) => {
@@ -388,7 +827,6 @@ const Auditor = ({ user, onLogout }) => {
     }
   };
   const [editingMsgIndex, setEditingMsgIndex] = useState(null);
-  const [editingText, setEditingText] = useState('');
 
   const handleStopGeneration = () => {
     if (activeRequestController.current) {
@@ -452,11 +890,13 @@ const Auditor = ({ user, onLogout }) => {
   const [latestHistorySession, setLatestHistorySession] = useState(null);
   const [showWorkspaceLimitModal, setShowWorkspaceLimitModal] = useState(false);
 
-  // Refs
+  // Refs & Scroll Intent
   const recognitionRef = useRef(null);
   const attachmentMenuRef = useRef(null);
   const effortMenuRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const isUserScrolledUpRef = useRef(false);
+  const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 1024);
@@ -1234,20 +1674,62 @@ const Auditor = ({ user, onLogout }) => {
     toast.success('Citation copied');
   };
 
-  const scrollToBottom = (force = false) => {
+  const handleChatLaneWheel = (e) => {
+    // If user scrolls UP with mouse wheel or trackpad, immediately detach auto-scroll lock
+    if (e.deltaY < 0) {
+      isUserScrolledUpRef.current = true;
+      setShowScrollBottomBtn(true);
+    }
+  };
+
+  const handleChatLaneTouchMove = () => {
     const container = document.getElementById('auditor-chat-lane');
-    if (!container) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!container) return;
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    if (distanceFromBottom > 30) {
+      isUserScrolledUpRef.current = true;
+      setShowScrollBottomBtn(true);
+    }
+  };
+
+  const handleChatLaneScroll = (e) => {
+    const container = e.currentTarget;
+    if (!container) return;
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    // Tight 30px threshold eliminates scroll fighting and jitter
+    const isScrolledUp = distanceFromBottom > 30;
+    if (isUserScrolledUpRef.current !== isScrolledUp) {
+      isUserScrolledUpRef.current = isScrolledUp;
+      setShowScrollBottomBtn(isScrolledUp);
+    }
+  };
+
+  const scrollToBottom = (force = false) => {
+    // Never auto-scroll if user is actively editing a message
+    if (editingMsgIndex !== null && !force) {
       return;
     }
-    const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 250;
-    if (force || isAtBottom) {
-      messagesEndRef.current?.scrollIntoView({ behavior: force ? 'smooth' : 'auto' });
+    const container = document.getElementById('auditor-chat-lane');
+    if (!container) return;
+
+    if (force) {
+      isUserScrolledUpRef.current = false;
+      setShowScrollBottomBtn(false);
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+      return;
+    }
+
+    if (!isUserScrolledUpRef.current) {
+      requestAnimationFrame(() => {
+        if (!isUserScrolledUpRef.current && container) {
+          container.scrollTop = container.scrollHeight;
+        }
+      });
     }
   };
 
   useEffect(() => {
-    if (chatInitiated) {
+    if (chatInitiated && !isUserScrolledUpRef.current) {
       scrollToBottom();
     }
   }, [messages, isAnalyzing, chatInitiated]);
@@ -1667,6 +2149,8 @@ const Auditor = ({ user, onLogout }) => {
     sessionStorage.setItem('pending_query', finalQuery);
     setIsAnalyzing(true);
     setChatInitiated(true);
+    isUserScrolledUpRef.current = false;
+    setShowScrollBottomBtn(false);
     setTimeout(() => scrollToBottom(true), 50);
 
     const conversation = [...messages];
@@ -2001,18 +2485,22 @@ const Auditor = ({ user, onLogout }) => {
       const sessionToken = (await supabase.auth.getSession()).data.session?.access_token;
       const deviceId = getOrCreateDeviceId();
 
-      // Determine audit mode based on workflow and user query (Task 2)
-      let auditMode = 'summary';
+      // Determine audit mode based on workflow and user query
+      let auditMode = 'research_synthesis';
       if (currentWorkflow === 'report') {
         auditMode = 'report';
       } else if (currentWorkflow === 'systematic') {
         auditMode = 'systematic';
+      } else if (currentWorkflow === 'research') {
+        auditMode = 'research_synthesis';
       } else if (currentWorkflow === 'chat') {
         const queryLower = finalQuery.toLowerCase();
         if (queryLower.includes('literature review')) {
           auditMode = 'report';
         } else if (queryLower.includes('research gap') || queryLower.includes('research gaps')) {
           auditMode = 'gap';
+        } else {
+          auditMode = 'research_synthesis';
         }
       }
 
@@ -2038,6 +2526,7 @@ const Auditor = ({ user, onLogout }) => {
           },
           signal: controller.signal,
           body: JSON.stringify({
+            query: finalQuery,
             articles: truncatedPapers.map(art => ({
               title: art.title || art.full_metadata?.title || '',
               abstract: art.abstract || art.full_metadata?.abstract || art.summary || art.snippet || art.description || art.details || '',
@@ -2701,7 +3190,7 @@ const Auditor = ({ user, onLogout }) => {
                             <div className="w-full space-y-3.5 mb-8">
                               {refineDirections.map((dir, idx) => (
                                 <button
-                                  key={idx}
+                                  key={`dir-${idx}-${dir?.slice(0, 15)}`}
                                   onClick={() => {
                                     setIsRefining(false);
                                     executeAudit(`${refineOriginalQuery} + ${dir}`);
@@ -2951,7 +3440,7 @@ const Auditor = ({ user, onLogout }) => {
                               </div>
                               <div className="flex flex-wrap gap-1.5">
                                 {attachedFiles.map((att, idx) => (
-                                  <div key={idx} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#F3F3EF] border border-[#E5E5DF] rounded-[8px] text-[10px] text-indigo-600 font-medium">
+                                  <div key={att.id || att.name || `att-${idx}`} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#F3F3EF] border border-[#E5E5DF] rounded-[8px] text-[10px] text-indigo-600 font-medium">
                                     <span className="font-bold truncate max-w-[130px]">{att.name}</span>
                                     <span className="text-[9px] text-slate-400">({att.pages || 1}p)</span>
                                     {(att.chunks > 0 || att.figures > 0 || true) && (
@@ -3012,7 +3501,7 @@ const Auditor = ({ user, onLogout }) => {
                                     ) : (
                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {galleryFigures.map((fig, i) => (
-                                          <div key={i} className="bg-[#F3F3EF]/60 border border-[#E5E5DF] rounded-[12px] p-4 space-y-3 overflow-hidden">
+                                          <div key={fig.id || fig.title || `fig-${i}`} className="bg-[#F3F3EF]/60 border border-[#E5E5DF] rounded-[12px] p-4 space-y-3 overflow-hidden">
                                             {fig.image_url ? (
                                               <img
                                                 src={fig.image_url}
@@ -3052,13 +3541,13 @@ const Auditor = ({ user, onLogout }) => {
 
                               {/* Active paper titles tag list */}
                               <div className="flex flex-wrap gap-1.5">
-                                {activePapers.map(p => (
-                                  <div key={p.pmid} className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 rounded text-[10px] text-slate-600 max-w-[120px]">
+                                {activePapers.map((p, idx) => (
+                                  <div key={p.pmid || p.id || p.doi || `active-p-${idx}`} className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 rounded text-[10px] text-slate-600 max-w-[120px]">
                                     <span className="truncate">{p.title}</span>
                                     <button
                                       type="button"
-                                      onClick={() => handleRemovePaper(p.pmid)}
-                                      className="text-slate-400 hover:text-red-500 p-0.5 rounded cursor-pointer"
+                                      onClick={() => handleRemovePaper(p.pmid || p.id || idx)}
+                                      className="text-slate-400 hover:text-red-500 p-0.5 rounded cursor-pointer transition-colors"
                                     >
                                       <X size={10} />
                                     </button>
@@ -3175,9 +3664,29 @@ const Auditor = ({ user, onLogout }) => {
                         {/* Share Button */}
                         {messages.length > 0 && (
                           <button
-                            onClick={() => {
-                              if (!sessionId) {
-                                toast.info('Syncing session for sharing...');
+                            onClick={async () => {
+                              if (!sessionId && user) {
+                                try {
+                                  const sessionPayload = {
+                                    user_id: user.id,
+                                    title: (messages[0]?.content || 'Research Audit').slice(0, 80),
+                                    papers: activePapers,
+                                    chat_history: messages,
+                                    workflow: activeWorkflow,
+                                    created_at: new Date().toISOString(),
+                                    updated_at: new Date().toISOString()
+                                  };
+                                  const { data: inserted } = await supabase
+                                    .from('audit_history')
+                                    .insert(sessionPayload)
+                                    .select()
+                                    .single();
+                                  if (inserted?.id) {
+                                    setSessionId(inserted.id);
+                                  }
+                                } catch (e) {
+                                  console.error('Pre-share save error:', e);
+                                }
                               }
                               setShowShareModal(true);
                             }}
@@ -3348,437 +3857,74 @@ const Auditor = ({ user, onLogout }) => {
                       </div>
                     </div>
 
-                    <div id="auditor-chat-lane" className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-6 custom-scrollbar">
+                    <div 
+                      id="auditor-chat-lane" 
+                      onScroll={handleChatLaneScroll}
+                      onWheel={handleChatLaneWheel}
+                      onTouchMove={handleChatLaneTouchMove}
+                      className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-6 custom-scrollbar relative"
+                    >
                       {messages.map((msg, index) => {
                         const originalIndex = index;
                         const msgKey = msg.id || `msg-${msg.timestamp || ''}-${originalIndex}-${msg.role}`;
                         return (
-                          <div key={msgKey} className="w-full w-full 2xl:px-12 mx-auto flex flex-col gap-1.5 animate-fadeIn">
-                            <div
-                              className={`flex flex-col gap-1.5 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
-                            >
-                              {msg.role === 'user' ? (
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-[11px] font-medium text-slate-400/80 tracking-normal font-sans">
-                                    {msg.timestamp || getFormattedTimestamp()}
-                                  </span>
-                                  {!isAnalyzing && editingMsgIndex !== index && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setEditingMsgIndex(index);
-                                        setEditingText(msg.content);
-                                      }}
-                                      title="Edit prompt & resubmit"
-                                      className="p-1 text-slate-400 hover:text-indigo-600 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
-                                    >
-                                      <Pencil size={11} />
-                                    </button>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">
-                                  Research Agent
-                                </span>
-                              )}
-
-                              <div className={`p-4 rounded-2xl text-sm leading-relaxed border ${msg.role === 'user'
-                                ? 'bg-slate-50 border-slate-200/60 text-slate-800 rounded-tr-none max-w-[85%] ml-auto'
-                                : 'bg-white border-slate-200/60 text-slate-855 rounded-tl-none font-normal shadow-xs w-full'
-                                }`}>
-                                {msg.role === 'user' && editingMsgIndex === index ? (
-                                  <div className="w-full flex flex-col gap-2 min-w-[280px] sm:min-w-[400px]">
-                                    <textarea
-                                      value={editingText}
-                                      onChange={(e) => setEditingText(e.target.value)}
-                                      className="w-full p-3 bg-white border border-slate-300 rounded-xl text-sm outline-none focus:border-indigo-500 font-sans shadow-xs text-slate-800"
-                                      rows={3}
-                                      autoFocus
-                                    />
-                                    <div className="flex items-center justify-end gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={() => setEditingMsgIndex(null)}
-                                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold transition-colors cursor-pointer"
-                                      >
-                                        Cancel
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const newQuery = editingText.trim();
-                                          if (!newQuery) return;
-                                          setEditingMsgIndex(null);
-                                          setMessages(prev => prev.slice(0, index));
-                                          handleQuerySubmit(null, newQuery);
-                                        }}
-                                        className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer shadow-xs"
-                                      >
-                                        Save & Submit
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <TypewriterText
-                                    text={msg.content}
-                                    isStreaming={msg.isStreaming}
-                                    render={(currentText) => {
-                                      let mainContent = currentText;
-                                      let relevanceRaw = '';
-
-                                      const relMapMatch = currentText.match(/(?:\[Relevance Map\]|###\s*Relevance Map|\*\*Relevance Map\*\*|Relevance Map\b[\s\S]*?(?=RELEVANCE[|:]))/i);
-                                      if (relMapMatch) {
-                                        const splitIdx = relMapMatch.index;
-                                        mainContent = currentText.substring(0, splitIdx).trim();
-                                        relevanceRaw = currentText.substring(splitIdx);
-                                      } else if (currentText.includes('[Relevance Map]')) {
-                                        const parts = currentText.split('[Relevance Map]');
-                                        mainContent = parts[0].trim();
-                                        relevanceRaw = parts[1] || '';
-                                      }
-
-                                      const relevanceEntries = (() => {
-                                        if (!relevanceRaw) return [];
-                                        const entries = [];
-                                        const lines = relevanceRaw.split(/\r?\n/);
-                                        for (let line of lines) {
-                                          const trimmed = line.trim();
-                                          if (!trimmed || (!trimmed.toUpperCase().includes('RELEVANCE|') && !trimmed.toUpperCase().includes('RELEVANCE:'))) {
-                                            continue;
-                                          }
-                                          const segs = trimmed.split(/\||:/).map(s => s.trim()).filter(Boolean);
-                                          if (segs.length > 0 && segs[0].toUpperCase() === 'RELEVANCE') {
-                                            segs.shift();
-                                          }
-                                          if (segs.length < 2) continue;
-
-                                          let title = segs[0] || 'Research Paper';
-                                          let rawScore = segs[1] || '0';
-                                          let reason = segs[2] || '';
-
-                                          let cleanTitle = title.replace(/^[\-\*\d\.\s]+/, '').replace(/^\[|\]$/g, '').trim();
-                                          if (!cleanTitle || cleanTitle.toLowerCase().includes('paper title') || cleanTitle.toLowerCase() === 'percentage' || cleanTitle.toLowerCase() === 'paper') {
-                                            continue; // Filter out dummy prompt template placeholders
-                                          }
-
-                                          let scoreNum = parseInt(rawScore.replace(/[^0-9]/g, ''), 10);
-                                          let reasonScoreNum = parseInt(reason.replace(/[^0-9]/g, ''), 10);
-
-                                          if (isNaN(scoreNum) && !isNaN(reasonScoreNum)) {
-                                            const temp = rawScore;
-                                            rawScore = reason;
-                                            reason = temp;
-                                            scoreNum = reasonScoreNum;
-                                          }
-
-                                          if (isNaN(scoreNum)) {
-                                            scoreNum = 85;
-                                          }
-
-                                          scoreNum = Math.max(0, Math.min(100, scoreNum));
-
-                                          entries.push({
-                                            title: cleanTitle,
-                                            score: scoreNum,
-                                            reason: reason || 'High contextual relevance match.'
-                                          });
-                                        }
-                                        return entries;
-                                      })();
-
-                                      let processedContent = mainContent
-                                        .replace(/(^|[^\[])\[(\d+):\s*"([^"]+)"\]/g, (match, p1, p2, p3) => {
-                                          return `${p1}[cite-${p2}-quote-${encodeURIComponent(p3)}](#cite-${p2}-quote-${encodeURIComponent(p3)})`;
-                                        })
-                                        .replace(/(^|[^\[])\[(\d+)\](?!\]|\()/g, '$1[cite-$2](#cite-$2)');
-
-                                      // Auto-wrap ONLY unwrapped visual blocks that exist OUTSIDE existing ``` code fences
-                                      const parts = processedContent.split(/(```[\s\S]*?```)/g);
-                                      processedContent = parts.map((part, pIdx) => {
-                                        if (pIdx % 2 === 1) return part; // Inside existing code fence, leave untouched!
-                                        let text = part;
-                                        if (!text.includes('```mermaid') && !text.includes('```uve-json') && !text.includes('```json')) {
-                                          text = text.replace(
-                                            /(?:^|\n)\s*(\{\s*"engine"\s*:\s*"[^"]+"[\s\S]*?\})\s*(?=\n|$)/g,
-                                            (match, jsonBlock) => `\n\n\`\`\`uve-json\n${jsonBlock.trim()}\n\`\`\`\n\n`
-                                          );
-                                          text = text.replace(
-                                            /(?:^|\n)\s*((?:graph|flowchart|sequenceDiagram|gantt|classDiagram)\s+(?:TD|LR|TB|RL)?[\s\S]*?)(?=\n\n\n|\n\s*\n\s*[A-Z#]|$)/gi,
-                                            (match, mermaidBlock) => {
-                                              if (mermaidBlock.includes('{"engine"')) return match;
-                                              return `\n\n\`\`\`mermaid\n${mermaidBlock.trim()}\n\`\`\`\n\n`;
-                                            }
-                                          );
-                                        }
-                                        return text;
-                                      }).join('');
-
-                                      return (
-                                        <div className={`prose prose-slate max-w-none text-sm leading-relaxed space-y-4 prose-headings:font-bold prose-headings:text-slate-800 prose-a:text-indigo-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-indigo-900 prose-code:bg-slate-100 prose-code:text-slate-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none ${msg.role === 'user' ? 'text-slate-800' : 'text-slate-700'}`}>
-                                          <style>{`
-                                            .prose table {
-                                              table-layout: auto !important;
-                                              min-width: 800px !important;
-                                            }
-                                          `}</style>
-
-                                          {/* AI Reasoning Console (Streaming CoT) */}
-                                          {msg.rawThoughts && (
-                                            <details 
-                                              className="mb-4 group bg-slate-50 border border-slate-200 rounded-xl overflow-hidden shadow-sm" 
-                                              open={msg.isStreaming}
-                                            >
-                                              <summary className="px-4 py-3 cursor-pointer select-none font-bold text-xs uppercase tracking-wider text-slate-600 hover:text-slate-900 bg-white border-b border-transparent group-open:border-slate-200 flex items-center justify-between transition-colors">
-                                                <span className="flex items-center gap-2">
-                                                  {msg.isStreaming ? (
-                                                    <span className="flex items-center justify-center w-4 h-4">
-                                                      <Loader2 size={12} className="text-emerald-500 animate-spin" />
-                                                    </span>
-                                                  ) : (
-                                                    <span className="flex items-center justify-center w-4 h-4">
-                                                      <CheckCircle size={12} className="text-slate-400" />
-                                                    </span>
-                                                  )}
-                                                  ⚡ AI Reasoning
-                                                </span>
-                                                <ChevronDown size={14} className="text-slate-400 group-open:rotate-180 transition-transform" />
-                                              </summary>
-                                              <div className="p-4 text-[11px] font-mono text-slate-500 bg-slate-50/50 whitespace-pre-wrap max-h-[300px] overflow-y-auto leading-relaxed border-t border-slate-100">
-                                                {msg.rawThoughts}
-                                              </div>
-                                            </details>
-                                          )}
-
-                                          <div className="overflow-x-auto w-full relative">
-                                            <ReactMarkdown
-                                              remarkPlugins={[remarkGfm, remarkMath]}
-                                              rehypePlugins={[rehypeKatex]}
-                                              components={{
-                                                a: ({ node, href, children, ...props }) => {
-                                                  if (href && href.startsWith('#cite-')) {
-                                                    const parts = href.replace('#cite-', '').split('-quote-');
-                                                    const citationNum = parts[0];
-                                                    let quote = null;
-                                                    if (parts.length > 1) {
-                                                      try {
-                                                        quote = decodeURIComponent(parts[1]);
-                                                      } catch (e) {
-                                                        quote = parts[1];
-                                                      }
-                                                    }
-                                                    
-                                                    return (
-                                                      <span className="inline-flex items-center gap-0.5 mx-0.5 relative -top-0.5">
-                                                        <button
-                                                          type="button"
-                                                          className="inline-flex items-center justify-center px-1.5 py-0.5 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 hover:border-indigo-600 rounded text-[11px] font-bold transition-all cursor-pointer shadow-sm no-underline"
-                                                          onMouseEnter={() => setHoveredCitation(parseInt(citationNum) - 1)}
-                                                          onMouseLeave={() => setHoveredCitation(null)}
-                                                          onClick={(e) => {
-                                                            e.preventDefault();
-                                                            const idx = parseInt(citationNum) - 1;
-                                                            const paper = activePapers[idx];
-                                                            if (paper) {
-                                                              setSelectedDetailPaper(paper);
-                                                              setShowRightPane(true);
-                                                              setHighlightedSourceRow(idx);
-                                                              setTimeout(() => {
-                                                                const element = document.getElementById(`source-row-${idx}`);
-                                                                if (element) {
-                                                                  element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                                                }
-                                                              }, 150);
-                                                              setTimeout(() => {
-                                                                setHighlightedSourceRow(null);
-                                                              }, 4000);
-                                                            }
-                                                          }}
-                                                          title={quote ? `Citation [${citationNum}]: "${quote}"` : `View paper #${citationNum}`}
-                                                        >
-                                                          [{citationNum}]
-                                                        </button>
-                                                      </span>
-                                                    );
-                                                  }
-                                                  return <a href={href} target="_blank" rel="noopener noreferrer" {...props}>{children}</a>;
-                                                },
-                                                code: ({ node, inline, className, children, ...props }) => {
-                                                  const match = /language-([\w-]+)/.exec(className || '');
-                                                  const lang = match ? match[1].toLowerCase() : '';
-                                                  const rawContent = String(children).replace(/\n$/, '').trim();
-
-                                                  const isUveOrMermaid = !inline && (
-                                                    lang === 'mermaid' || 
-                                                    lang === 'uve-json' || 
-                                                    lang === 'json-uve' || 
-                                                    lang === 'uve' ||
-                                                    lang === 'graph' ||
-                                                    lang === 'flowchart' ||
-                                                    (lang === 'json' && (rawContent.includes('"visualization"') || rawContent.includes('"engine"') || rawContent.includes('"nodes"') || rawContent.includes('"config"'))) ||
-                                                    rawContent.includes('{"engine"') ||
-                                                    rawContent.includes('"engine": "mermaid"') ||
-                                                    rawContent.includes('"engine": "react-flow"') ||
-                                                    rawContent.includes('"engine": "echarts"') ||
-                                                    rawContent.includes('"engine": "d3"') ||
-                                                    rawContent.startsWith('graph ') ||
-                                                    rawContent.startsWith('graph\n') ||
-                                                    rawContent.startsWith('flowchart ') ||
-                                                    rawContent.startsWith('flowchart\n') ||
-                                                    rawContent.startsWith('sequenceDiagram')
-                                                  );
-
-                                                  if (isUveOrMermaid) {
-                                                    return (
-                                                      <VisualDispatcher 
-                                                        rawJson={rawContent} 
-                                                        payload={rawContent}
-                                                        onSourceClick={(paperIdx) => {
-                                                          const idx = parseInt(paperIdx) - 1;
-                                                          const paper = activePapers[idx];
-                                                          if (paper) {
-                                                            setSelectedDetailPaper(paper);
-                                                            setShowRightPane(true);
-                                                            setHighlightedSourceRow(idx);
-                                                          }
-                                                        }} 
-                                                      />
-                                                    );
-                                                  }
-                                                  
-                                                  return (
-                                                    <code className={className} {...props}>
-                                                      {children}
-                                                    </code>
-                                                  );
-                                                },
-                                                table: (props) => (
-                                                  <div className="my-6 w-full overflow-x-auto rounded-2xl border border-slate-200/80 shadow-md bg-white">
-                                                    <table className="w-full text-left text-xs border-collapse font-sans min-w-[700px]" {...cleanProps(props)} />
-                                                  </div>
-                                                ),
-                                                thead: (props) => <thead className="bg-slate-100/90 text-slate-800 font-extrabold uppercase tracking-wider text-[11px] border-b border-slate-200" {...cleanProps(props)} />,
-                                                th: (props) => <th className="px-4 py-3 border-b border-slate-200 text-slate-800 font-black text-[11px] tracking-wider uppercase text-left bg-slate-50" {...cleanProps(props)} />,
-                                                td: (props) => <td className="px-4 py-3.5 border-b border-slate-200/60 text-slate-700 leading-relaxed align-middle whitespace-normal text-xs" {...cleanProps(props)} />
-                                              }}
-                                            >
-                                              {processedContent}
-                                            </ReactMarkdown>
-                                            {msg.isStreaming && (
-                                              <span className="inline-block w-2.5 h-4 ml-1 bg-indigo-600 animate-pulse rounded-xs align-middle" />
-                                            )}
-                                          </div>
-
-                                          {relevanceEntries.length > 0 && (
-                                            <div className="mt-6 pt-5 border-t border-slate-100/85">
-                                              <div className="flex items-center gap-2 mb-4">
-                                                <div className="w-5 h-5 bg-indigo-50 rounded-md flex items-center justify-center">
-                                                  <Sparkles size={12} className="text-indigo-600 animate-pulse" />
-                                                </div>
-                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Relevance Match Meter</span>
-                                              </div>
-                                              <div className="space-y-4">
-                                                {relevanceEntries.map((entry, idx) => (
-                                                  <div key={idx}>
-                                                    <div className="flex items-center justify-between mb-1.5">
-                                                      <p className="text-xs font-bold text-slate-700 leading-tight line-clamp-1 flex-1 mr-3">{entry.title}</p>
-                                                      <span className="text-xs font-black text-indigo-600 shrink-0">
-                                                        {entry.score}%
-                                                      </span>
-                                                    </div>
-                                                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                                                      <div
-                                                        style={{ width: `${entry.score}%` }}
-                                                        className="h-full rounded-full bg-indigo-500 transition-all duration-1000"
-                                                      />
-                                                    </div>
-                                                    {entry.reason && (
-                                                      <p className="text-[11px] text-slate-450 mt-1 leading-snug">{entry.reason}</p>
-                                                    )}
-                                                  </div>
-                                                ))}
-                                              </div>
-                                            </div>
-                                          )}
-                                        </div>
-                                      );
-                                    }}
-                                  />
-                                )}
-
-                                {/* Response Utility Hub (Icon-Only Mobile Strategy) */}
-                                {msg.role === 'assistant' && (
-                                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-4 pt-3 border-t border-slate-100/60 text-slate-500">
-                                    {msg.thinkingTime && (
-                                      <div className="text-xs font-medium text-slate-500 bg-slate-50 px-2 py-1 rounded-md mr-auto flex items-center gap-1.5 border border-slate-200 shadow-sm font-mono">
-                                        <AlertCircle size={12} />
-                                        Analyzed in {msg.thinkingTime.toFixed(1)}s
-                                      </div>
-                                    )}
-
-                                    {/* Relevance Rating Controls */}
-                                    <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 ml-1">
-                                      <button
-                                        type="button"
-                                        onClick={() => handleRatingFeedback(5)}
-                                        className="p-1 hover:text-green-600 transition-colors cursor-pointer"
-                                        title="Rate Relevant (5 Stars)"
-                                      >
-                                        <ThumbsUp size={14} />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleRatingFeedback(1)}
-                                        className="p-1 hover:text-red-500 transition-colors cursor-pointer"
-                                        title="Rate Irrelevant (1 Star)"
-                                      >
-                                        <ThumbsDown size={14} />
-                                      </button>
-                                    </div>
-                                    <button
-                                      onClick={() => {
-                                        navigator.clipboard.writeText(msg.content);
-                                        toast.success('Response copied to clipboard!');
-                                      }}
-                                      title="Copy response to clipboard"
-                                      className="flex items-center justify-center gap-1.5 p-2.5 sm:px-3 sm:py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 hover:border-slate-300 text-slate-700 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all shadow-2xs cursor-pointer min-h-[40px] min-w-[40px] sm:min-h-0 sm:min-w-0"
-                                    >
-                                      <Copy size={16} className="text-slate-500 shrink-0" />
-                                      <span className="hidden md:inline">Copy</span>
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        downloadMarkdown(msg.content, `audit-response-${originalIndex + 1}.md`);
-                                        toast.success('Response downloaded as markdown.');
-                                      }}
-                                      title="Download response as Markdown file"
-                                      className="flex items-center justify-center gap-1.5 p-2.5 sm:px-3 sm:py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 hover:border-slate-300 text-slate-700 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all shadow-2xs cursor-pointer min-h-[40px] min-w-[40px] sm:min-h-0 sm:min-w-0"
-                                    >
-                                      <Download size={16} className="text-slate-500 shrink-0" />
-                                      <span className="hidden md:inline">Download</span>
-                                    </button>
-                                    <button
-                                      onClick={() => setShowRightPane(!showRightPane)}
-                                      title={showRightPane ? 'Hide Sources Panel' : 'Show Sources Panel'}
-                                      className="flex items-center justify-center gap-1.5 p-2.5 sm:px-3 sm:py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/80 hover:border-slate-300 text-slate-700 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all shadow-2xs cursor-pointer min-h-[40px] min-w-[40px] sm:min-h-0 sm:min-w-0"
-                                    >
-                                      <Layout size={16} className="text-slate-500 shrink-0" />
-                                      <span className="hidden md:inline">{showRightPane ? 'Hide Sources' : 'Show Sources'}</span>
-                                    </button>
-                                    {msg.content.includes('|') && msg.content.includes('---') && (
-                                      <button
-                                        onClick={() => handleExportToExcel(msg.content)}
-                                        title="Export Markdown Table to Excel"
-                                        className="flex items-center justify-center gap-1.5 p-2.5 sm:px-3 sm:py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 hover:border-emerald-300 text-emerald-700 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all shadow-2xs cursor-pointer min-h-[40px] min-w-[40px] sm:min-h-0 sm:min-w-0"
-                                      >
-                                        <FileSpreadsheet size={16} className="shrink-0 text-emerald-600" />
-                                        <span className="hidden md:inline">Export Excel</span>
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
+                          <AuditorChatMessage
+                            key={msgKey}
+                            msg={msg}
+                            originalIndex={originalIndex}
+                            isAnalyzing={isAnalyzing}
+                            isEditing={editingMsgIndex === index}
+                            onStartEdit={() => setEditingMsgIndex(index)}
+                            onCancelEdit={() => setEditingMsgIndex(null)}
+                            onSaveEdit={(newQuery) => {
+                              setEditingMsgIndex(null);
+                              isUserScrolledUpRef.current = false;
+                              setShowScrollBottomBtn(false);
+                              setMessages(prev => prev.slice(0, index));
+                              handleQuerySubmit(null, newQuery);
+                            }}
+                            activePapers={activePapers}
+                            onCitationClick={(citationNum) => {
+                              const idx = parseInt(citationNum) - 1;
+                              const paper = activePapers[idx];
+                              if (paper) {
+                                setSelectedDetailPaper(paper);
+                                setShowRightPane(true);
+                                setHighlightedSourceRow(idx);
+                                setTimeout(() => {
+                                  const element = document.getElementById(`source-row-${idx}`);
+                                  if (element) {
+                                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                  }
+                                }, 150);
+                                setTimeout(() => {
+                                  setHighlightedSourceRow(null);
+                                }, 4000);
+                              }
+                            }}
+                            onRelevanceClick={(entry) => {
+                              if (entry.paper) {
+                                setSelectedDetailPaper(entry.paper);
+                                setShowRightPane(true);
+                                if (entry.paperIdx >= 0) {
+                                  setHighlightedSourceRow(entry.paperIdx);
+                                  setTimeout(() => {
+                                    const el = document.getElementById(`source-row-${entry.paperIdx}`);
+                                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                  }, 150);
+                                  setTimeout(() => setHighlightedSourceRow(null), 4000);
+                                }
+                              }
+                            }}
+                            onRatingFeedback={(rating) => handleRatingFeedback(rating)}
+                            onDownloadMarkdown={(content, filename) => {
+                              downloadMarkdown(content, filename);
+                              toast.success('Response downloaded as markdown.');
+                            }}
+                            onExportExcel={(content) => handleExportToExcel(content)}
+                            showRightPane={showRightPane}
+                            onToggleRightPane={() => setShowRightPane(prev => !prev)}
+                          />
                         );
                       })}
 
@@ -3955,6 +4101,23 @@ const Auditor = ({ user, onLogout }) => {
                       )}
 
                       <div ref={messagesEndRef} />
+
+                      {/* Floating Jump to Latest Button when User is Scrolled Up */}
+                      {showScrollBottomBtn && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            isUserScrolledUpRef.current = false;
+                            setShowScrollBottomBtn(false);
+                            scrollToBottom(true);
+                          }}
+                          className="sticky bottom-4 ml-auto mr-4 z-40 px-3.5 py-2 bg-white/95 hover:bg-white text-slate-700 hover:text-indigo-600 border border-slate-200/90 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer flex items-center gap-1.5 text-xs font-bold animate-fadeIn hover:scale-105 backdrop-blur-md"
+                          title="Jump to latest message"
+                        >
+                          <ChevronDown size={14} className="text-indigo-600 animate-bounce" />
+                          <span className="text-[11px] font-bold">Jump to latest</span>
+                        </button>
+                      )}
                     </div>
 
                     {/* Bottom Input Bar */}
@@ -4205,15 +4368,13 @@ const Auditor = ({ user, onLogout }) => {
                             <tbody>
                               {activePapers.map((paper, idx) => (
                                 <tr
-                                  key={paper.pmid}
+                                  key={paper.pmid || paper.id || paper.doi || `source-paper-${idx}`}
                                   id={`source-row-${idx}`}
                                   onClick={() => setSelectedDetailPaper(paper)}
-                                  className={`border-b border-slate-100 cursor-pointer last:border-b-0 transition-all ${
+                                  className={`border-b border-slate-100 cursor-pointer last:border-b-0 transition-colors ${
                                     highlightedSourceRow === idx
                                       ? 'bg-amber-55 border-amber-300 ring-2 ring-amber-400/50'
-                                      : hoveredCitation === idx 
-                                        ? 'bg-indigo-50/70 border-indigo-200 shadow-[inset_4px_0_0_0_#6366f1]' 
-                                        : 'hover:bg-slate-50/50'
+                                      : 'hover:bg-slate-50/70'
                                   }`}
                                 >
                                   <td className="px-3 py-3 text-slate-400 font-semibold text-center align-top">{idx + 1}</td>
@@ -4371,11 +4532,11 @@ const Auditor = ({ user, onLogout }) => {
                       </p>
                     </div>
                   ) : (
-                    filteredLibrary.map((paper) => {
+                    filteredLibrary.map((paper, idx) => {
                       const isSelected = selectedLibraryPmids.includes(paper.pmid);
                       return (
                         <div
-                          key={paper.pmid}
+                          key={paper.pmid || paper.id || paper.doi || `lib-paper-${idx}`}
                           onClick={() => toggleLibrarySelection(paper.pmid)}
                           className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-start gap-4 ${isSelected
                             ? 'bg-slate-50 border-slate-900 text-slate-900'

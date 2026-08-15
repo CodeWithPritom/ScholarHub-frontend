@@ -27,15 +27,16 @@ const CustomControls = () => {
  * Renders interactive node-based research maps and knowledge graphs inside the UVE framework.
  */
 export const ReactFlowAdapter = React.memo(({ type, config, onSourceClick }) => {
-  const initialNodes = config?.nodes || [];
-  const initialEdges = config?.edges || [];
+  const nodesHash = JSON.stringify(config?.nodes || []);
+  const edgesHash = JSON.stringify(config?.edges || []);
 
   // Provide structured hierarchical layout if nodes lack positions
   const formattedNodes = useMemo(() => {
-    const total = initialNodes.length;
+    const rawNodes = config?.nodes || [];
+    const total = rawNodes.length;
     const cols = total <= 3 ? total : Math.ceil(Math.sqrt(total));
 
-    return initialNodes.map((node, i) => {
+    return rawNodes.map((node, i) => {
       const col = i % cols;
       const row = Math.floor(i / cols);
       const defaultX = col * 260 + 40;
@@ -62,12 +63,13 @@ export const ReactFlowAdapter = React.memo(({ type, config, onSourceClick }) => 
         }
       };
     });
-  }, [initialNodes]);
+  }, [nodesHash]);
 
   // Task 4 Guard: Filter out dangling edges to eliminate 'Node not found' console errors
   const formattedEdges = useMemo(() => {
+    const rawEdges = config?.edges || [];
     const validNodeIds = new Set(formattedNodes.map(n => n.id));
-    return initialEdges
+    return rawEdges
       .filter(edge => edge && validNodeIds.has(edge.source) && validNodeIds.has(edge.target))
       .map((edge, i) => ({
         ...edge,
@@ -76,15 +78,18 @@ export const ReactFlowAdapter = React.memo(({ type, config, onSourceClick }) => 
         animated: edge.animated !== undefined ? edge.animated : true,
         style: { stroke: '#94a3b8', strokeWidth: 1.5, ...edge.style }
       }));
-  }, [initialEdges, formattedNodes]);
+  }, [edgesHash, formattedNodes]);
 
   const [nodes, setNodes] = React.useState(formattedNodes);
   const [edges, setEdges] = React.useState(formattedEdges);
 
   React.useEffect(() => {
     setNodes(formattedNodes);
+  }, [nodesHash]);
+
+  React.useEffect(() => {
     setEdges(formattedEdges);
-  }, [formattedNodes, formattedEdges]);
+  }, [edgesHash]);
 
   const onNodesChange = useCallback(
     (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
@@ -109,8 +114,25 @@ export const ReactFlowAdapter = React.memo(({ type, config, onSourceClick }) => 
     }
   };
 
+  if (!nodes || nodes.length === 0) {
+    return (
+      <div 
+        className="w-full h-full min-h-[380px] flex items-center justify-center bg-slate-50/80 rounded-xl text-slate-400 text-xs font-bold font-sans"
+        style={{ width: '100%', height: '100%', minHeight: 380 }}
+      >
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+          <span>Structuring Knowledge Map...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex-1 w-full h-full min-h-[350px] relative">
+    <div 
+      className="flex-1 w-full h-full min-h-[380px] relative bg-white"
+      style={{ width: '100%', height: '100%', minHeight: 380 }}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -122,6 +144,7 @@ export const ReactFlowAdapter = React.memo(({ type, config, onSourceClick }) => 
         minZoom={0.2}
         maxZoom={4}
         proOptions={{ hideAttribution: true }}
+        style={{ width: '100%', height: '100%', minHeight: 380 }}
       >
         <Background color="#cbd5e1" gap={16} />
         <CustomControls />

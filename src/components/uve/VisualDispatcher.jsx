@@ -93,7 +93,10 @@ const ArtifactFrame = ({
              {children}
           </div>
         ) : isReactFlow || isECharts ? (
-          <div className="w-full h-full min-h-[380px] p-2 pt-10 flex flex-col relative bg-white overflow-hidden">
+          <div 
+            className="w-full h-full min-h-[380px] p-2 pt-10 flex flex-col relative bg-white overflow-hidden"
+            style={{ width: '100%', height: '100%', minHeight: 380 }}
+          >
              {children}
           </div>
         ) : (

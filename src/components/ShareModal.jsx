@@ -54,6 +54,10 @@ export const ShareModal = ({ isOpen, onClose, sessionId, sessionTitle, user }) =
 
   const handleSaveVisibility = async (newVisibility) => {
     setVisibility(newVisibility);
+    if (!sessionId) {
+      toast.error('Please wait a moment while the audit session saves to cloud.');
+      return;
+    }
     setSaving(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -79,7 +83,8 @@ export const ShareModal = ({ isOpen, onClose, sessionId, sessionTitle, user }) =
         if (data.expires_at) setExpiresAt(data.expires_at);
         toast.success(`Share settings updated to ${newVisibility.toUpperCase()}`);
       } else {
-        toast.error('Failed to update share settings');
+        const errData = await res.json().catch(() => ({}));
+        toast.error(errData.detail || 'Failed to update share settings');
       }
     } catch (err) {
       console.error('Error saving share settings:', err);

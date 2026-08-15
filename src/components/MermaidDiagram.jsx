@@ -31,55 +31,90 @@ export const sanitizeMermaid = (code) => {
   // Clean markdown block wrappers if they exist
   sanitized = sanitized.replace(/^```mermaid/i, '').replace(/```$/g, '').trim();
 
+  // Strip comments
+  sanitized = sanitized.replace(/%%[^\n]*/g, '');
+
   // Strip :::classDef or :::method suffixes from node references
   sanitized = sanitized.replace(/:::[a-zA-Z0-9_-]+/g, '');
 
-  // Strip classDef and class assignment statements that cause parse failures
-  sanitized = sanitized
-    .split('\n')
-    .filter(line => {
-      const trimmed = line.trim();
-      return !trimmed.startsWith('classDef') && !trimmed.startsWith('class ');
-    })
-    .join('\n');
-
   // Fix specific arrow label hallucination (e.g., -->|Text|>)
   sanitized = sanitized.replace(/(-->\|[^|]+)\|>/g, '$1|');
-
-  // Ensure valid graph TD or flowchart TD start
-  sanitized = sanitized.replace(/^["'\s]*graph/i, 'graph');
-  sanitized = sanitized.replace(/^["'\s]*flowchart/i, 'flowchart');
-
-  // Auto-quote unquoted labels containing parentheses e.g. A[Hyperspectral Imaging (1)] -> A["Hyperspectral Imaging (1)"]
-  sanitized = sanitized.replace(/([a-zA-Z0-9_-]+)\[\s*([^"\]\n]+?\([^\n\]]*?\)[^\n\]]*?)\s*\]/g, (match, nodeId, label) => {
-    const cleanLabel = label.replace(/"/g, "'").trim();
-    return `${nodeId}["${cleanLabel}"]`;
-  });
-
-  // Clean labels inside node brackets cleanly and replace newlines inside quotes
-  sanitized = sanitized.replace(/\[\s*"([\s\S]*?)"\s*\]/g, (match, p1) => {
-    const cleanLabel = p1.replace(/"/g, "'").replace(/\\n/g, ' ').replace(/\n/g, ' ').trim();
-    return `["${cleanLabel}"]`;
-  });
-
-  // Fix unbalanced brackets
-  const openBrackets = (sanitized.match(/\[/g) || []).length;
-  const closeBrackets = (sanitized.match(/\]/g) || []).length;
-  if (openBrackets > closeBrackets) {
-    sanitized += ']'.repeat(openBrackets - closeBrackets);
-  }
 
   // Standardize arrows
   sanitized = sanitized.replace(/\|>/g, '-->').replace(/~>/g, '-->');
   sanitized = sanitized.replace(/--+>/g, '-->').replace(/-\.-+>/g, '-.->');
 
-  // Ensure first line is strictly a valid graph type
+  // Process line by line
+  const cleanedLines = [];
   const rawLines = sanitized.split('\n');
-  const graphHeaderIndex = rawLines.findIndex(l => /^(graph|flowchart|sequenceDiagram|gantt)/i.test(l.trim()));
-  if (graphHeaderIndex === -1) {
-    sanitized = 'graph TD;\n' + sanitized;
-  } else if (graphHeaderIndex > 0) {
-    sanitized = rawLines.slice(graphHeaderIndex).join('\n');
+
+  for (let line of rawLines) {
+    let trimmed = line.trim();
+    if (!trimmed) continue;
+    if (trimmed.startsWith('classDef') || trimmed.startsWith('class ') || trimmed.startsWith('click ') || trimmed.startsWith('linkStyle') || trimmed.startsWith('style ')) {
+      continue;
+    }
+
+    // Auto-quote unquoted labels containing parentheses or brackets or special characters e.g. A[Hyperspectral Imaging (1)] -> A["Hyperspectral Imaging (1)"]
+    trimmed = trimmed.replace(/([a-zA-Z0-9_-]+)\[\s*([^"\]\n]+?\([^\n\]]*?\)[^\n\]]*?)\s*\]/g, (match, nodeId, label) => {
+      const cleanLabel = label.replace(/"/g, "'").trim();
+      return `${nodeId}["${cleanLabel}"]`;
+    });
+
+    // Clean labels inside node brackets cleanly and replace newlines inside quotes
+    trimmed = trimmed.replace(/\[\s*"([\s\S]*?)"\s*\]/g, (match, p1) => {
+      const cleanLabel = p1.replace(/"/g, "'").replace(/\\n/g, ' ').trim();
+      return `["${cleanLabel}"]`;
+    });
+
+    // Fix unclosed quotes and incomplete streaming node tokens e.g. G7 --> H7[" or A --> B["Incomplete
+    const quoteCount = (trimmed.match(/"/g) || []).length;
+    if (quoteCount % 2 !== 0) {
+      // If ends with an empty or dangling quote bracket like [" or --> Node["
+      if (/(?:-->|-\.->|==>)\s*[a-zA-Z0-9_-]*\[\s*"?[^"]*$/i.test(trimmed)) {
+        // Strip trailing incomplete node connection
+        trimmed = trimmed.replace(/\s*(?:-->|-\.->|==>)\s*[a-zA-Z0-9_-]*\[\s*"?[^"]*$/i, '').trim();
+      } else {
+        trimmed += '"';
+      }
+    }
+
+    // Fix unbalanced brackets on the line
+    const openBrackets = (trimmed.match(/\[/g) || []).length;
+    const closeBrackets = (trimmed.match(/\]/g) || []).length;
+    if (openBrackets > closeBrackets) {
+      trimmed += ']'.repeat(openBrackets - closeBrackets);
+    }
+
+    // CRITICAL: Strip dangling incomplete arrows at end of line (e.g. "D -->", "A ---", "B --> |Label|", "C ==> ")
+    trimmed = trimmed.replace(/\s*(?:-->|-\.->|==>|--|---\||-->\|[^|]*\|?|-\.->\|[^|]*\|?)\s*$/g, '');
+
+    // Discard lines that are just lone arrows or lone punctuation
+    if (/^(?:-->|-\.->|==>|--|---|\||\:|\;)+$/.test(trimmed)) continue;
+    if (!trimmed) continue;
+
+    cleanedLines.push(trimmed);
+  }
+
+  // Balance unmatched subgraph ... end blocks
+  let subgraphCount = 0;
+  let endCount = 0;
+  for (let line of cleanedLines) {
+    const l = line.trim();
+    if (l.startsWith('subgraph ')) subgraphCount++;
+    if (l === 'end' || l.startsWith('end ') || l.endsWith(' end')) endCount++;
+  }
+  while (subgraphCount > endCount) {
+    cleanedLines.push('end');
+    endCount++;
+  }
+
+  sanitized = cleanedLines.join('\n');
+
+  // Ensure first line is strictly a valid graph type
+  const validHeaderMatch = sanitized.match(/^(graph|flowchart|sequenceDiagram|gantt|classDiagram|stateDiagram-v2)\b/i);
+  if (!validHeaderMatch) {
+    sanitized = 'graph TD\n' + sanitized;
   }
 
   return sanitized;
@@ -88,24 +123,34 @@ export const sanitizeMermaid = (code) => {
 export const nuclearFallbackStrip = (code) => {
   if (!code) return '';
   const lines = code.split('\n');
-  const styleLines = [];
-  const diagramLines = [];
-  const cleanLines = [];
-  lines.forEach(line => {
-    let trimmed = line.trim();
-    if (!trimmed) return;
-    if (trimmed.startsWith('style ') ||
-      trimmed.startsWith('classDef ') ||
-      trimmed.startsWith('class ') ||
-      trimmed.startsWith('click ') ||
-      trimmed.startsWith('linkStyle ')) {
-      return;
+  const cleanLines = ['graph TD'];
+  const nodes = extractNodes(code);
+  
+  if (nodes.length > 1) {
+    // Generate an ultra-clean sequential node chain
+    for (let i = 0; i < nodes.length; i++) {
+      const cleanLabel = (nodes[i].label || `Step ${i + 1}`).replace(/"/g, "'").trim();
+      cleanLines.push(`  node_${i}["${cleanLabel}"]`);
+      if (i < nodes.length - 1) {
+        cleanLines.push(`  node_${i} --> node_${i + 1}`);
+      }
     }
-    trimmed = trimmed.replace(/(-\.->|-->|-\.-+|--+)\s*\|[^|]+\|\s*/g, (match, arrow) => {
-      return arrow + ' ';
-    });
-    cleanLines.push(trimmed);
+    return cleanLines.join('\n');
+  }
+
+  // If node extraction failed or only 1 node, extract clean text lines
+  lines.forEach((line, idx) => {
+    let trimmed = line.trim();
+    if (!trimmed || /^(graph|flowchart|style|classDef|class|click|linkStyle|%%)/i.test(trimmed)) return;
+    trimmed = trimmed.replace(/[^a-zA-Z0-9\s-_]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (trimmed.length > 2) {
+      cleanLines.push(`  step_${idx}["${trimmed}"]`);
+      if (cleanLines.length > 2) {
+        cleanLines.push(`  step_${idx - 1} --> step_${idx}`);
+      }
+    }
   });
+
   return cleanLines.join('\n');
 };
 
@@ -212,18 +257,17 @@ export const MermaidDiagram = React.memo(({ chart, isExpanded = false }) => {
       const safeChart = sanitizeMermaid(chart);
       const id = `mermaid-mini-${Math.random().toString(36).substr(2, 9)}`;
 
-      const renderChart = async () => {
+      const timer = setTimeout(async () => {
+        if (!isMounted || hasErrorRef.current) return;
         let finalChartToRender = safeChart;
         try {
           await mermaid.parse(safeChart);
         } catch (err) {
-          console.warn("Mermaid parsing Attempt 1 failed, trying Attempt 2 (Nuclear Fallback):", err);
           try {
             const nuclearChart = nuclearFallbackStrip(safeChart);
             await mermaid.parse(nuclearChart);
             finalChartToRender = nuclearChart;
           } catch (err2) {
-            console.error("Mermaid parsing Attempt 2 (Nuclear Fallback) failed:", err2);
             if (isMounted) {
               hasErrorRef.current = true;
               setHasError(true);
@@ -254,7 +298,6 @@ export const MermaidDiagram = React.memo(({ chart, isExpanded = false }) => {
             container.parentNode.removeChild(container);
           }
         } catch (renderErr) {
-          console.error("Mermaid rendering failed after successful parse:", renderErr);
           if (isMounted) {
             hasErrorRef.current = true;
             setHasError(true);
@@ -264,16 +307,15 @@ export const MermaidDiagram = React.memo(({ chart, isExpanded = false }) => {
           if (straySvg) straySvg.remove();
           document.querySelectorAll('.error-icon, .error-text, [id^="dmermaid"]').forEach(el => el.remove());
         }
-      };
+      }, 60);
 
-      renderChart();
+      return () => {
+        isMounted = false;
+        clearTimeout(timer);
+        const stray = document.getElementById(id);
+        if (stray) stray.remove();
+      };
     }
-    return () => {
-      isMounted = false;
-      if (chartRef.current) {
-        chartRef.current.innerHTML = '';
-      }
-    };
   }, [chart, isModalOpen]);
 
   useEffect(() => {
@@ -283,18 +325,17 @@ export const MermaidDiagram = React.memo(({ chart, isExpanded = false }) => {
       const safeChart = sanitizeMermaid(chart);
       const id = `mermaid-modal-${Math.random().toString(36).substr(2, 9)}`;
 
-      const renderChart = async () => {
+      const timer = setTimeout(async () => {
+        if (!isMounted || hasErrorRef.current) return;
         let finalChartToRender = safeChart;
         try {
           await mermaid.parse(safeChart);
         } catch (err) {
-          console.warn("Mermaid modal parsing Attempt 1 failed, trying Attempt 2 (Nuclear Fallback):", err);
           try {
             const nuclearChart = nuclearFallbackStrip(safeChart);
             await mermaid.parse(nuclearChart);
             finalChartToRender = nuclearChart;
           } catch (err2) {
-            console.error("Mermaid modal parsing Attempt 2 (Nuclear Fallback) failed:", err2);
             if (isMounted) {
               hasErrorRef.current = true;
               setHasError(true);
@@ -313,7 +354,6 @@ export const MermaidDiagram = React.memo(({ chart, isExpanded = false }) => {
             modalChartRef.current.innerHTML = postProcessSvg(result.svg);
           }
         } catch (renderErr) {
-          console.error("Mermaid modal rendering failed after successful parse:", renderErr);
           if (isMounted) {
             hasErrorRef.current = true;
             setHasError(true);
@@ -323,16 +363,15 @@ export const MermaidDiagram = React.memo(({ chart, isExpanded = false }) => {
           if (straySvg) straySvg.remove();
           document.querySelectorAll('.error-icon, .error-text, [id^="dmermaid"]').forEach(el => el.remove());
         }
-      };
+      }, 60);
 
-      renderChart();
+      return () => {
+        isMounted = false;
+        clearTimeout(timer);
+        const stray = document.getElementById(id);
+        if (stray) stray.remove();
+      };
     }
-    return () => {
-      isMounted = false;
-      if (modalChartRef.current) {
-        modalChartRef.current.innerHTML = '';
-      }
-    };
   }, [chart, isModalOpen]);
 
   const handleDownload = async () => {
