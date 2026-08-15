@@ -106,3 +106,43 @@ All fetch URLs in React correctly mirror the FastAPI infrastructure:
 - `admin.py` → `/api/admin/users/tier` (Matched)
 
 No missing paths or trailing slash mismatches were found. The routing architecture is 100% aligned.
+
+---
+
+## 6. Pydantic & PyJWT Dependency Alignment [NEW]
+**Priority: HIGH | Status: RESOLVED**
+
+### ⚠️ Broken Sync Point:
+During Render Linux server deployments, the installation threw `ResolutionImpossible` conflicts:
+1. **Ollama Conflict**: `ollama==0.6.1` required `pydantic>=2.9.0` while `requirements.txt` strictly pinned `pydantic==2.7.1` and `pydantic_core==2.18.2`.
+2. **Supabase Auth Conflict**: `supabase-auth==2.30.0` required `pyjwt>=2.10.1` while `requirements.txt` strictly pinned `PyJWT==2.8.0`.
+
+### ✅ Corrective Action (Requirements):
+Loosened version constraints in `backend/requirements.txt` to permit clean pip resolution:
+- Upgraded `pydantic` to `pydantic>=2.9.0` and removed the strict `pydantic_core` pin to let it install matching binaries dynamically.
+- Upgraded `PyJWT` to `PyJWT>=2.10.1` to align with Supabase Auth requirements.
+
+---
+
+## 7. Selection Text Accessibility
+**Priority: LOW | Status: RESOLVED**
+
+### ⚠️ Broken Sync Point:
+In multiple panels (e.g. `WorkspaceLayout.jsx`, `Pricing.jsx`, `Auditor.jsx`), the text selection styling had custom utility color overrides such as `selection:text-blue-200` and `selection:bg-slate-955/10`. When users highlighted text, it blended completely into the container background, making selected text invisible.
+
+### ✅ Corrective Action (React / CSS):
+Removed the broken custom text selection classes. Replaced with high-contrast semi-transparent selections (`selection:bg-blue-500/20`) globally, letting text colors default to high-contrast browser standards.
+
+---
+
+## 8. Auditor Autoscroll Snapping
+**Priority: MEDIUM | Status: RESOLVED**
+
+### ⚠️ Broken Sync Point:
+When the Auditor's AI output streamed content, the viewport frequently jittered or locked scrolling. This was caused by the smooth scrolling behavior queueing hundreds of slow slide animations in the browser stack faster than frames could render.
+
+### ✅ Corrective Action (React):
+Separated scroll methods:
+- **Instant snapping**: Configured `scrollIntoView({ behavior: 'auto' })` for active token streaming updates.
+- **Smooth scrolling**: Reserved `scrollIntoView({ behavior: 'smooth' })` solely for initial message submissions.
+- **User Scroll Detect**: Added a 250px bottom offset check; if user manually scrolls up to read, the auto-scroll is temporarily deactivated.

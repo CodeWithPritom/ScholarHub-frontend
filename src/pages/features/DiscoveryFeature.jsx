@@ -88,7 +88,7 @@ const DiscoveryFeature = ({ user, profile, onLogout, liveUsersCount }) => {
             className="w-full aspect-[2186/1080] rounded-2xl overflow-hidden shadow-2xl border border-[#E5E5DF] bg-white relative group"
           >
             <img 
-              src="/gif/Grounded in 138M+ papers.gif" 
+              src="/gif/grounded_in_138m_papers.gif" 
               alt="Grounded in 138M+ papers demonstration" 
               className="w-full h-full object-contain group-hover:scale-[1.02] transition-transform duration-500" 
               fetchpriority="high"

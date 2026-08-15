@@ -88,7 +88,7 @@ const AcademyFeature = ({ user, profile, onLogout, liveUsersCount }) => {
             className="w-full aspect-[2186/1080] rounded-2xl overflow-hidden shadow-2xl border border-[#E5E5DF] bg-white relative group"
           >
             <img 
-              src="/gif/Guided research academy.gif" 
+              src="/gif/guided_research_academy.gif" 
               alt="Guided research academy demonstration" 
               className="w-full h-full object-contain group-hover:scale-[1.02] transition-transform duration-500" 
               fetchpriority="high"

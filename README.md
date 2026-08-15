@@ -169,6 +169,7 @@ erDiagram
     users ||--o{ usage_logs : "tracks daily AI limits"
     users ||--o{ coupon_redemptions : "tracks one-time usage"
     users ||--o{ bookmarks : "saves papers"
+    users ||--o{ user_feedback : "submits feedback reports"
     
     profiles {
         uuid id PK
@@ -184,6 +185,16 @@ erDiagram
         uuid user_id FK
         date usage_date
         int summary_count
+    }
+
+    user_feedback {
+        uuid id PK
+        uuid user_id FK "nullable"
+        string email
+        string category
+        string message
+        string image_url
+        timestamp created_at
     }
     
     coupons ||--o{ coupon_redemptions : "validates"
@@ -296,12 +307,12 @@ We explicitly architected the AI integration around **Meta's Llama 3.1 (8B)** mo
 - **Inference Speed:** Approaching 800+ tokens per second.
 - **Zero Hallucination RAG:** We strictly prompt the model to *only* use the injected context (Abstracts, Methodologies). If the answer isn't in the provided text, the AI gracefully declines to answer.
 
-### The AI Fallback Cascade (High Availability)
-AI APIs are prone to sudden rate-limits or downtime. We engineered a 3-tier redundancy flow:
-1. **Primary Engine:** `Groq` (Llama 3.1 8b) - Blazing fast.
-2. **Secondary Failover:** `OpenRouter` - Aggregates multiple API streams.
-3. **Tertiary Failover:** `Together AI` - Dedicated serverless inferencing.
-*This cascade happens in milliseconds on the backend, completely invisible to the user.*
+### The Universal AI Gateway v3.1 Fallback Cascade
+To protect against model rate-limiting, server latency, or API downtime, we engineered a database-configurable fallback waterfall:
+1. **Primary Database Configuration Override**: The backend checks `ai_feature_registry` to see if a custom model or provider is actively configured for the given feature.
+2. **Database Fallback Cascade**: If the primary override fails or is disabled, the gateway loops through a list of secondary backups sorted by Priority Index (e.g. Mistral, OpenRouter, Together AI).
+3. **System Environment Variables**: If all database overrides fail, the engine falls back to default environmental credentials defined in the Vercel config.
+*This entire cascade executes in milliseconds on the backend, completely transparent to the user.*
 
 ---
 

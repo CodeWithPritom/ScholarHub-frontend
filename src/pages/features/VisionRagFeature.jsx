@@ -88,7 +88,7 @@ const VisionRagFeature = ({ user, profile, onLogout, liveUsersCount }) => {
             className="w-full aspect-[2186/1080] rounded-2xl overflow-hidden shadow-2xl border border-[#E5E5DF] bg-white relative group"
           >
             <img 
-              src="/gif/See what's hidden in PDFs.gif" 
+              src="/gif/see_whats_hidden_in_pdfs.gif" 
               alt="See what's hidden in PDFs demonstration" 
               className="w-full h-full object-contain group-hover:scale-[1.02] transition-transform duration-500" 
               fetchpriority="high"

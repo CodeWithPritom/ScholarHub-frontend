@@ -88,7 +88,7 @@ const AuditorFeature = ({ user, profile, onLogout, liveUsersCount }) => {
             className="w-full aspect-[2186/1080] rounded-2xl overflow-hidden shadow-2xl border border-[#E5E5DF] bg-white relative group"
           >
             <img 
-              src="/gif/Verify and share research audits.gif" 
+              src="/gif/verify_and_share_research_audits.gif" 
               alt="Verify and share research audits demonstration" 
               className="w-full h-full object-contain group-hover:scale-[1.02] transition-transform duration-500" 
               fetchpriority="high"

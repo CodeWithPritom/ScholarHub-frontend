@@ -497,7 +497,7 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
               </div>
               <div className="lg:col-span-7 w-full aspect-[2186/1080] rounded-[16px] overflow-hidden shadow-md border border-[#E5E5DF] bg-white group hover:border-[#315CFF] hover:shadow-lg transition-all relative">
                 <img 
-                  src="/gif/Research agent.gif" 
+                  src="/gif/research_agent.gif" 
                   alt="Research agent demonstration" 
                   className="w-full h-full object-contain group-hover:scale-[1.02] transition-transform duration-500" 
                   loading="lazy"
@@ -526,7 +526,7 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
               </div>
               <div className="lg:col-span-7 w-full aspect-[2186/1080] rounded-[16px] overflow-hidden shadow-md border border-[#E5E5DF] bg-white group hover:border-[#315CFF] hover:shadow-lg transition-all relative">
                 <img 
-                  src="/gif/See what's hidden in PDFs.gif" 
+                  src="/gif/see_whats_hidden_in_pdfs.gif" 
                   alt="See what's hidden in PDFs demonstration" 
                   className="w-full h-full object-contain group-hover:scale-[1.02] transition-transform duration-500" 
                   loading="lazy"
@@ -555,7 +555,7 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
               </div>
               <div className="lg:col-span-7 w-full aspect-[2186/1080] rounded-[16px] overflow-hidden shadow-md border border-[#E5E5DF] bg-white group hover:border-[#315CFF] hover:shadow-lg transition-all relative">
                 <img 
-                  src="/gif/Grounded in 138M+ papers.gif" 
+                  src="/gif/grounded_in_138m_papers.gif" 
                   alt="Grounded in 138M+ papers demonstration" 
                   className="w-full h-full object-contain group-hover:scale-[1.02] transition-transform duration-500" 
                   loading="lazy"
@@ -584,7 +584,7 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
               </div>
               <div className="lg:col-span-7 w-full aspect-[2186/1080] rounded-[16px] overflow-hidden shadow-md border border-[#E5E5DF] bg-white group hover:border-[#315CFF] hover:shadow-lg transition-all relative">
                 <img 
-                  src="/gif/Scholarship & literature hub.gif" 
+                  src="/gif/scholarship_literature_hub.gif" 
                   alt="Scholarship & literature hub demonstration" 
                   className="w-full h-full object-contain group-hover:scale-[1.02] transition-transform duration-500" 
                   loading="lazy"
@@ -613,7 +613,7 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
               </div>
               <div className="lg:col-span-7 w-full aspect-[2186/1080] rounded-[16px] overflow-hidden shadow-md border border-[#E5E5DF] bg-white group hover:border-[#315CFF] hover:shadow-lg transition-all relative">
                 <img 
-                  src="/gif/Guided research academy.gif" 
+                  src="/gif/guided_research_academy.gif" 
                   alt="Guided research academy demonstration" 
                   className="w-full h-full object-contain group-hover:scale-[1.02] transition-transform duration-500" 
                   loading="lazy"
@@ -642,7 +642,7 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
               </div>
               <div className="lg:col-span-7 w-full aspect-[2186/1080] rounded-[16px] overflow-hidden shadow-md border border-[#E5E5DF] bg-white group hover:border-[#315CFF] hover:shadow-lg transition-all relative">
                 <img 
-                  src="/gif/Verify and share research audits.gif" 
+                  src="/gif/verify_and_share_research_audits.gif" 
                   alt="Verify and share research audits demonstration" 
                   className="w-full h-full object-contain group-hover:scale-[1.02] transition-transform duration-500" 
                   loading="lazy"

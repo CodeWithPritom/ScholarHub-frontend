@@ -276,6 +276,12 @@ if (isSignificantEvent) {
   // TOKEN_REFRESHED — silent update only
   if (isMounted && session?.user) setUser(session.user);
 }
+
+### 4.4 — Backend Asynchronous Hardening & Cache Stampede Protection
+
+To prevent synchronous network requests from blocking the FastAPI async event loop, and to eliminate cache stampedes on third-party academic API calls:
+- **Event Loop Offloading (`asyncio.to_thread`)**: Heavy synchronous HTTP operations (such as scraping OpenAlex and PubMed raw XML metadata via `requests.get`) are offloaded to background worker threads using `asyncio.to_thread`. This allows FastAPI to process thousands of concurrent client requests without suffering CPU loop starvation.
+- **Cache Stampede Locks (`asyncio.Lock()`)**: Concurrent identical search queries are synchronized via local memory locks. If a cache miss occurs, the first request acquires the lock and initiates the external database query while subsequent concurrent requests block and wait for the lock to release, reading the newly populated cache result without overloading third-party academic APIs.
 ```
 
 ---
@@ -305,26 +311,26 @@ flowchart LR
 - **AI Identity Guard:** The backend routers enforce a strict prompt constraint: *"You have been provided with a list of X papers. Even if some abstracts are brief, you must acknowledge every paper by its number. Never claim a paper does not exist if it is within the range 1 to X."*
 - **Persona-Aware Alignment:** The frontend `executeAudit` passes the user's `profile.academic_field` and `profile.academic_status` context to the `/ai/audit` endpoint. The backend uses this to generate a personalized **Relevance Match Meter** percentage score and a 1-sentence justification for top papers.
 
-### 5.3 — Three-Tier AI Key Rotation (`services/ai_service.py`)
+### 5.3 — Universal AI Gateway v3.1 Waterfall Resolution Chain (`services/ai_service.py`)
 
-All keys are **randomly shuffled per request** to distribute load evenly across keys. Exceptions are caught generically — the rotation loop handles 429 (rate limit), 401 (auth failure), and network timeouts identically.
+To ensure high availability and absolute control over API credentials, ScholarHub AI utilizes a multi-tier fallback cascade:
 
 ```mermaid
 flowchart TD
-    Call["generate_ai_response called"] --> ShuffleGroq["Shuffle HEAVY_GROQ_KEYS\n(randomized load distribution)"]
-    ShuffleGroq --> TryGroq["Try Groq Key N"]
-    TryGroq -- "Success" --> Return["Return AI Response ✅"]
-    TryGroq -- "Any Exception\n(429 / 401 / timeout)" --> NextGroq{"More Groq Keys?"}
-    NextGroq -- "Yes" --> TryGroq
-    NextGroq -- "No" --> ShuffleOR["Shuffle HEAVY_OPENROUTER_KEYS"]
-    ShuffleOR --> TryOR["Try OpenRouter Key N"]
-    TryOR -- "Success" --> Return
-    TryOR -- "Exception" --> NextOR{"More OR Keys?"}
-    NextOR -- "Yes" --> TryOR
-    NextOR -- "No" --> TryTogether["Try Together AI\n(TOGETHER_API_KEY)"]
-    TryTogether -- "Success" --> Return
-    TryTogether -- "Fails" --> Raise["Raise: All providers exhausted\n→ 503 returned to client"]
+    Call["generate_ai_response called"] --> TryDBPrimary["① Try DB Primary Overrides\n(ai_feature_registry.current_provider)"]
+    TryDBPrimary -- "Success" --> Return["Return AI Response ✅"]
+    TryDBPrimary -- "Failure / Timeout" --> TryDBBackups["② Try DB Backup Cascade\n(custom_fallback_configs array\nsorted by Priority Index)"]
+    
+    TryDBBackups -- "Success" --> Return
+    TryDBBackups -- "All Backups Fail" --> TryEnvDefaults["③ Try System ENV Defaults\n(Check api_routing_config overrides\nor fallback to config.py keys)"]
+    
+    TryEnvDefaults -- "Success" --> Return
+    TryEnvDefaults -- "All Providers Exhausted" --> Raise["Raise: ResolutionImpossible\n→ 503 returned to client"]
 ```
+
+#### Key Architecture Principles:
+- **Unified Credential Resolution**: The backend first queries database-driven overrides via the `api_routing_config` table before checking local environment settings in `config.py`.
+- **Atomic Cache Evictions**: Saves inside the Admin Console automatically issue eviction triggers to the Upstash Redis REST API to delete the cache key `ai_feature_route:{feature_id}` instantly, maintaining sub-100ms sync times.
 
 ---
 
@@ -468,6 +474,7 @@ erDiagram
     users ||--o{ coupon_redemptions : "atomic one-time usage"
     users ||--o{ bookmarks : "saves paper references"
     users ||--o{ audit_history : "saves Auditor chat sessions"
+    users ||--o{ user_feedback : "submits reports"
 
     profiles {
         uuid id PK
@@ -503,6 +510,37 @@ erDiagram
         timestamp updated_at
     }
 
+    user_feedback {
+        uuid id PK
+        uuid user_id FK "nullable"
+        string email
+        string category "bug/feature/general/billing"
+        string message
+        string image_url "Base64 encoded screenshot Data URL"
+        timestamp created_at
+    }
+
+    api_routing_config {
+        uuid id PK
+        string provider "groq/mistral/nvidia/openrouter"
+        string model_id
+        string api_key "masked"
+        boolean use_db_config
+        timestamp updated_at
+    }
+
+    ai_feature_registry {
+        string feature_id PK
+        string current_provider
+        string current_model
+        text_array fallback_chain
+        jsonb_array custom_fallback_configs
+        boolean is_overridden
+        string override_api_key
+        string custom_api_url
+        timestamp updated_at
+    }
+
     coupons ||--o{ coupon_redemptions : "validates"
     coupons {
         string code PK
@@ -512,6 +550,14 @@ erDiagram
         string applicable_tier
     }
 ```
+
+---
+
+## 9.5. Supabase RLS Policy Hardenings
+
+To secure sensitive configuration overrides and user reports, the following physical database-level security rules are enforced:
+- **`user_feedback`**: Anyone (`anon` or `authenticated`) can execute INSERT operations. Only the backend `service_role` has permissions to SELECT/read feedback cards.
+- **`api_routing_config` & `ai_feature_registry`**: Write & read queries are restricted exclusively to authenticated admin profiles and the system `service_role`.```
 
 ---
 
