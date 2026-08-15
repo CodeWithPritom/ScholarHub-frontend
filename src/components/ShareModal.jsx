@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, Share2, Copy, Check, Lock, Users, Globe, 
-  UserPlus, Trash2, Shield, Sparkles, Loader2 
+  UserPlus, Trash2, Shield, Sparkles, Loader2, Clock 
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { BASE_URL } from '../utils/api';
@@ -18,6 +18,7 @@ export const ShareModal = ({ isOpen, onClose, sessionId, sessionTitle, user }) =
   const [inviteEmail, setInviteEmail] = useState('');
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [expiresAt, setExpiresAt] = useState(null);
 
   // Fetch share status when modal opens
   useEffect(() => {
@@ -42,6 +43,7 @@ export const ShareModal = ({ isOpen, onClose, sessionId, sessionTitle, user }) =
         setPreviewEnabled(data.preview_enabled ?? true);
         setShareToken(data.share_token || null);
         setMembers(data.members || []);
+        setExpiresAt(data.expires_at || null);
       }
     } catch (err) {
       console.error('Failed to fetch share config:', err);
@@ -74,6 +76,7 @@ export const ShareModal = ({ isOpen, onClose, sessionId, sessionTitle, user }) =
         const data = await res.json();
         setShareToken(data.share_token);
         setMembers(data.members || []);
+        if (data.expires_at) setExpiresAt(data.expires_at);
         toast.success(`Share settings updated to ${newVisibility.toUpperCase()}`);
       } else {
         toast.error('Failed to update share settings');
@@ -163,6 +166,16 @@ export const ShareModal = ({ isOpen, onClose, sessionId, sessionTitle, user }) =
     setCopied(true);
     toast.success('Link copied to clipboard!');
     setTimeout(() => setCopied(false), 2500);
+  };
+
+  const formatExpiryDate = (iso) => {
+    if (!iso) return null;
+    try {
+      const d = new Date(iso);
+      return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    } catch {
+      return null;
+    }
   };
 
   if (!isOpen) return null;
@@ -360,6 +373,18 @@ export const ShareModal = ({ isOpen, onClose, sessionId, sessionTitle, user }) =
                     </label>
                   </div>
                 </div>
+
+                {/* Expiry Notice Banner (30-Day TTL) */}
+                {expiresAt && visibility !== 'private' && (
+                  <div className="p-3.5 bg-slate-50 border border-slate-200/90 rounded-2xl flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
+                      <Clock size={14} className="text-indigo-600" />
+                    </div>
+                    <div className="text-xs text-slate-600 leading-snug">
+                      Public share link expires on <strong className="text-slate-900 font-bold">{formatExpiryDate(expiresAt)}</strong> (30-day TTL).
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>

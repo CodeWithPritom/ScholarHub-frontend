@@ -26,6 +26,7 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
   const [savedPapersCount, setSavedPapersCount] = useState(0);
   const [exportCount, setExportCount] = useState(0);
   const [userTier, setUserTier] = useState('free');
+  const [auditSessionCount, setAuditSessionCount] = useState(0);
 
   const fetchCredits = useCallback(async () => {
     if (!user?.id) return;
@@ -47,6 +48,13 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id);
       if (count !== null) setSavedPapersCount(count);
+
+      // Audit session count for quota meter
+      const { count: auditCount, error: auditCountError } = await supabase
+        .from('audit_history')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+      if (auditCount !== null) setAuditSessionCount(auditCount);
     } catch (err) {
       console.error('Error fetching compute credits:', err);
     }
@@ -61,6 +69,7 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
     window.addEventListener('creditsUpdated', handleEvents);
     window.addEventListener('bookmarkUpdated', handleEvents);
     window.addEventListener('exportUpdated', handleEvents);
+    window.addEventListener('auditSessionDeleted', handleEvents);
 
     // 5-second polling interval for real-time live sync
     const interval = setInterval(fetchCredits, 5000);
@@ -86,6 +95,7 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
       window.removeEventListener('creditsUpdated', handleEvents);
       window.removeEventListener('bookmarkUpdated', handleEvents);
       window.removeEventListener('exportUpdated', handleEvents);
+      window.removeEventListener('auditSessionDeleted', handleEvents);
       clearInterval(interval);
       if (channel) supabase.removeChannel(channel);
     };
@@ -417,6 +427,29 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
                       <div
                         className="h-full bg-amber-500 rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(245,158,11,0.6)]"
                         style={{ width: `${Math.min(100, Math.max(0, (savedPapersCount / 200) * 100))}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Audit Session Quota */}
+                <div className="flex flex-col w-full">
+                  <div className={`flex items-center justify-between mb-1.5 ${collapsed ? 'hidden' : 'flex'}`}>
+                    <div className="flex items-center gap-1.5 text-slate-700">
+                      <BarChart3 size={14} className="text-violet-400 drop-shadow-[0_0_2px_rgba(139,92,246,0.8)]" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Audits</span>
+                    </div>
+                    <span className={`text-xs font-bold ${auditSessionCount >= 100 ? 'text-amber-600' : 'text-slate-700'}`}>{auditSessionCount} / 100 Sessions</span>
+                  </div>
+                  {collapsed ? (
+                    <div className={`${auditSessionCount >= 100 ? 'text-amber-500' : 'text-violet-400'} drop-shadow-[0_0_2px_rgba(139,92,246,0.8)]`} title={`Audits: ${auditSessionCount} / 100 Sessions`}>
+                      <BarChart3 size={20} />
+                    </div>
+                  ) : (
+                    <div className="w-full h-2 bg-sds-surface rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-1000 ${auditSessionCount >= 100 ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]' : 'bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.6)]'}`}
+                        style={{ width: `${Math.min(100, Math.max(0, (auditSessionCount / 100) * 100))}%` }}
                       />
                     </div>
                   )}

@@ -49,6 +49,7 @@ const HistoryExplorer = ({ user, onLogout }) => {
         throw error;
       }
       setSessions(prev => prev.filter(s => s.id !== id));
+      window.dispatchEvent(new Event('auditSessionDeleted'));
       toast.success('Session deleted.');
     } catch (err) {
       console.error('Error deleting session:', err);
@@ -68,6 +69,7 @@ const HistoryExplorer = ({ user, onLogout }) => {
         throw error;
       }
       setSessions([]);
+      window.dispatchEvent(new Event('auditSessionDeleted'));
       toast.success('All history cleared.');
     } catch (err) {
       console.error('Error clearing history:', err);
@@ -117,17 +119,25 @@ const HistoryExplorer = ({ user, onLogout }) => {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {/* Quota Badge */}
+            <div className="px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg text-xs font-bold text-slate-600">
+              <span className={sessions.length >= 100 ? 'text-amber-600 font-extrabold' : 'text-slate-800'}>
+                {sessions.length}
+              </span>
+              <span className="text-slate-400 font-medium"> / 100 Sessions</span>
+            </div>
+
             {sessions.length > 0 && (
               <button
                 onClick={handleClearAll}
-                className="text-[10px] font-bold uppercase tracking-wider text-red-400 hover:text-red-650 transition-colors cursor-pointer"
+                className="text-[10px] font-bold uppercase tracking-wider text-red-500 hover:text-red-700 transition-colors cursor-pointer"
               >
                 Clear All
               </button>
             )}
             <button
               onClick={() => navigate('/auditor')}
-              className="text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-800 transition-colors flex items-center gap-1 cursor-pointer"
+              className="text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1 cursor-pointer"
             >
               <ArrowLeft size={12} />
               Back to Auditor
