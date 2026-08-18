@@ -299,6 +299,13 @@ const Auth = () => {
           }
         }
       } else {
+        // Enforce registration guard to block double signups
+        const checkRes = await fetch(`${BASE_URL}/api/auth/check-email?email=${encodeURIComponent(email)}`);
+        if (!checkRes.ok) {
+          const checkData = await checkRes.json();
+          throw new Error(checkData.detail || 'This email is already registered.');
+        }
+
         const { error } = await supabase.auth.signUp({
           email,
           password,

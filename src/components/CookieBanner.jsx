@@ -4,14 +4,19 @@ const CookieBanner = () => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const consent = localStorage.getItem('scholarhub_cookie_consent');
+    // Check for cookie consent in document.cookie
+    const consent = document.cookie
+      .split('; ')
+      .find(row => row.startsWith('scholarhub_cookie_consent='));
+    
     if (!consent) {
       setIsVisible(true);
     }
   }, []);
 
   const handleAccept = () => {
-    localStorage.setItem('scholarhub_cookie_consent', 'true');
+    // Set cookie with 365 days expiry (31,536,000 seconds)
+    document.cookie = "scholarhub_cookie_consent=true; max-age=31536000; path=/; SameSite=Lax; Secure";
     setIsVisible(false);
   };
 
