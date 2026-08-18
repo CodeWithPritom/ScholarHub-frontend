@@ -5,8 +5,9 @@ import {
   Search, BookOpen, AlertCircle, Bookmark, Check, Loader2, Library,
   FolderPlus, Calendar, Users, Copy, Database, ChevronUp,
   Filter, RefreshCcw, LayoutGrid, Quote, X, List, SlidersHorizontal, FileSpreadsheet,
-  CheckCircle
+  CheckCircle, Globe, Cpu, FileText, Sparkles, CheckCircle2, Square, Lightbulb, Zap, ShieldCheck, Activity
 } from 'lucide-react';
+
 import { supabase } from '../supabaseClient';
 import { generateCitation } from '../utils/citationUtils';
 import { toast } from 'sonner';
@@ -716,62 +717,70 @@ const ArticleGrid = ({
     }
   };
 
+  const [loadingProgress, setLoadingProgress] = useState(5);
+  const [tipIndex, setTipIndex] = useState(0);
+
+  const RESEARCH_TIPS = [
+    "💡 Tip: Filter articles by SJR Journal Quartiles (Q1/Q2) for top-tier impact factor papers.",
+    "🧬 Fact: ScholarHub queries over 35 million PubMed records and 2.4 million arXiv preprints in real-time.",
+    "⚡ Tip: Select multiple papers and export them directly to Excel, CSV, or BibTeX format.",
+    "🔬 Fact: Automated RAG synthesis extracts key findings, methodology & sample size from each abstract.",
+    "🧠 Tip: Use the 'Auditor' tool to perform deep manuscript synthesis and methodology comparison."
+  ];
+
   useEffect(() => {
     if (!loading) {
+      setLoadingProgress(5);
       setLoadingStage(0);
       return;
     }
-    const t1 = setTimeout(() => setLoadingStage(1), 1000);
-    const t2 = setTimeout(() => setLoadingStage(2), 2500);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+
+    const interval = setInterval(() => {
+      setLoadingProgress(prev => {
+        if (prev >= 95) return 95;
+        const increment = prev < 30 ? 4 : prev < 60 ? 3 : prev < 80 ? 2 : 1;
+        return prev + increment;
+      });
+    }, 180);
+
+    const tipInterval = setInterval(() => {
+      setTipIndex(prev => (prev + 1) % RESEARCH_TIPS.length);
+    }, 3500);
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(tipInterval);
+    };
   }, [loading]);
 
-  const getPortalLoadingSteps = () => {
-    switch (portal) {
-      case 'eng': return [
-        { text: "Connecting to arXiv Engineering Hub...", icon: <RefreshCcw size={24} className="text-blue-600 animate-spin" /> },
-        { text: "Pulling Computer Science Preprints...", icon: <Database size={24} className="text-indigo-600 animate-pulse" /> },
-        { text: "Structuring data for you...", icon: <LayoutGrid size={24} className="text-emerald-600 animate-pulse" /> }
-      ];
-      case 'physics': return [
-        { text: "Syncing with Physics Archive...", icon: <RefreshCcw size={24} className="text-blue-600 animate-spin" /> },
-        { text: "Gathering Quantum Research...", icon: <Database size={24} className="text-indigo-600 animate-pulse" /> },
-        { text: "Structuring data for you...", icon: <LayoutGrid size={24} className="text-emerald-600 animate-pulse" /> }
-      ];
-      case 'math': return [
-        { text: "Calculating Mathematical Context...", icon: <RefreshCcw size={24} className="text-blue-600 animate-spin" /> },
-        { text: "Fetching Theory Records...", icon: <Database size={24} className="text-indigo-600 animate-pulse" /> },
-        { text: "Structuring data for you...", icon: <LayoutGrid size={24} className="text-emerald-600 animate-pulse" /> }
-      ];
-      case 'social':
-      case 'law': return [
-        { text: "Scanning Global Scholar Databases...", icon: <RefreshCcw size={24} className="text-blue-600 animate-spin" /> },
-        { text: "Structuring Social/Legal Insights...", icon: <Database size={24} className="text-indigo-600 animate-pulse" /> },
-        { text: "Structuring data for you...", icon: <LayoutGrid size={24} className="text-emerald-600 animate-pulse" /> }
-      ];
-      case 'geb': return [
-        { text: "Syncing with Genetic Engineering DB...", icon: <RefreshCcw size={24} className="text-blue-600 animate-spin" /> },
-        { text: "Extracting GEB Metadata...", icon: <Database size={24} className="text-indigo-600 animate-pulse" /> },
-        { text: "Structuring data for you...", icon: <LayoutGrid size={24} className="text-emerald-600 animate-pulse" /> }
-      ];
-      case 'pharma': return [
-        { text: "Syncing with Pharmacology DB...", icon: <RefreshCcw size={24} className="text-blue-600 animate-spin" /> },
-        { text: "Extracting Pharmacological Metadata...", icon: <Database size={24} className="text-indigo-600 animate-pulse" /> },
-        { text: "Structuring data for you...", icon: <LayoutGrid size={24} className="text-emerald-600 animate-pulse" /> }
-      ];
-      case 'chem': return [
-        { text: "Syncing with Chemistry Archives...", icon: <RefreshCcw size={24} className="text-blue-600 animate-spin" /> },
-        { text: "Extracting Chemical Metadata...", icon: <Database size={24} className="text-indigo-600 animate-pulse" /> },
-        { text: "Structuring data for you...", icon: <LayoutGrid size={24} className="text-emerald-600 animate-pulse" /> }
-      ];
-      default: return [
-        { text: "Syncing with Global Research Databases...", icon: <RefreshCcw size={24} className="text-blue-600 animate-spin" /> },
-        { text: "Extracting Academic Metadata...", icon: <Database size={24} className="text-indigo-600 animate-pulse" /> },
-        { text: "Structuring data for you...", icon: <LayoutGrid size={24} className="text-emerald-600 animate-pulse" /> }
-      ];
+  const currentStage = loadingProgress < 25 ? 0 : loadingProgress < 50 ? 1 : loadingProgress < 75 ? 2 : 3;
+
+  const stages = [
+    {
+      level: "Level 1",
+      title: "Index & Query Repositories",
+      desc: "Connecting to PubMed Central, arXiv & global academic indices...",
+      icon: <Globe size={18} className="text-blue-600 animate-spin" />
+    },
+    {
+      level: "Level 2",
+      title: "Parse Manuscripts & SJR Impact",
+      desc: "Filtering SCImago Journal Rankings (Q1-Q4) & citation impact...",
+      icon: <FileText size={18} className="text-indigo-600 animate-pulse" />
+    },
+    {
+      level: "Level 3",
+      title: "Deep RAG Neural Extraction",
+      desc: "Extracting key findings, methodology & evidence matrix...",
+      icon: <Cpu size={18} className="text-purple-600 animate-bounce" />
+    },
+    {
+      level: "Level 4",
+      title: "Synthesize & Render Matrix",
+      desc: "Formatting research cards, synthesis table & datasets...",
+      icon: <Sparkles size={18} className="text-emerald-600 animate-pulse" />
     }
-  };
-  const loadingSteps = getPortalLoadingSteps();
+  ];
 
   const [selectedQuartileIndex, setSelectedQuartileIndex] = useState(0); // 0 = All, 1 = Q4, 2 = Q3, 3 = Q2, 4 = Q1
   const [showFilterPopover, setShowFilterPopover] = useState(false);
@@ -841,58 +850,124 @@ const ArticleGrid = ({
         </div>
       ) : loading ? (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="flex flex-col items-center justify-center py-20 space-y-16"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="w-full max-w-4xl mx-auto py-8 px-4 flex flex-col items-center gap-6"
         >
-          <div className="flex flex-col items-center gap-6">
-            <div className="relative mb-8 w-24 h-24 flex items-center justify-center">
-              <div className="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
-              <motion.div
-                className="absolute inset-0 border-4 border-transparent border-t-blue-600 rounded-full"
-                animate={{ rotate: 360 }}
-                transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-              />
-              {isSyncing ? (
-                <RefreshCcw size={24} className="text-blue-600 animate-spin" />
-              ) : (
-                loadingSteps[loadingStage].icon
-              )}
+          {/* Header Row: Status Pulse & Percentage Counter */}
+          <div className="w-full flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-600"></span>
+              </span>
+              <span className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                Synthesizing Literature & Evidence
+              </span>
             </div>
-
-            <motion.p
-              key={isSyncing ? "syncing" : loadingStage}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-sm font-black uppercase tracking-[0.2em] text-slate-600 text-center"
-            >
-              {isSyncing ? "Synchronizing with Global Research Cloud..." : loadingSteps[loadingStage].text}
-            </motion.p>
-
-            <div className="w-64 h-2 bg-slate-100 rounded-full overflow-hidden mt-4">
-              <motion.div
-                className="h-full bg-blue-600"
-                initial={{ width: '0%' }}
-                animate={{ width: isSyncing ? '33%' : `${((loadingStage + 1) / 3) * 100}%` }}
-                transition={{ duration: 0.5 }}
-              />
+            <div className="flex items-center gap-1.5 font-sds-content">
+              <span className="text-3xl font-black text-blue-600 tracking-tight">
+                {loadingProgress}%
+              </span>
             </div>
-
-            {cancelSearch && (
-              <button
-                onClick={cancelSearch}
-                className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 hover:text-red-600 hover:border-red-100 rounded-[12px] text-[10px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-2 mx-auto mt-8 relative z-50"
-              >
-                <X size={14} />
-                Cancel Search
-              </button>
-            )}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full opacity-50 pointer-events-none">
+
+          {/* Progress Bar (Frameless & Sleek) */}
+          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden relative">
+            <motion.div
+              className="h-full bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500 rounded-full"
+              animate={{ width: `${loadingProgress}%` }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+            />
+          </div>
+
+          {/* Frameless Stepper Timeline */}
+          <div className="w-full grid grid-cols-2 md:grid-cols-4 gap-4 py-2">
+            {stages.map((stg, idx) => {
+              const isCompleted = currentStage > idx;
+              const isActive = currentStage === idx;
+              return (
+                <div
+                  key={idx}
+                  className={`flex flex-col items-start gap-1 transition-all ${
+                    isCompleted
+                      ? 'text-slate-800'
+                      : isActive
+                      ? 'text-blue-600'
+                      : 'text-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {isCompleted ? (
+                      <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
+                    ) : isActive ? (
+                      <Loader2 size={16} className="text-blue-600 animate-spin shrink-0" />
+                    ) : (
+                      <div className="w-4 h-4 rounded-full border border-slate-200 flex items-center justify-center shrink-0">
+                        <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                      </div>
+                    )}
+                    <span className="text-[10px] font-black uppercase tracking-widest">
+                      {stg.level}
+                    </span>
+                  </div>
+                  <span className={`text-xs font-bold truncate max-w-full ${isActive ? 'text-slate-900' : 'text-slate-500'}`}>
+                    {stg.title}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Active Stage Description Line */}
+          <div className="w-full flex items-center justify-center gap-3 py-3 px-6 bg-slate-50/80 border border-slate-100 rounded-2xl">
+            <div className="text-blue-600 shrink-0">
+              {stages[currentStage].icon}
+            </div>
+            <p className="text-xs font-semibold text-slate-600 text-center truncate">
+              {stages[currentStage].desc}
+            </p>
+          </div>
+
+          {/* Frameless Tip Line */}
+          <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
+            <Lightbulb size={14} className="text-amber-500 shrink-0" />
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={tipIndex}
+                initial={{ opacity: 0, y: 3 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -3 }}
+                transition={{ duration: 0.2 }}
+                className="truncate"
+              >
+                {RESEARCH_TIPS[tipIndex]}
+              </motion.span>
+            </AnimatePresence>
+          </div>
+
+          {/* STOP ANALYSIS Control Button */}
+          {cancelSearch && (
+            <button
+              type="button"
+              onClick={() => {
+                if (cancelSearch) cancelSearch();
+              }}
+              className="mt-2 inline-flex items-center gap-2 px-5 py-2 bg-rose-50 hover:bg-rose-100 active:scale-95 text-rose-700 border border-rose-200/80 rounded-xl text-[11px] font-bold transition-all shadow-sm cursor-pointer group"
+            >
+              <Square size={10} className="fill-rose-600 text-rose-600 group-hover:scale-125 transition-transform shrink-0" />
+              <span>STOP ANALYSIS</span>
+            </button>
+          )}
+
+          {/* Skeleton Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full opacity-40 pointer-events-none mt-6">
             {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
           </div>
         </motion.div>
+
+
       ) : hasSearched && visibleArticles.length === 0 ? (
         <div className="text-center py-20 px-8 bg-white rounded-[3.5rem] border border-slate-100 shadow-sm w-full 2xl:px-12 mx-auto">
           <div className="w-20 h-20 bg-slate-50 text-slate-600 rounded-[12px] flex items-center justify-center mx-auto mb-6">

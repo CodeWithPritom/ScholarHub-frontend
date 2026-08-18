@@ -183,8 +183,11 @@ const PaperDetail = ({ user, profile }) => {
       const res = await fetch(`${BASE_URL}/paper/${encodeURIComponent(pmid)}/related?title=${encodeURIComponent(article.title || '')}&doi=${encodeURIComponent(article.doi || '')}`)
       if (res.ok) {
         const data = await res.json()
-        setRelated(data || [])
-        sessionStorage.setItem(relatedCacheKey, JSON.stringify(data || []))
+        const validData = Array.isArray(data) ? data : []
+        setRelated(validData)
+        if (validData.length > 0) {
+          sessionStorage.setItem(relatedCacheKey, JSON.stringify(validData))
+        }
         setRelatedLoaded(true)
         setTimeout(() => {
           document.getElementById('related-research')?.scrollIntoView({ behavior: 'smooth' });
@@ -227,11 +230,17 @@ const PaperDetail = ({ user, profile }) => {
         const data = JSON.parse(cachedData)
         if (data.main_article) setArticle(data.main_article)
         
-        // Load related papers from sessionStorage on mount/cache hit
+        // Load related papers from sessionStorage on mount ONLY if user previously clicked and cached it
         const cachedRelated = sessionStorage.getItem(relatedCacheKey)
         if (cachedRelated) {
-          setRelated(JSON.parse(cachedRelated))
-          setRelatedLoaded(true)
+          const parsed = JSON.parse(cachedRelated);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setRelated(parsed)
+            setRelatedLoaded(true)
+          } else {
+            setRelated([])
+            setRelatedLoaded(false)
+          }
         } else {
           setRelated([])
           setRelatedLoaded(false)
@@ -279,8 +288,14 @@ const PaperDetail = ({ user, profile }) => {
           }
           const cachedRelated = sessionStorage.getItem(relatedCacheKey)
           if (cachedRelated) {
-            setRelated(JSON.parse(cachedRelated))
-            setRelatedLoaded(true)
+            const parsed = JSON.parse(cachedRelated);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setRelated(parsed)
+              setRelatedLoaded(true)
+            } else {
+              setRelated([])
+              setRelatedLoaded(false)
+            }
           } else {
             setRelated([])
             setRelatedLoaded(false)
@@ -298,6 +313,8 @@ const PaperDetail = ({ user, profile }) => {
 
     fetchPaperDetail()
   }, [pmid, navigate]) // Only run when pmid changes
+
+
 
   if (loading && !article) {
     return (

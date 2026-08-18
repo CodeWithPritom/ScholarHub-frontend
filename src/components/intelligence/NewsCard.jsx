@@ -1,9 +1,17 @@
 import React, { useState } from 'react';
-import { ExternalLink, Calendar, Tag, Sparkles, Newspaper, Loader2, Unlock, Lock } from 'lucide-react';
+import { ExternalLink, Calendar, Tag, Sparkles, Newspaper, Loader2, Unlock, Lock, Globe, ArrowUpRight, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../supabaseClient';
 import { BASE_URL } from '../../utils/api';
 import ImpactBadge from './ImpactBadge';
+
+const SOURCE_COLORS = {
+  NATURE: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  SCIENCE: 'bg-blue-50 text-blue-700 border-blue-200',
+  EUREKALERT: 'bg-amber-50 text-amber-700 border-amber-200',
+  PUBMED: 'bg-purple-50 text-purple-700 border-purple-200',
+  DEFAULT: 'bg-slate-100 text-slate-700 border-slate-200'
+};
 
 const NewsCard = ({ article, user }) => {
   const [imageError, setImageError] = useState(false);
@@ -31,7 +39,7 @@ const NewsCard = ({ article, user }) => {
     can_summarize = false
   } = article;
 
-  const [showAiInsight, setShowAiInsight] = useState(currentOrigin === 'system');
+  const [showAiInsight, setShowAiInsight] = useState(currentOrigin === 'system' || !!currentSummary);
 
   const handleSummarizeOnDemand = async () => {
     setSummarizing(true);
@@ -59,7 +67,7 @@ const NewsCard = ({ article, user }) => {
       setShowAiInsight(true);
       window.dispatchEvent(new Event('user-credits-updated'));
       if (data.zaps_deducted > 0) {
-        toast.success(`AI Summary generated & unlocked for Community! (${data.zaps_deducted} Zaps used, ${data.remaining_zaps} Zaps remaining)`);
+        toast.success(`AI Summary unlocked for Community! (${data.zaps_deducted} Zaps used, ${data.remaining_zaps} Zaps remaining)`);
       } else {
         toast.success('AI Summary generated for Pro member!');
       }
@@ -90,91 +98,95 @@ const NewsCard = ({ article, user }) => {
   };
 
   const formattedSource = (source_name || 'Science').toUpperCase();
+  const sourceColorClass = SOURCE_COLORS[formattedSource] || SOURCE_COLORS.DEFAULT;
 
   const isSystemInsight = currentOrigin === 'system';
   const isCommunityInsight = currentOrigin === 'user' || (currentSummary && !isSystemInsight);
-  const isInsightLocked = !currentSummary && !isSystemInsight && !isCommunityInsight;
 
   return (
-    <article className="flex flex-col overflow-hidden rounded-[12px] border border-[#E5E5DF] bg-white p-4 sm:p-6 transition-all hover:border-slate-300 shadow-2xs">
-      {/* Category & Personalization Match & Insight Badge Header */}
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+    <article className="group flex flex-col h-full overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 transition-all duration-300 hover:border-indigo-300 hover:shadow-xl hover:-translate-y-1 relative">
+      
+      {/* Category & Status Badges */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-xs">
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Shared Economy Model Insight Badges */}
-          {isSystemInsight ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-100 px-2.5 py-0.5 text-[10px] font-black text-[#315CFF] uppercase tracking-wider">
-              <Sparkles size={11} className="text-blue-600" />
-              <span>⚡ GLOBAL BREAKTHROUGH</span>
-            </span>
-          ) : isCommunityInsight ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 text-[10px] font-bold text-indigo-700 uppercase tracking-wider">
-              <Unlock size={11} className="text-indigo-600" />
-              <span>🔓 COMMUNITY UNLOCKED</span>
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[#F3F3EF] border border-[#E5E5DF] px-2.5 py-0.5 text-[10px] font-bold text-slate-700 uppercase tracking-wider">
-              <Lock size={11} className="text-slate-600" />
-              <span>🔒 AI INSIGHT LOCKED</span>
-            </span>
-          )}
+          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-[10px] font-black uppercase tracking-wider ${sourceColorClass}`}>
+            <Globe size={11} />
+            <span>{formattedSource}</span>
+          </span>
 
-          <span className="font-semibold text-slate-700 uppercase tracking-wider text-[11px]">
+          <span className="font-bold text-slate-700 uppercase tracking-wider text-[11px] bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200/70">
             {category || 'General'}
           </span>
 
-          {article?.matched_interest && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 border border-[#E5E5DF]/80 px-2.5 py-0.5 text-[10px] font-semibold text-slate-800">
-              <Sparkles size={11} className="text-slate-600" />
-              <span>Matched: {article.matched_interest}</span>
+          {isSystemInsight ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-[10px] font-black text-blue-700 uppercase tracking-wider">
+              <Sparkles size={11} className="text-blue-600 animate-pulse" />
+              <span>⚡ GLOBAL BREAKTHROUGH</span>
+            </span>
+          ) : isCommunityInsight ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800 uppercase tracking-wider">
+              <Unlock size={11} className="text-emerald-600" />
+              <span>🔓 COMMUNITY UNLOCKED</span>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-[10px] font-bold text-amber-800 uppercase tracking-wider">
+              <Lock size={11} className="text-amber-600" />
+              <span>🔒 AI INSIGHT</span>
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-2 text-slate-500 text-xs font-semibold shrink-0">
           <ImpactBadge level={impact_level} />
-          <span className="text-slate-600 font-normal">{getRelativeTime(published_at)}</span>
+          <span>{getRelativeTime(published_at)}</span>
         </div>
       </div>
 
       {/* Article Title */}
-      <h3 className="mb-3 text-base font-bold font-sds-content text-[#171717] leading-snug tracking-tight hover:text-[#315CFF] transition-colors">
-        <a href={url} target="_blank" rel="noopener noreferrer">
+      <h3 className="mb-3 text-base sm:text-lg font-black text-slate-900 leading-snug tracking-tight group-hover:text-indigo-600 transition-colors">
+        <a href={url} target="_blank" rel="noopener noreferrer" className="focus:outline-none">
           {title}
         </a>
       </h3>
 
-      {/* Primary Hero Content: Raw Description / News Snippet from Publisher */}
+      {/* Primary Content Snippet */}
       {description && (
-        <p className="mb-4 text-xs text-slate-600 leading-relaxed font-normal">
+        <p className="mb-5 text-xs sm:text-sm text-slate-600 leading-relaxed font-medium line-clamp-3">
           {description}
         </p>
       )}
 
-      {/* AI Summary Section */}
-      <div className="mt-auto pt-2 space-y-2">
+      {/* AI Executive Summary Drawer */}
+      <div className="mt-auto space-y-3">
         {currentSummary ? (
-          <div>
+          <div className="space-y-2">
             <button
               onClick={() => setShowAiInsight(!showAiInsight)}
-              className="w-full flex items-center justify-between rounded-[12px] border border-[#E5E5DF] bg-[#F3F3EF]/60 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-all cursor-pointer mb-2"
+              className="w-full flex items-center justify-between rounded-xl border border-indigo-100 bg-indigo-50/70 px-3.5 py-2.5 text-xs font-bold text-indigo-900 hover:bg-indigo-100/70 transition-all cursor-pointer"
             >
-              <div className="flex items-center gap-1.5">
-                <Sparkles size={13} className="text-blue-600" />
+              <div className="flex items-center gap-2">
+                <Sparkles size={14} className="text-indigo-600" />
                 <span>AI Executive Summary</span>
               </div>
-              <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">
-                {showAiInsight ? 'Hide AI Insight' : 'Show AI Insight'}
+              <span className="text-[10px] font-black text-indigo-700 uppercase tracking-wider">
+                {showAiInsight ? 'Collapse' : 'Expand'}
               </span>
             </button>
 
             {showAiInsight && (
-              <div className="rounded-[12px] border border-[#E5E5DF]/70 bg-[#F3F3EF]/60 p-6">
-                {isCommunityInsight && (
-                  <p className="text-[10px] font-semibold text-indigo-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                    <Unlock size={10} />
-                    <span>Unlocked for Community by Researcher</span>
-                  </p>
-                )}
-                <p className="text-xs text-slate-700 leading-relaxed font-normal">
+              <div className="rounded-xl bg-slate-900 text-slate-100 p-4 border border-slate-800 shadow-inner space-y-2 animate-fadeIn">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 flex items-center gap-1.5">
+                    <Sparkles size={11} />
+                    Executive Neural Synthesis
+                  </span>
+                  {isCommunityInsight && (
+                    <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
+                      <Unlock size={10} /> Unlocked
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs leading-relaxed font-normal text-slate-300">
                   {currentSummary}
                 </p>
               </div>
@@ -184,46 +196,47 @@ const NewsCard = ({ article, user }) => {
           <button
             onClick={handleSummarizeOnDemand}
             disabled={summarizing}
-            className="w-full flex items-center justify-center gap-2 rounded-[12px] border border-[#E5E5DF] bg-[#F3F3EF]/60 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-all cursor-pointer disabled:opacity-50"
+            className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-md hover:shadow-indigo-200 flex items-center justify-center gap-2 disabled:opacity-60"
           >
             {summarizing ? (
               <>
-                <Loader2 size={13} className="animate-spin text-slate-700" />
-                <span>Generating AI Summary...</span>
+                <Loader2 size={14} className="animate-spin" />
+                <span>Synthesizing...</span>
               </>
             ) : (
               <>
-                <Sparkles size={13} className="text-slate-700" />
-                <span>Summarize Article (2 Zaps or Pro)</span>
+                <Sparkles size={14} className="text-amber-300" />
+                <span>Summarize Article (2 Zaps)</span>
               </>
             )}
           </button>
         ) : (
           <a
             href="/auth"
-            className="w-full flex items-center justify-center gap-2 rounded-[12px] border border-[#E5E5DF] bg-[#F3F3EF]/60 px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
+            className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-2"
           >
-            <Sparkles size={13} className="text-slate-600" />
-            <span>Sign Up to Unlock AI Summaries</span>
+            <Sparkles size={14} className="text-indigo-600" />
+            <span>Sign In to Unlock AI Summaries</span>
           </a>
         )}
-      </div>
 
-      {/* Footer Details */}
-      <div className="mt-5 flex items-center justify-between border-t border-[#E5E5DF] pt-3 text-xs">
-        <span className="text-[11px] font-medium text-slate-700">
-          Source: {formattedSource}
-        </span>
+        {/* Footer Details */}
+        <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
+          <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1">
+            <BookOpen size={12} className="text-slate-400" />
+            <span>{formattedSource}</span>
+          </span>
 
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 hover:text-[#171717] transition-colors"
-        >
-          <span>Read Paper</span>
-          <ExternalLink size={12} />
-        </a>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs font-black text-indigo-600 hover:text-indigo-800 transition-colors group-hover:translate-x-0.5"
+          >
+            <span>Read Paper</span>
+            <ArrowUpRight size={14} />
+          </a>
+        </div>
       </div>
     </article>
   );

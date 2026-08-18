@@ -1549,8 +1549,13 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
     }
     setLoading(false);
     setIsSyncing(false);
-    setError("Search cancelled by user.");
+    setError(null);
+    toast.info('Search analysis stopped by user.', {
+      description: 'No request credits were deducted.',
+      icon: '🛑'
+    });
   };
+
 
   const searchPubMed = async (e, overrideTerm = null) => {
     if (e) e.preventDefault();

@@ -735,7 +735,12 @@ const Profile = ({ user }) => {
                       <button
                         onClick={async () => {
                           const { error } = await supabase.from('user_devices').delete().eq('device_id', device.device_id).eq('user_id', user.id)
-                          if (!error) setDevices(devices.filter(d => d.device_id !== device.device_id))
+                          if (!error) {
+                            setDevices(devices.filter(d => d.device_id !== device.device_id))
+                            toast.success("Device removed successfully.")
+                          } else {
+                            toast.error("Failed to remove device.")
+                          }
                         }}
                         className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors group"
                         title="Remove Device"
@@ -743,6 +748,7 @@ const Profile = ({ user }) => {
                         <X size={18} className="group-hover:scale-110 transition-transform" />
                       </button>
                     )}
+
                   </div>
                 )
               })}

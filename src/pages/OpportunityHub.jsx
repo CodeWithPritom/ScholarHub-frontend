@@ -73,49 +73,51 @@ const OpportunityHub = ({ user, profile, onLogout, liveUsersCount }) => {
 
   return (
     <WorkspaceLayout user={user} profile={profile} onLogout={onLogout} hideNav={true}>
-      <div className="w-full px-4 sm:px-6 md:px-8 2xl:px-12 space-y-8 py-4">
+      <div className="w-full px-4 sm:px-6 md:px-8 2xl:px-12 space-y-8 pt-6 pb-12">
         
         {/* Header Section */}
-        <div className="pb-6 border-b border-[#E5E5DF]/80">
-          <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-700 block mb-1">
-            Academic Grants & Positions
-          </span>
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#171717] tracking-tight">
-            Research Grants & Fellowships
-          </h1>
-          <p className="mt-2 text-sm text-slate-600 leading-relaxed font-normal max-w-xl">
-            EURAXESS, DAAD, MSCA, and university research opportunities curated for researchers.
-          </p>
-        </div>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-200/90">
+          <div className="space-y-1">
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-[10px] font-black uppercase tracking-widest text-emerald-800">
+              <Award size={11} className="text-emerald-600" />
+              <span>ACADEMIC POSITIONS & GRANTS</span>
+            </span>
+            <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
+              Research Grants & Fellowships
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium max-w-2xl">
+              Curated global academic opportunities from <strong className="text-slate-800">EURAXESS</strong>, <strong className="text-slate-800">DAAD</strong>, <strong className="text-slate-800">Marie Skłodowska-Curie Actions (MSCA)</strong>, and top global university portals.
+            </p>
+          </div>
 
-        {/* Type Filter & Search Bar */}
-        <div className="space-y-4">
-          <form onSubmit={handleSearchSubmit} className="relative w-full max-w-md">
+          {/* Search Box */}
+          <form onSubmit={handleSearchSubmit} className="relative w-full md:w-80 shrink-0">
             <input
               type="text"
-              placeholder="Search by institution, discipline, or country..."
+              placeholder="Search by institution, country..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white border border-[#E5E5DF] rounded-[8px] py-2.5 pl-10 pr-4 text-xs font-normal text-[#171717] placeholder:text-slate-600 focus:outline-none focus:border-slate-400 shadow-2xs"
+              className="w-full bg-white border border-slate-300 rounded-xl py-2.5 pl-10 pr-4 text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 shadow-sm"
             />
-            <Search size={14} className="absolute left-3.5 top-3 text-slate-600" />
+            <Search size={15} className="absolute left-3.5 top-3 text-slate-400" />
           </form>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {OPPORTUNITY_TYPES.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => handleTypeChange(t.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                  activeType === t.id
-                    ? 'bg-[#315CFF] text-white font-semibold shadow-xs rounded-[8px]'
-                    : 'bg-white border border-[#E5E5DF] text-slate-700 hover:bg-[#F3F3EF] rounded-[8px]'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+        {/* Type Filter Pills */}
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          {OPPORTUNITY_TYPES.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => handleTypeChange(t.id)}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeType === t.id
+                  ? 'bg-slate-900 text-white shadow-md'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 shadow-xs'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
 
         {/* Grid Area */}

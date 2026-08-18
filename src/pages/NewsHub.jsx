@@ -173,39 +173,42 @@ const NewsHub = ({ user, profile, onLogout, liveUsersCount }) => {
 
   return (
     <WorkspaceLayout user={user} profile={profile} onLogout={onLogout} hideNav={true}>
-      <div className="w-full px-4 sm:px-6 md:px-8 2xl:px-12 space-y-8 py-4">
+      <div className="w-full px-4 sm:px-6 md:px-8 2xl:px-12 space-y-8 pt-6 pb-12">
         
         {/* 1. Header Section */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6 border-b border-slate-200/80">
-          <div>
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-700 block mb-1">
-              Literature Intelligence & Personalization
-            </span>
-            <h1 className="text-2xl sm:text-3xl font-bold text-[#171717] tracking-tight">
-              Scientific Discoveries & Feed
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-200/90">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-[10px] font-black uppercase tracking-widest text-indigo-700">
+                <Sparkles size={11} className="text-indigo-600 animate-pulse" />
+                <span>⚡ LIVE BREAKTHROUGH FEED</span>
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
+              Scientific Discoveries & News
             </h1>
-            <p className="mt-2 text-sm text-slate-600 leading-relaxed font-normal max-w-xl">
-              Autonomously aggregated and AI-summarized literature breakthroughs from Nature, Science, EurekAlert, and PubMed.
+            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium max-w-2xl">
+              Autonomously aggregated and AI-summarized literature breakthroughs from <strong className="text-slate-800">Nature</strong>, <strong className="text-slate-800">Science</strong>, <strong className="text-slate-800">EurekAlert</strong>, and <strong className="text-slate-800">PubMed</strong>.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-3 shrink-0">
             {user && (
               <button
                 onClick={() => setShowOnboarding(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold shadow-2xs cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold shadow-sm transition-all cursor-pointer hover:border-slate-300"
               >
-                <Compass size={14} className="text-slate-700" />
-                <span>Interests</span>
+                <Compass size={15} className="text-indigo-600" />
+                <span>Personalize Interests</span>
               </button>
             )}
 
             <button
               onClick={handleTriggerRefresh}
               disabled={refreshing}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold transition-all shadow-2xs cursor-pointer disabled:opacity-60"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold transition-all shadow-md cursor-pointer disabled:opacity-60"
             >
-              <RefreshCw size={13} className={refreshing ? 'animate-spin text-slate-600' : 'text-slate-600'} />
+              <RefreshCw size={14} className={refreshing ? 'animate-spin text-white' : 'text-white'} />
               <span>{refreshing ? 'Refreshing...' : 'Refresh Feeds'}</span>
             </button>
           </div>
@@ -213,24 +216,24 @@ const NewsHub = ({ user, profile, onLogout, liveUsersCount }) => {
 
         {/* 2. Guest Preview Box */}
         {!user && (
-          <div className="rounded-2xl bg-white border border-slate-200 p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-2xs">
-            <div className="space-y-1">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-700 block">
-                Guest Mode
+          <div className="rounded-2xl bg-gradient-to-r from-indigo-900 via-slate-900 to-slate-950 p-6 sm:p-8 text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-xl border border-slate-800">
+            <div className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 block">
+                Guest Scholar Access
               </span>
-              <h2 className="text-base font-bold text-[#171717]">
-                Unlock Full Executive AI Summaries
+              <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
+                Unlock Neural AI Summaries for Global Discoveries
               </h2>
-              <p className="text-xs text-slate-600 leading-relaxed max-w-lg">
-                Join ScholarHub AI to access multi-paper comparative analysis, AI summaries, and automated keyword monitoring.
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-xl font-medium">
+                Join ScholarHub AI to access multi-paper comparative analysis, executive AI summaries, and automated research tracking.
               </p>
             </div>
             <button
               onClick={() => navigate('/auth')}
-              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold tracking-wide transition-all shadow-2xs flex items-center gap-1.5 shrink-0 cursor-pointer"
+              className="px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-indigo-500/20 flex items-center gap-2 shrink-0 cursor-pointer"
             >
               <span>Sign Up Free</span>
-              <ChevronRight size={14} />
+              <ChevronRight size={15} />
             </button>
           </div>
         )}
@@ -244,9 +247,9 @@ const NewsHub = ({ user, profile, onLogout, liveUsersCount }) => {
 
           {/* Personalization Active Status */}
           {user && (
-            <div className="flex items-center justify-between text-xs text-slate-700 pt-1 font-normal">
+            <div className="flex items-center justify-between text-xs text-slate-500 pt-1 font-semibold">
               <span>
-                Personalize your feed: {userInterests?.disciplines?.length ? `${userInterests.disciplines.length} interests active` : 'No interests selected'}
+                Active Personalization: <strong className="text-slate-800">{userInterests?.disciplines?.length ? `${userInterests.disciplines.length} topics selected` : 'All Topics'}</strong>
               </span>
             </div>
           )}

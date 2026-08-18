@@ -53,9 +53,17 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
         }
       }
 
+      const TIER_CREDIT_MAP = { free: 500, starter: 1500, pro: 3000 };
+      const maxCredits = TIER_CREDIT_MAP[resolvedTier] || 500;
+
+      setTotalCredits(maxCredits);
+
       if (data) {
-        if (data.compute_credits !== null) setComputeCredits(data.compute_credits);
-        if (data.total_credits !== null) setTotalCredits(data.total_credits);
+        if (data.compute_credits !== null) {
+          setComputeCredits(Math.min(data.compute_credits, maxCredits));
+        } else {
+          setComputeCredits(maxCredits);
+        }
         if (data.export_count !== null) setExportCount(data.export_count);
       }
       setUserTier(resolvedTier);
@@ -83,6 +91,7 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
 
     // Listen for custom window events triggered by API calls across the app
     const handleEvents = () => fetchCredits();
+    window.addEventListener('user-credits-updated', handleEvents);
     window.addEventListener('zapsUpdated', handleEvents);
     window.addEventListener('creditsUpdated', handleEvents);
     window.addEventListener('bookmarkUpdated', handleEvents);
@@ -97,18 +106,17 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
     if (user?.id) {
       channel = supabase
         .channel(`sidebar_profile_${user.id}`)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` }, (payload) => {
-          if (payload.new) {
-            if (payload.new.compute_credits !== undefined) setComputeCredits(payload.new.compute_credits);
-            if (payload.new.total_credits !== undefined) setTotalCredits(payload.new.total_credits);
-            if (payload.new.export_count !== undefined) setExportCount(payload.new.export_count);
-            if (payload.new.user_tier) setUserTier(payload.new.user_tier.toLowerCase());
-          }
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` }, () => {
+          fetchCredits();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'subscriptions', filter: `user_id=eq.${user.id}` }, () => {
+          fetchCredits();
         })
         .subscribe();
     }
 
     return () => {
+      window.removeEventListener('user-credits-updated', handleEvents);
       window.removeEventListener('zapsUpdated', handleEvents);
       window.removeEventListener('creditsUpdated', handleEvents);
       window.removeEventListener('bookmarkUpdated', handleEvents);

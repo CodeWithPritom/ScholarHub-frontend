@@ -1,7 +1,17 @@
 import React, { useState } from 'react';
-import { MapPin, Building, Banknote, ExternalLink, ShieldCheck, Sparkles, Lock } from 'lucide-react';
+import { MapPin, Building, Banknote, ExternalLink, ShieldCheck, Sparkles, Lock, Clock, Calendar, ArrowUpRight, GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
 import DeadlineCountdown from './DeadlineCountdown';
+
+const TYPE_STYLES = {
+  scholarship: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+  fellowship: 'bg-indigo-50 text-indigo-800 border-indigo-200',
+  ra: 'bg-blue-50 text-blue-800 border-blue-200',
+  phd: 'bg-purple-50 text-purple-800 border-purple-200',
+  postdoc: 'bg-amber-50 text-amber-800 border-amber-200',
+  faculty: 'bg-rose-50 text-rose-800 border-rose-200',
+  DEFAULT: 'bg-slate-100 text-slate-800 border-slate-200'
+};
 
 const TYPE_LABELS = {
   scholarship: 'Scholarship',
@@ -34,6 +44,7 @@ const OpportunityCard = ({ opportunity, user, profile }) => {
 
   const normType = (opportunity_type || 'scholarship').toLowerCase();
   const typeLabel = TYPE_LABELS[normType] || 'Grant Opportunity';
+  const styleClass = TYPE_STYLES[normType] || TYPE_STYLES.DEFAULT;
 
   const targetUrl = apply_url || `https://www.google.com/search?q=${encodeURIComponent(title + ' ' + (organization || ''))}`;
 
@@ -53,15 +64,16 @@ const OpportunityCard = ({ opportunity, user, profile }) => {
   };
 
   return (
-    <article className="flex flex-col overflow-hidden rounded-[12px] border border-[#E5E5DF] bg-white p-6 transition-all hover:border-slate-300 shadow-2xs relative">
-      {/* Header Badge & Deadline */}
-      <div className="mb-3 flex items-center justify-between gap-2 text-xs">
+    <article className="group flex flex-col h-full overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 transition-all duration-300 hover:border-indigo-300 hover:shadow-xl hover:-translate-y-1 relative">
+      
+      {/* Header Badges & Deadline */}
+      <div className="mb-4 flex items-center justify-between gap-2 text-xs">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="rounded-[6px] bg-[#F3F3EF] border border-[#E5E5DF] px-2.5 py-0.5 text-[11px] font-semibold text-slate-700">
+          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${styleClass}`}>
             {typeLabel}
           </span>
           {tags.map((t) => (
-            <span key={t} className="rounded-[6px] bg-white border border-[#E5E5DF] px-2 py-0.5 text-[10px] font-bold text-slate-600">
+            <span key={t} className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-700">
               {t}
             </span>
           ))}
@@ -70,29 +82,29 @@ const OpportunityCard = ({ opportunity, user, profile }) => {
       </div>
 
       {/* Title */}
-      <h3 className="mb-2 text-base font-bold font-sds-content text-[#171717] leading-snug tracking-tight hover:text-[#315CFF] transition-colors">
+      <h3 className="mb-2 text-base sm:text-lg font-black text-slate-900 leading-snug tracking-tight group-hover:text-indigo-600 transition-colors">
         {title}
       </h3>
 
       {/* Organization */}
       {organization && (
-        <div className="mb-3 flex items-center gap-1.5 text-xs font-normal text-slate-500">
-          <Building size={13} className="text-slate-400 shrink-0" />
+        <div className="mb-3 flex items-center gap-1.5 text-xs font-bold text-slate-600">
+          <Building size={14} className="text-slate-400 shrink-0" />
           <span className="truncate">{organization}</span>
         </div>
       )}
 
-      {/* Key Details */}
-      <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-slate-600 font-normal">
+      {/* Key Details Pills */}
+      <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
         {location && (
-          <div className="flex items-center gap-1">
-            <MapPin size={12} className="text-slate-400 shrink-0" />
+          <div className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg text-slate-700 font-medium">
+            <MapPin size={12} className="text-rose-500 shrink-0" />
             <span>{location}</span>
           </div>
         )}
         {funding && (
-          <div className="flex items-center gap-1">
-            <Banknote size={12} className="text-slate-400 shrink-0" />
+          <div className="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg text-emerald-800 font-bold">
+            <Banknote size={12} className="text-emerald-600 shrink-0" />
             <span>{funding}</span>
           </div>
         )}
@@ -100,15 +112,16 @@ const OpportunityCard = ({ opportunity, user, profile }) => {
 
       {/* Description */}
       {description && (
-        <p className="mb-4 text-xs text-slate-600 leading-relaxed font-normal line-clamp-3">
+        <p className="mb-4 text-xs sm:text-sm text-slate-600 leading-relaxed font-medium line-clamp-3">
           {description}
         </p>
       )}
 
-      {/* Eligibility Note */}
+      {/* Eligibility Box */}
       {eligibility && (
-        <div className="mb-4 rounded-[8px] bg-[#F3F3EF]/60 border border-[#E5E5DF] p-3 text-xs text-slate-600 leading-relaxed font-normal">
-          <strong className="text-slate-800 font-semibold">Eligibility:</strong> {eligibility}
+        <div className="mb-4 rounded-xl bg-slate-50 border border-slate-200/80 p-3 text-xs text-slate-700 leading-relaxed font-medium">
+          <span className="font-bold text-slate-900 block mb-0.5 text-[10px] uppercase tracking-wider text-indigo-600">Eligibility Criteria</span>
+          {eligibility}
         </div>
       )}
 
@@ -116,20 +129,20 @@ const OpportunityCard = ({ opportunity, user, profile }) => {
       <div className="mt-auto pt-2">
         <button
           onClick={handleApplyClick}
-          className={`inline-flex w-full items-center justify-center gap-2 rounded-[8px] px-4 py-2.5 text-xs font-semibold shadow-2xs transition-all cursor-pointer ${
+          className={`w-full py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-md flex items-center justify-center gap-2 ${
             hasFullAccess
-              ? 'bg-[#315CFF] hover:bg-[#2547d0] text-white'
-              : 'bg-[#F3F3EF] hover:bg-[#E5E5DF] text-slate-700 border border-[#E5E5DF]'
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-indigo-100'
+              : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200'
           }`}
         >
           {hasFullAccess ? (
             <>
-              <span>Apply Directly ↗</span>
-              <ExternalLink size={13} />
+              <span>Apply Directly</span>
+              <ArrowUpRight size={14} />
             </>
           ) : (
             <>
-              <Lock size={12} className="text-slate-500" />
+              <Lock size={13} className="text-slate-500" />
               <span>View Position (Starter/Pro Feature)</span>
             </>
           )}
@@ -138,28 +151,29 @@ const OpportunityCard = ({ opportunity, user, profile }) => {
 
       {/* Gate Modal overlay if clicked by Free user */}
       {showGateModal && (
-        <div className="absolute inset-0 bg-white/95 backdrop-blur-xs z-20 p-6 flex flex-col items-center justify-center text-center animate-fadeIn rounded-[12px]">
-          <Lock size={28} className="text-slate-400 mb-3" />
-          <h4 className="text-sm font-bold text-[#171717] mb-1">Direct Portal Link Locked</h4>
-          <p className="text-xs text-slate-500 mb-4 max-w-xs leading-relaxed font-normal">
+        <div className="absolute inset-0 bg-white/95 backdrop-blur-xs z-20 p-6 flex flex-col items-center justify-center text-center animate-fadeIn rounded-2xl border border-slate-200">
+          <Lock size={32} className="text-amber-500 mb-3" />
+          <h4 className="text-base font-black text-slate-900 mb-1">Direct Application Link Locked</h4>
+          <p className="text-xs text-slate-600 mb-4 max-w-xs leading-relaxed font-medium">
             Direct institutional application links and contact portals are reserved for Starter and Pro members.
           </p>
           <div className="flex gap-2">
             <a
               href="/pricing"
-              className="px-4 py-2 bg-slate-900 text-white text-xs font-semibold rounded-xl hover:bg-slate-800 transition-all"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-md"
             >
-              Upgrade Plan
+              Upgrade Now 🚀
             </a>
             <button
               onClick={() => setShowGateModal(false)}
-              className="px-4 py-2 bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-200 transition-all cursor-pointer"
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all"
             >
               Close
             </button>
           </div>
         </div>
       )}
+
     </article>
   );
 };

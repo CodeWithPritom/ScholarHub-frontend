@@ -816,6 +816,20 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
 
   const [actionLoading, setActionLoading] = useState(null)
   const [actionMessage, setActionMessage] = useState(null)
+  const [syncingAllDbCredits, setSyncingAllDbCredits] = useState(false)
+
+  const handleSyncAllDbCredits = async () => {
+    setSyncingAllDbCredits(true)
+    try {
+      const res = await apiFetch('/api/admin/system/sync-all-credits', { method: 'POST' })
+      toast.success(res.message || 'Database user profile credit quotas synchronized successfully!')
+      fetchAllUsers()
+    } catch (err) {
+      toast.error(err.message || 'Failed to sync database credits.')
+    } finally {
+      setSyncingAllDbCredits(false)
+    }
+  }
 
   // Latency benchmark
   const [latency, setLatency] = useState(null)
@@ -1128,7 +1142,7 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
       const data = await apiFetch(`/api/admin/users/search?email=${encodeURIComponent(u.email)}`, { method: 'GET' })
       setSelectedUserDeepDive(data)
       setSelectedTier(data.current_tier || 'starter')
-      setCustomZapCredits(data.compute_credits || (data.current_tier === 'pro' ? 15000 : data.current_tier === 'starter' ? 5000 : 1000))
+      setCustomZapCredits(data.compute_credits || (data.current_tier === 'pro' ? 3000 : data.current_tier === 'starter' ? 1500 : 500))
     } catch (err) {
       console.error(err)
     } finally {
@@ -1748,8 +1762,18 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
                   <p className="text-xs text-slate-500 font-medium mt-0.5">Total Users Registered: {totalUsersCount}</p>
                 </div>
 
-                {/* Filters & Search */}
-                <form onSubmit={handleSearchSubmit} className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleSyncAllDbCredits}
+                    disabled={syncingAllDbCredits}
+                    className="px-3.5 py-2 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-xs disabled:opacity-60"
+                  >
+                    {syncingAllDbCredits ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+                    <span>Sync DB Credits</span>
+                  </button>
+
+                  {/* Filters & Search */}
+                  <form onSubmit={handleSearchSubmit} className="flex flex-wrap items-center gap-3">
                   <div className="relative">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                     <input
@@ -1788,6 +1812,7 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
                   </button>
                 </form>
               </div>
+            </div>
 
               {/* Table */}
               {loadingUsers ? (
@@ -2350,9 +2375,9 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
                   {/* Tier Selector Buttons */}
                   <div className="flex gap-2">
                     {[
-                      { id: 'free', label: 'FREE (Lifetime)' },
-                      { id: 'starter', label: 'STARTER (5k Zaps)' },
-                      { id: 'pro', label: 'PRO (15k Zaps)' }
+                      { id: 'free', label: 'FREE (500 Zaps)' },
+                      { id: 'starter', label: 'STARTER (1.5k Zaps)' },
+                      { id: 'pro', label: 'PRO (3k Zaps)' }
                     ].map(t => (
                       <button
                         key={t.id}
