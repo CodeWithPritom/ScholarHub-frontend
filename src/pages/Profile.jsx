@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { 
   User, Mail, CreditCard, Activity, ArrowRight, Zap, 
@@ -21,6 +21,20 @@ const Profile = ({ user }) => {
   const [profileData, setProfileData] = useState({ full_name: '', academic_field: 'Genetic Eng. & Biotech (GEB)', compute_credits: 1000, total_credits: 1000, export_count: 0, user_tier: 'free', saved_papers_count: 0, last_reset_date: null })
   const [devices, setDevices] = useState([])
 
+  const fetchDevices = useCallback(async () => {
+    if (!user?.id) return
+    try {
+      const { data } = await supabase
+        .from('user_devices')
+        .select('*')
+        .eq('user_id', user.id)
+      if (data) setDevices(data)
+    } catch (e) {
+      console.error("Error fetching devices:", e)
+    }
+  }, [user])
+
+
   const limits = {
     free: { ai: 3, portals: 1, name: 'Free Plan', searchDelay: '5s delay', papers: '20 papers' },
     starter: { ai: 50, portals: 1, name: 'Starter Plan', searchDelay: '1s debounce', papers: 'Unlimited' },
@@ -36,15 +50,8 @@ const Profile = ({ user }) => {
     const fetchProfileAndSubscription = async () => {
       try {
         // Fetch devices
-        try {
-          const { data: deviceData } = await supabase
-            .from('user_devices')
-            .select('*')
-            .eq('user_id', user.id)
-          if (deviceData) setDevices(deviceData)
-        } catch (e) {
-          console.error("Error fetching devices:", e)
-        }
+        await fetchDevices();
+
 
         // 1. Fetch Profile (Full Name, Academic Field, user_tier)
         let fullName = user.user_metadata?.full_name || user.user_metadata?.name || ''
@@ -60,7 +67,8 @@ const Profile = ({ user }) => {
             .from('profiles')
             .select('full_name, academic_field, user_tier, compute_credits, total_credits, export_count, last_reset_date')
             .eq('id', user.id)
-            .single()
+            .maybeSingle()
+
             
           if (profile) {
             if (profile.full_name) fullName = profile.full_name
@@ -123,6 +131,29 @@ const Profile = ({ user }) => {
           console.error("Error loading bookmarks count:", e)
         }
 
+        // 2. Fetch Subscription expiry & Tier Fallback
+        let validUntil = null
+        let isExpired = false
+        try {
+          const { data: sub } = await supabase
+            .from('subscriptions')
+            .select('tier, expires_at')
+            .eq('user_id', user.id)
+            .maybeSingle()
+            
+          if (sub) {
+            validUntil = sub.expires_at
+            if (validUntil && new Date() > new Date(validUntil)) {
+              currentTier = 'free'
+              isExpired = true
+            } else if (sub.tier && sub.tier !== 'free') {
+              currentTier = sub.tier.toLowerCase()
+            }
+          }
+        } catch (e) { 
+          console.error("Error loading active subscription info:", e)
+        }
+
         setProfileData({ 
           full_name: fullName, 
           academic_field: academicField,
@@ -135,30 +166,9 @@ const Profile = ({ user }) => {
           days_until_refresh: daysUntilRefreshBackend,
           next_refresh_date_iso: nextRefreshIsoBackend
         })
-
-        // 2. Fetch Subscription expiry
-        let validUntil = null
-        let isExpired = false
-        try {
-          const { data: sub } = await supabase
-            .from('subscriptions')
-            .select('tier, expires_at')
-            .eq('user_id', user.id)
-            .maybeSingle()
-            
-          if (sub) {
-            validUntil = sub.expires_at
-            // If subscription has expired, revert locally to free tier
-            if (validUntil && new Date() > new Date(validUntil)) {
-              currentTier = 'free'
-              isExpired = true
-            }
-          }
-        } catch (e) { 
-          console.error("Error loading active subscription info:", e)
-        }
         
         setTierData({ tier: currentTier, valid_until: validUntil, isExpired })
+
 
         // 3. Fetch Today's AI Usage Logs Count
         try {
@@ -200,10 +210,24 @@ const Profile = ({ user }) => {
       })
       .subscribe()
 
+    // 5. Realtime Devices Tracking (instantly updates UI when device is registered in background)
+    const devicesChannel = supabase.channel('realtime_devices')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'user_devices',
+        filter: `user_id=eq.${user.id}`
+      }, () => {
+        fetchDevices();
+      })
+      .subscribe()
+
     return () => {
       supabase.removeChannel(usageChannel)
+      supabase.removeChannel(devicesChannel)
     }
-  }, [user, navigate])
+  }, [user, navigate, fetchDevices])
+
 
   if (loading) {
     return (

@@ -1,32 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://scholarhub-ai.me/</loc>
-    <lastmod>2026-05-22</lastmod>
+    <loc>https://scholarhub-ai.com/</loc>
+    <lastmod>2026-08-19</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://scholarhub-ai.me/research</loc>
-    <lastmod>2026-05-22</lastmod>
+    <loc>https://scholarhub-ai.com/research</loc>
+    <lastmod>2026-08-19</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://scholarhub-ai.me/pricing</loc>
-    <lastmod>2026-05-22</lastmod>
+    <loc>https://scholarhub-ai.com/pricing</loc>
+    <lastmod>2026-08-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://scholarhub-ai.me/about</loc>
-    <lastmod>2026-05-22</lastmod>
+    <loc>https://scholarhub-ai.com/about</loc>
+    <lastmod>2026-08-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://scholarhub-ai.me/resources</loc>
-    <lastmod>2026-05-22</lastmod>
+    <loc>https://scholarhub-ai.com/resources</loc>
+    <lastmod>2026-08-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>

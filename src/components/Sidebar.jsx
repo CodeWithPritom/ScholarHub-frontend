@@ -31,17 +31,35 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
   const fetchCredits = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('profiles')
         .select('compute_credits, total_credits, export_count, user_tier')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
+
+      const { data: subData } = await supabase
+        .from('subscriptions')
+        .select('tier, expires_at')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      let resolvedTier = (data?.user_tier || 'free').toLowerCase();
+
+      if (subData) {
+        if (subData.expires_at && new Date() > new Date(subData.expires_at)) {
+          resolvedTier = 'free';
+        } else if (subData.tier && subData.tier !== 'free') {
+          resolvedTier = subData.tier.toLowerCase();
+        }
+      }
+
       if (data) {
         if (data.compute_credits !== null) setComputeCredits(data.compute_credits);
         if (data.total_credits !== null) setTotalCredits(data.total_credits);
         if (data.export_count !== null) setExportCount(data.export_count);
-        if (data.user_tier) setUserTier(data.user_tier.toLowerCase());
       }
+      setUserTier(resolvedTier);
+
 
       const { count, error: countError } = await supabase
         .from('bookmarks')

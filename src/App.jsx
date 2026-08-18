@@ -272,7 +272,23 @@ function App() {
     fetchTotalMembers()
   }, [])
 
+  // ─── Automatic Device Registration Sync ───
+  useEffect(() => {
+    let isMounted = true;
+    if (user?.id) {
+      ensureDeviceIsRegistered(user.id, () => {
+        if (isMounted) setDeviceLimitWarning(true);
+      }).catch((err) => {
+        console.warn('[App] Silent background device sync failed:', err);
+      });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
   // ─── Auth State Listener & Profile Fetcher ───
+
   useEffect(() => {
     let isMounted = true;
 
@@ -299,33 +315,45 @@ function App() {
           .eq('id', sessionUser.id)
           .maybeSingle();
 
+        const { data: subData } = await supabase
+          .from('subscriptions')
+          .select('tier, expires_at')
+          .eq('user_id', sessionUser.id)
+          .maybeSingle();
+
+        let resolvedTier = (data?.user_tier || 'free').toLowerCase();
+
+        if (subData) {
+          if (subData.expires_at && new Date() > new Date(subData.expires_at)) {
+            resolvedTier = 'free';
+          } else if (subData.tier && subData.tier !== 'free') {
+            resolvedTier = subData.tier.toLowerCase();
+          }
+        }
+
         const isMissing = (val) => !val || val === 'Scholar' || val === 'Not Specified' || val === 'Academic User';
         let profileIsValid = false;
 
         if (!error && data) {
-          if (!isMissing(data.full_name) && !isMissing(data.academic_field) && !isMissing(data.status)) {
+          if (!isMissing(data.full_name) && !isMissing(data.academic_field)) {
             profileIsValid = true;
           }
         }
 
         if (isMounted) {
-          if (profileIsValid) {
-            setNeedsOnboarding(false);
-            setProfile({ ...data, tier: data.user_tier });
-            setIsAdmin(data.role === 'admin' || isFounder);
-          } else {
-            setNeedsOnboarding(true);
-            const field = sessionUser?.user_metadata?.academic_field || 'Genetic Eng. & Biotech (GEB)';
-            setProfile({
-              user_tier: 'free',
-              tier: 'free',
-              academic_field: field,
-              academic_status: sessionUser?.user_metadata?.academic_status || 'Undergrad',
-              role: 'user',
-              full_name: sessionUser?.user_metadata?.full_name || ''
-            });
-            setIsAdmin(isFounder);
-          }
+          const finalProfile = {
+            ...(data || {}),
+            user_tier: resolvedTier,
+            tier: resolvedTier,
+            role: data?.role || 'user',
+            full_name: data?.full_name || sessionUser?.user_metadata?.full_name || '',
+            academic_field: data?.academic_field || sessionUser?.user_metadata?.academic_field || 'Genetic Eng. & Biotech (GEB)',
+            status: data?.status || sessionUser?.user_metadata?.academic_status || 'Undergrad'
+          };
+
+          setNeedsOnboarding(!profileIsValid);
+          setProfile(finalProfile);
+          setIsAdmin(data?.role === 'admin' || isFounder);
         }
       } catch {
         if (isMounted) {
@@ -340,7 +368,8 @@ function App() {
           });
           setIsAdmin(isFounder);
         }
-      } finally {
+      }
+ finally {
         if (isMounted) {
           setIsInitializing(false);
           initialLoadComplete.current = true;
@@ -453,32 +482,52 @@ function App() {
 
     // Background profile re-sync every 5 minutes (silent — no loading spinner)
     const intervalId = setInterval(() => {
-      supabase.auth.getSession().then(({ data: { session } }) => {
+      supabase.auth.getSession().then(async ({ data: { session } }) => {
         if (session?.user) {
-          // Silently refresh profile without triggering isInitializing
           const sessionUser = session.user;
           const isFounder = sessionUser.email === 'arupbhowmikpritom@gmail.com';
-          supabase
-            .from('profiles')
-            .select('role, full_name, academic_field, status, user_tier')
-            .eq('id', sessionUser.id)
-            .maybeSingle()
-            .then(({ data, error }) => {
-              if (!isMounted) return;
-              const isMissing = (val) => !val || val === 'Scholar' || val === 'Not Specified' || val === 'Academic User';
-              if (!error && data) {
-                if (!isMissing(data.full_name) && !isMissing(data.academic_field) && !isMissing(data.status)) {
-                  setNeedsOnboarding(false);
-                  setProfile({ ...data, tier: data.user_tier });
-                  setIsAdmin(data.role === 'admin' || isFounder);
-                } else {
-                  setNeedsOnboarding(true);
-                }
+          try {
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('role, full_name, academic_field, status, user_tier')
+              .eq('id', sessionUser.id)
+              .maybeSingle();
+
+            const { data: subData } = await supabase
+              .from('subscriptions')
+              .select('tier, expires_at')
+              .eq('user_id', sessionUser.id)
+              .maybeSingle();
+
+            if (!isMounted) return;
+
+            let resolvedTier = (data?.user_tier || 'free').toLowerCase();
+
+            if (subData) {
+              if (subData.expires_at && new Date() > new Date(subData.expires_at)) {
+                resolvedTier = 'free';
+              } else if (subData.tier && subData.tier !== 'free') {
+                resolvedTier = subData.tier.toLowerCase();
               }
+            }
+
+            const isMissing = (val) => !val || val === 'Scholar' || val === 'Not Specified' || val === 'Academic User';
+            const profileIsValid = !error && data && !isMissing(data.full_name) && !isMissing(data.academic_field);
+
+            setNeedsOnboarding(!profileIsValid);
+            setProfile({
+              ...(data || {}),
+              user_tier: resolvedTier,
+              tier: resolvedTier
             });
+            setIsAdmin(data?.role === 'admin' || isFounder);
+          } catch (e) {
+            console.error('[App] Background profile re-sync error:', e);
+          }
         }
       });
     }, 5 * 60 * 1000);
+
 
     return () => {
       isMounted = false;

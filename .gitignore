@@ -33,3 +33,14 @@ scratch*
 temp*
 replace_script.py
 fix_aspect_ratio.py
+
+# Large Assets, Demos & External Samples
+public/gif/
+elicit demo/
+frontend/elicit demo/
+elicit some exo/
+**/elicit demo/**
+**/elicit some exo/**
+*.pdf.bak
+*.gif.bak
+

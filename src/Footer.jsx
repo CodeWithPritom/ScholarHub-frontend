@@ -61,11 +61,19 @@ const Footer = ({ user, onAuthRequired }) => {
           {/* Column 3: Contact */}
           <div>
             <h4 className="text-white font-black uppercase tracking-widest text-sm mb-4 md:mb-6">Contact Us</h4>
-            <ul className="space-y-3 md:space-y-4">
+            <ul className="space-y-2 md:space-y-3">
+              <li>
+                <a 
+                  href="mailto:admin@scholarhub-ai.com" 
+                  className="text-sm font-semibold text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1.5"
+                >
+                  admin@scholarhub-ai.com
+                </a>
+              </li>
               <li>
                 <a 
                   href="mailto:arupbhowmikpritom@gmail.com" 
-                  className="text-sm font-semibold hover:text-blue-400 transition-colors"
+                  className="text-xs font-medium text-slate-400 hover:text-slate-200 transition-colors"
                 >
                   arupbhowmikpritom@gmail.com
                 </a>

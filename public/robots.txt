@@ -15,4 +15,4 @@ Disallow: /profile
 Disallow: /library
 Disallow: /settings
 
-Sitemap: https://scholarhub-ai.me/sitemap.xml
+Sitemap: https://scholarhub-ai.com/sitemap.xml

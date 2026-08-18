@@ -773,76 +773,52 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
 
         if (fetchErr) throw fetchErr;
 
-        let tier = 'free';
-        let field = 'Genetic Eng. & Biotech (GEB)';
+        let tier = (profData?.user_tier || 'free').toLowerCase();
+        let field = profData?.academic_field || user?.user_metadata?.academicField || user?.user_metadata?.academic_field || 'Genetic Eng. & Biotech (GEB)';
 
-        if (profData && profData.academic_field) {
-          tier = (profData.user_tier || 'free').toLowerCase();
-          field = profData.academic_field || 'Genetic Eng. & Biotech (GEB)';
+        try {
+          const { data: subData } = await supabase
+            .from('subscriptions')
+            .select('tier, expires_at')
+            .eq('user_id', user.id)
+            .maybeSingle();
 
-          try {
-            const { data: subData } = await supabase
-              .from('subscriptions')
-              .select('expires_at')
-              .eq('user_id', user.id)
-              .maybeSingle();
-
-            if (subData && subData.expires_at) {
-              const expiry = new Date(subData.expires_at);
-              if (new Date() > expiry) {
-                tier = 'free';
-              }
+          if (subData) {
+            if (subData.expires_at && new Date() > new Date(subData.expires_at)) {
+              tier = 'free';
+            } else if (subData.tier && subData.tier !== 'free') {
+              tier = subData.tier.toLowerCase();
             }
-          } catch (subErr) {
-            console.error("Error fetching subscription expiry:", subErr);
           }
-
-          setUserTier(tier);
-          setAcademicField(field);
-
-          // Frontend Sync: Manage session portal based on consent
-          setPortal(prev => {
-            const consent = localStorage.getItem('scholarhub_cookie_consent') === 'true';
-            let proPortal = prev || mapAcademicFieldToPortal(field);
-
-            if (consent) {
-              const stored = localStorage.getItem('last_used_portal');
-              if (stored) proPortal = stored;
-            }
-            if (prev !== proPortal) {
-              sessionStorage.setItem('active_portal', proPortal);
-              setTimeout(() => hydratePortalState(proPortal), 0);
-              return proPortal;
-            }
-            if (!prev) {
-              const def = mapAcademicFieldToPortal(field);
-              sessionStorage.setItem('active_portal', def);
-              setTimeout(() => hydratePortalState(def), 0);
-              return def;
-            }
-            return prev;
-          });
-        } else {
-          // Dynamic Default Fallback
-          const metadata = user?.user_metadata || {};
-          const fbField = metadata.academicField || metadata.academic_field || 'Genetic Eng. & Biotech (GEB)';
-
-          tier = 'free';
-          field = fbField;
-
-          setUserTier(tier);
-          setAcademicField(field);
-
-          setPortal(prev => {
-            const def = mapAcademicFieldToPortal(field);
-            if (!prev) {
-              sessionStorage.setItem('active_portal', def);
-              setTimeout(() => hydratePortalState(def), 0);
-              return def;
-            }
-            return prev;
-          });
+        } catch (subErr) {
+          console.error("Error fetching subscription expiry:", subErr);
         }
+
+        setUserTier(tier);
+        setAcademicField(field);
+
+        // Frontend Sync: Manage session portal based on consent
+        setPortal(prev => {
+          const consent = localStorage.getItem('scholarhub_cookie_consent') === 'true';
+          let proPortal = prev || mapAcademicFieldToPortal(field);
+
+          if (consent) {
+            const stored = localStorage.getItem('last_used_portal');
+            if (stored) proPortal = stored;
+          }
+          if (prev !== proPortal) {
+            sessionStorage.setItem('active_portal', proPortal);
+            setTimeout(() => hydratePortalState(proPortal), 0);
+            return proPortal;
+          }
+          if (!prev) {
+            const def = mapAcademicFieldToPortal(field);
+            sessionStorage.setItem('active_portal', def);
+            setTimeout(() => hydratePortalState(def), 0);
+            return def;
+          }
+          return prev;
+        });
       } catch (err) {
         console.error("Error fetching tier/profile:", err);
         setProfileError("Database connection issue. Fallback profile loaded.");
@@ -865,6 +841,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       }
     };
     getTierAndProfile();
+
     fetchUserDashboardStats();
 
     // Force re-fetch every 5 minutes

@@ -13,12 +13,18 @@
 
 import { supabase } from '../supabaseClient';
 
-export const PRIMARY_URL = 'https://scholarhub-backend-jjt3.onrender.com';
-export const BACKUP_URL = 'https://arup-vivobook-asuslaptop-x509dj-d509dj.taila8249c.ts.net';
-export const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+export const PRIMARY_URL = 'https://api.scholarhub-ai.com';
+export const RENDER_FALLBACK_URL = 'https://scholarhub-backend-jjt3.onrender.com';
+export const BACKUP_URL = 'https://local-api.scholarhub-ai.com';
+export const TAILSCALE_FALLBACK_URL = 'https://arup-vivobook-asuslaptop-x509dj-d509dj.taila8249c.ts.net';
+export const BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? PRIMARY_URL : 'http://localhost:8000');
+
+// All production known backend origins for the auto-fallback interceptor
+const KNOWN_PRIMARY_PREFIXES = [PRIMARY_URL, RENDER_FALLBACK_URL, BASE_URL].filter(Boolean);
+const BACKUP_CANDIDATES = [BACKUP_URL, RENDER_FALLBACK_URL, TAILSCALE_FALLBACK_URL];
 
 // ─── Auto-Fallback Fetch Interceptor ───
-// Overrides the native window.fetch to provide seamless failover
+// Overrides the native window.fetch to provide seamless multi-tier failover
 const originalFetch = window.fetch;
 window.fetch = async function(resource, config) {
   let urlStr = typeof resource === 'string' ? resource : (resource instanceof Request ? resource.url : String(resource));
@@ -33,25 +39,30 @@ window.fetch = async function(resource, config) {
   } catch (error) {
     // Only attempt backup fallback for production backend URLs, not localhost development
     const isLocalhost = urlStr && (urlStr.includes('localhost') || urlStr.includes('127.0.0.1'));
-    if (!isLocalhost && urlStr && (urlStr.startsWith(PRIMARY_URL) || urlStr.startsWith(BASE_URL))) {
-      // Silently retry on Backup API
-      
-      let newUrlStr = urlStr.replace(PRIMARY_URL, BACKUP_URL);
-      if (urlStr.startsWith(BASE_URL) && BASE_URL !== PRIMARY_URL) {
-        newUrlStr = urlStr.replace(BASE_URL, BACKUP_URL);
+    const matchedPrefix = !isLocalhost && KNOWN_PRIMARY_PREFIXES.find(p => urlStr && urlStr.startsWith(p));
+    
+    if (matchedPrefix) {
+      // Sequentially attempt backup candidates
+      for (const candidateUrl of BACKUP_CANDIDATES) {
+        if (candidateUrl === matchedPrefix) continue; // Skip identical
+        try {
+          const newUrlStr = urlStr.replace(matchedPrefix, candidateUrl);
+          let newResource = resource;
+          if (typeof resource === 'string') {
+            newResource = newUrlStr;
+          } else if (resource instanceof Request) {
+            newResource = new Request(newUrlStr, resource);
+          }
+          const backupRes = await originalFetch(newResource, config);
+          if (backupRes && backupRes.status < 500) {
+            return backupRes;
+          }
+        } catch (backupErr) {
+          // Continue to next candidate
+        }
       }
-
-      let newResource = resource;
-      if (typeof resource === 'string') {
-        newResource = newUrlStr;
-      } else if (resource instanceof Request) {
-        newResource = new Request(newUrlStr, resource);
-      }
-
-      // Return the backup fetch promise, executing seamlessly
-      return await originalFetch(newResource, config);
     }
-    // Not a backend request or another error, throw normally
+    // Not a backend request or all candidates exhausted, throw normally
     throw error;
   }
 };

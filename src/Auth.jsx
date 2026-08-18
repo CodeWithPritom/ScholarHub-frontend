@@ -22,7 +22,10 @@ import { BASE_URL } from './utils/api'
 import logo from './assets/images/logo.png'
 import emoImage from './assets/images/EMO.png'
 
+const CLOUDFLARE_SITE_KEY = import.meta.env.VITE_CLOUDFLARE_SITE_KEY || '0x4AAAAAADMiMm356ph5tSi8'
+
 const Auth = () => {
+
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const redirectPath = searchParams.get('redirect')
@@ -106,29 +109,30 @@ const Auth = () => {
       return
     }
     if (!captchaToken) {
-      setError("Please complete the captcha verification.")
+      setError("Please complete the security challenge verification.")
       return
     }
     setLoading(true)
     setError(null)
     setSuccess(null)
     try {
+      // Supabase Auth Reset (Supabase internally calls Cloudflare siteverify with the captchaToken)
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         captchaToken: captchaToken,
         redirectTo: `${window.location.origin}/settings`
       })
       if (error) throw error
 
-      // Also call backend to clear all device sessions and invalidate JWTs
+      // 3. Also call backend to clear all device sessions and invalidate JWTs
       try {
         await fetch(`${BASE_URL}/api/auth/password-reset-with-session-clear`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email.trim().toLowerCase() })
+          body: JSON.stringify({ email: email.trim().toLowerCase(), token: captchaToken })
         })
       } catch (backendErr) {
-        // Non-blocking: if backend call fails, Supabase email was still sent
-        console.warn('[Auth] Backend session clear failed (non-blocking):', backendErr)
+        console.warn('[Auth] Backend session clear notice:', backendErr)
       }
 
       setSuccess(
@@ -144,6 +148,7 @@ const Auth = () => {
       setCaptchaToken('')
     }
   }
+
 
   const handleVerifyOtp = async (e) => {
     e.preventDefault()
@@ -200,14 +205,24 @@ const Auth = () => {
     setError(null)
     setSuccess(null)
 
+    // 1. Mandatory Captcha Check
+    if (!captchaToken) {
+      setError("Please complete the security challenge verification.")
+      setLoading(false)
+      return
+    }
+
     try {
+      // Supabase Auth Call (Supabase internally calls Cloudflare siteverify with the captchaToken)
       if (isLogin) {
+
         const { data: authData, error } = await supabase.auth.signInWithPassword({
           email,
           password,
           options: { captchaToken }
         })
         if (error) throw error
+
 
         // Fetch profile to determine role-based redirect
         if (authData?.user) {
@@ -221,9 +236,19 @@ const Auth = () => {
             // Device Limit Check
             let deviceId = localStorage.getItem('scholarhub_device_id')
             if (!deviceId) {
-              deviceId = crypto.randomUUID()
+              if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                deviceId = crypto.randomUUID()
+              } else {
+                // Fallback UUID v4 generator for non-secure contexts
+                deviceId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                  const r = Math.random() * 16 | 0;
+                  const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                  return v.toString(16);
+                });
+              }
               localStorage.setItem('scholarhub_device_id', deviceId)
             }
+
 
             const { data: devices } = await supabase
               .from('user_devices')
@@ -261,7 +286,8 @@ const Auth = () => {
               .from('profiles')
               .select('role')
               .eq('id', authData.user.id)
-              .single()
+              .maybeSingle()
+
 
             if (profileData?.role === 'admin') {
               navigate(redirectPath || '/admin')
@@ -380,28 +406,49 @@ const Auth = () => {
           <AnimatePresence mode="popLayout">
             {error && (
               <motion.div
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="flex items-start gap-3 p-4 bg-rose-50 border border-rose-100 rounded-2xl mb-6"
+                initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                className={`flex items-start gap-4 p-5 rounded-2xl mb-6 border transition-all ${
+                  typeof error === 'string' && error.includes('2 devices')
+                    ? 'bg-amber-50/80 border-amber-200/70 shadow-sm shadow-amber-100/50'
+                    : 'bg-rose-50 border-rose-100'
+                }`}
               >
-                <AlertCircle size={16} className="text-rose-500 shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-xs font-bold text-rose-700 leading-snug">{error}</p>
-                  {typeof error === 'string' && error.includes('2 devices') && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsForgotPassword(true);
-                        setError(null);
-                      }}
-                      className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-rose-200"
-                    >
-                      Reset Password to Clear Devices
-                    </button>
-                  )}
-                </div>
+                {typeof error === 'string' && error.includes('2 devices') ? (
+                  <>
+                    <Lock size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-amber-800 leading-snug">
+                        Device Limit Reached (2 of 2)
+                      </p>
+                      <p className="text-xs font-semibold text-amber-700 mt-2 leading-relaxed">
+                        You are already logged in on 2 devices. If you want to use ScholarHub on this device, please click the button below to reset your password. This will automatically sign out all other devices and register this one.
+                      </p>
+                      <div className="mt-4">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsForgotPassword(true);
+                            setError(null);
+                          }}
+                          className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-700 active:scale-[0.98] text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-amber-200"
+                        >
+                          Forgot Password? Reset & Take Over
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle size={16} className="text-rose-500 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-rose-700 leading-snug">{error}</p>
+                    </div>
+                  </>
+                )}
               </motion.div>
             )}
             {success && (
+
               <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 className="flex items-start gap-3 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl mb-6"
@@ -441,8 +488,17 @@ const Auth = () => {
 
                     {/* Turnstile for both Login and Signup Step 1 */}
                     <div className="flex justify-center pt-2">
-                      <Turnstile ref={turnstileRef} siteKey="0x4AAAAAADMiMm356ph5tSi8" onSuccess={(token) => setCaptchaToken(token)} options={{ theme: 'light' }} />
+                      <Turnstile 
+                        ref={turnstileRef} 
+                        siteKey={CLOUDFLARE_SITE_KEY} 
+                        onSuccess={(token) => setCaptchaToken(token)} 
+                        options={{ 
+                          theme: 'light',
+                          action: isLogin ? 'login' : 'signup'
+                        }} 
+                      />
                     </div>
+
 
                     <button type="submit" disabled={loading || !captchaToken}
                       className="w-full mt-2 p-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[14px] font-bold tracking-wide transition-all hover:-translate-y-0.5 shadow-lg shadow-indigo-200 disabled:opacity-50 flex justify-center items-center gap-2"
@@ -482,8 +538,17 @@ const Auth = () => {
                       />
                     </div>
                     <div className="flex justify-center py-2">
-                      <Turnstile ref={turnstileRef} siteKey="0x4AAAAAADMiMm356ph5tSi8" onSuccess={(token) => setCaptchaToken(token)} options={{ theme: 'light' }} />
+                      <Turnstile 
+                        ref={turnstileRef} 
+                        siteKey={CLOUDFLARE_SITE_KEY} 
+                        onSuccess={(token) => setCaptchaToken(token)} 
+                        options={{ 
+                          theme: 'light',
+                          action: 'forgot_password'
+                        }} 
+                      />
                     </div>
+
                     <button type="button" onClick={handleForgotPassword} disabled={loading || !captchaToken}
                       className="w-full p-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[14px] font-bold tracking-wide transition-all hover:-translate-y-0.5 shadow-lg shadow-indigo-200 disabled:opacity-50 flex justify-center items-center gap-2"
                     >

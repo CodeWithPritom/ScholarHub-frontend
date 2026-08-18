@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, MessageSquare, Image, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { BASE_URL } from '../utils/api';
 
 const FeedbackModal = ({ user }) => {
   const [isOpen, setIsOpen] = useState(false);
