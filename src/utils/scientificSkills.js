@@ -120,6 +120,58 @@ export const SCIENTIFIC_SKILLS = [
     description: 'Render phylogenetic trees and genomic sequence alignment hierarchy.',
     promptTemplate: '@phylo Construct phylogenetic tree for SARS-CoV-2 spike protein variants.',
     keywords: ['phylo', 'phylogenetic', 'gene', 'dna', 'tree', 'evolution', 'genomics', 'sequence']
+  },
+  {
+    id: 'stats',
+    engine: 'stats_advisor',
+    triggers: ['@stats', '/stats', '@statistic', '@hypothesistest'],
+    name: 'Statistical Decision Advisor & APA Reporter',
+    category: 'Statistics & Biostatistics',
+    iconName: 'Calculator',
+    badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    accentColor: '#4f46e5',
+    description: 'Determine exact statistical tests (t-test, ANOVA, Mann-Whitney, Regression, Cox survival), assumption checks & APA 7th reporting templates.',
+    promptTemplate: '@stats Recommend the correct statistical test for comparing drug efficacy across 3 patient groups with skewed data.',
+    keywords: ['stats', 'statistics', 'ttest', 't-test', 'anova', 'regression', 'mann-whitney', 'kruskal-wallis', 'p-value', 'power analysis', 'sample size', 'hypothesis']
+  },
+  {
+    id: 'pitch',
+    engine: 'pitch_generator',
+    triggers: ['@pitch', '/pitch', '@3mt', '@presentation', '@defense'],
+    name: 'Scientific Pitch & 3MT Suite',
+    category: 'Scientific Communication',
+    iconName: 'Mic',
+    badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
+    accentColor: '#9333ea',
+    description: 'Generate 1-Minute Elevator Pitch, 3-Minute 3MT Conference Summary, 10-Minute Seminar Script, and Committee Q&A defense answers.',
+    promptTemplate: '@pitch Draft a 3-Minute 3MT conference talk and 1-minute elevator pitch based on our synthesized findings.',
+    keywords: ['pitch', '3mt', 'presentation', 'conference', 'elevator pitch', 'seminar', 'defense', 'speech', 'talk']
+  },
+  {
+    id: 'ethics',
+    engine: 'ai_ethics_shield',
+    triggers: ['@ethics', '/ethics', '@disclosure', '@integrity', '@plagiarism'],
+    name: 'Ethics & Integrity Shield (AI Disclosure & Plagiarism Guard)',
+    category: 'Research Integrity & Ethics',
+    iconName: 'ShieldCheck',
+    badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    accentColor: '#059669',
+    description: 'Generate publication-ready AI disclosure statements (Elsevier, Nature, ICMJE, IEEE, Thesis) and audit citation grounding integrity.',
+    promptTemplate: '@ethics Generate a Nature-compliant AI disclosure statement for this literature synthesis.',
+    keywords: ['ethics', 'disclosure', 'integrity', 'plagiarism', 'ai policy', 'nature', 'elsevier', 'icmje', 'statement', 'hallucination']
+  },
+  {
+    id: 'review',
+    engine: 'peer_reviewer',
+    triggers: ['@review', '/review', '@peerreview', '@critique', '@appraisal'],
+    name: 'The Peer Reviewer (Critical Appraisal & Bias Evaluation)',
+    category: 'Critical Appraisal',
+    iconName: 'Award',
+    badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
+    accentColor: '#d97706',
+    description: 'Aggressive peer-review appraisal: Evaluate methodological weaknesses, Risk of Bias (RoB) matrix, sample size adequacy, and overstated claims.',
+    promptTemplate: '@review Conduct an aggressive peer review of these papers focusing on potential confounding variables and sample size limitations.',
+    keywords: ['review', 'peer review', 'critique', 'appraisal', 'bias', 'confounder', 'methodology weakness', 'limitation', 'robins', 'cochrane']
   }
 ];
 

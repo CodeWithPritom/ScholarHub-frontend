@@ -10,6 +10,7 @@ import { supabase } from '../supabaseClient';
 import { toast } from 'sonner';
 import { generateDnaShareToken } from '../utils/dnaToken';
 import { apiFetch } from '../utils/api';
+import { ProfessorOutreachModal } from '../components/dna/ProfessorOutreachModal';
 
 export default function ResearchDNAPage({ user, profile, onLogout }) {
   const [loading, setLoading] = useState(true);
@@ -17,6 +18,10 @@ export default function ResearchDNAPage({ user, profile, onLogout }) {
   const [bookmarks, setBookmarks] = useState([]);
   const [auditHistory, setAuditHistory] = useState([]);
   const [filterTopic, setFilterTopic] = useState('ALL');
+
+  // AI Professor Outreach Modal State
+  const [selectedProfessorForOutreach, setSelectedProfessorForOutreach] = useState(null);
+  const [isOutreachModalOpen, setIsOutreachModalOpen] = useState(false);
 
   useEffect(() => {
     async function loadResearchData() {
@@ -91,10 +96,64 @@ export default function ResearchDNAPage({ user, profile, onLogout }) {
 
   // Recommended Faculty & ORCID Professors (Matched to user's academic field)
   const recommendedFaculty = useMemo(() => {
-    const isBiotech = academicField.toLowerCase().includes('biotech') || academicField.toLowerCase().includes('genetic') || academicField.toLowerCase().includes('bio');
-    const isComp = academicField.toLowerCase().includes('ai') || academicField.toLowerCase().includes('computer') || academicField.toLowerCase().includes('data');
+    const fieldLower = academicField.toLowerCase();
+    const isPharm = fieldLower.includes('pharm') || fieldLower.includes('drug') || fieldLower.includes('toxicology') || fieldLower.includes('therapeutics') || fieldLower.includes('med chem');
+    const isBiotech = fieldLower.includes('biotech') || fieldLower.includes('genetic') || fieldLower.includes('crispr') || fieldLower.includes('bio');
+    const isComp = fieldLower.includes('ai') || fieldLower.includes('computer') || fieldLower.includes('data') || fieldLower.includes('computational');
+    const isMedical = fieldLower.includes('med') || fieldLower.includes('oncology') || fieldLower.includes('cancer') || fieldLower.includes('immun');
 
-    if (isBiotech) {
+    if (isPharm) {
+      return [
+        {
+          name: 'Prof. Robert Langer, ScD',
+          title: 'Institute Professor & Drug Delivery Pioneer',
+          institution: 'MIT Department of Chemical Engineering / Koch Institute',
+          orcid: '0000-0003-3333-4444',
+          matchScore: 99,
+          hIndex: 310,
+          citations: '385,000+',
+          focus: 'Lipid Nanoparticles, Controlled Release Drug Delivery & mRNA Delivery Systems',
+          topics: ['mRNA Nanoparticles', 'Targeted Drug Delivery', 'Controlled Release', 'Tissue Engineering'],
+          scholarUrl: 'https://orcid.org/0000-0003-3333-4444'
+        },
+        {
+          name: 'Prof. Kevan M. Shokat, PhD',
+          title: 'Professor of Cellular & Molecular Pharmacology & Howard Hughes Medical Institute (HHMI)',
+          institution: 'UC San Francisco (UCSF) / UC Berkeley',
+          orcid: '0000-0001-8590-7741',
+          matchScore: 96,
+          hIndex: 125,
+          citations: '68,000+',
+          focus: 'Chemical Genetics, Targeted Covalent Kinase Inhibitors & KRAS G12C Drug Discovery',
+          topics: ['Kinase Inhibitors', 'Covalent Drug Design', 'KRAS Targeting', 'Chemical Biology'],
+          scholarUrl: 'https://orcid.org/0000-0001-8590-7741'
+        },
+        {
+          name: 'Prof. Carolyn R. Bertozzi, PhD',
+          title: 'Nobel Laureate & Baker Family Director of Sarafan ChEM-H',
+          institution: 'Stanford University Department of Chemistry & ChEM-H',
+          orcid: '0000-0003-0482-5794',
+          matchScore: 95,
+          hIndex: 145,
+          citations: '92,000+',
+          focus: 'Bioorthogonal Chemistry, Targeted Glyco-Immune Therapeutics & Antibody-Enzyme Conjugates',
+          topics: ['Bioorthogonal Chemistry', 'Glycomedicine', 'Targeted Therapeutics', 'Bioconjugation'],
+          scholarUrl: 'https://orcid.org/0000-0003-0482-5794'
+        },
+        {
+          name: 'Prof. Philip S. Low, PhD',
+          title: 'Ralph C. Corley Distinguished Professor of Chemistry & Director',
+          institution: 'Purdue Institute for Drug Discovery',
+          orcid: '0000-0002-6014-9988',
+          matchScore: 92,
+          hIndex: 118,
+          citations: '54,000+',
+          focus: 'Ligand-Targeted Therapeutics, Small Molecule Drug Conjugates (SMDCs) & Intraoperative Imaging',
+          topics: ['Targeted SMDCs', 'Folate Receptor Delivery', 'CAR-T Enhancers', 'Pharmacokinetics'],
+          scholarUrl: 'https://orcid.org/0000-0002-6014-9988'
+        }
+      ];
+    } else if (isBiotech) {
       return [
         {
           name: 'Prof. Jennifer Doudna, PhD',
@@ -160,6 +219,18 @@ export default function ResearchDNAPage({ user, profile, onLogout }) {
           scholarUrl: 'https://orcid.org'
         },
         {
+          name: 'Prof. Regina Barzilay, PhD',
+          title: 'AI Faculty Lead & Professor of Computer Science',
+          institution: 'MIT Jameel Clinic / CSAIL',
+          orcid: '0000-0002-4545-6789',
+          matchScore: 95,
+          hIndex: 115,
+          citations: '72,000+',
+          focus: 'Deep Learning for Antibiotic Discovery, Molecular Property Prediction & Early Cancer Detection',
+          topics: ['AI Drug Discovery', 'Graph Neural Networks', 'Clinical AI'],
+          scholarUrl: 'https://orcid.org'
+        },
+        {
           name: 'Prof. Andrew Ng, PhD',
           title: 'Adjunct Professor & AI Laboratory Lead',
           institution: 'Stanford University Artificial Intelligence Lab',
@@ -169,6 +240,33 @@ export default function ResearchDNAPage({ user, profile, onLogout }) {
           citations: '140,000+',
           focus: 'Deep Learning, Biomedical Pattern Recognition & Automated Diagnostics',
           topics: ['Biomedical AI', 'Computer Vision', 'Clinical Models'],
+          scholarUrl: 'https://orcid.org'
+        }
+      ];
+    } else if (isMedical) {
+      return [
+        {
+          name: 'Prof. Carl H. June, MD',
+          title: 'Richard W. Vague Professor in Immunotherapy',
+          institution: 'Perelman School of Medicine, University of Pennsylvania',
+          orcid: '0000-0002-2345-6789',
+          matchScore: 98,
+          hIndex: 175,
+          citations: '150,000+',
+          focus: 'Chimeric Antigen Receptor (CAR) T-Cell Immunotherapy & Synthetic Immunology',
+          topics: ['CAR-T Cell Therapy', 'Adoptive T-Cell Transfer', 'Oncology'],
+          scholarUrl: 'https://orcid.org'
+        },
+        {
+          name: 'Prof. James P. Allison, PhD',
+          title: 'Nobel Laureate & Chair of Immunology',
+          institution: 'MD Anderson Cancer Center',
+          orcid: '0000-0001-5678-9012',
+          matchScore: 96,
+          hIndex: 155,
+          citations: '135,000+',
+          focus: 'Immune Checkpoint Blockade, CTLA-4/PD-1 Regulation & Tumor Microenvironment',
+          topics: ['Immune Checkpoints', 'T-Cell Activation', 'Cancer Immunotherapy'],
           scholarUrl: 'https://orcid.org'
         }
       ];
@@ -187,16 +285,16 @@ export default function ResearchDNAPage({ user, profile, onLogout }) {
           scholarUrl: 'https://orcid.org'
         },
         {
-          name: 'Prof. Robert Langer, ScD',
-          title: 'Institute Professor & Drug Delivery Pioneer',
-          institution: 'MIT Department of Chemical Engineering',
-          orcid: '0000-0003-3333-4444',
+          name: 'Prof. Frances H. Arnold, PhD',
+          title: 'Nobel Laureate & Linus Pauling Professor of Chemical Engineering',
+          institution: 'California Institute of Technology (Caltech)',
+          orcid: '0000-0002-4027-364X',
           matchScore: 96,
-          hIndex: 310,
-          citations: '380,000+',
-          focus: 'Nanomedicine, Tissue Engineering & Controlled Release Therapeutics',
-          topics: ['mRNA Nanoparticles', 'Drug Delivery', 'Regenerative Medicine'],
-          scholarUrl: 'https://orcid.org'
+          hIndex: 160,
+          citations: '110,000+',
+          focus: 'Directed Evolution of Enzymes, Biocatalysis & Synthetic Chemical Pathways',
+          topics: ['Directed Evolution', 'Enzyme Engineering', 'Green Chemistry'],
+          scholarUrl: 'https://orcid.org/0000-0002-4027-364X'
         }
       ];
     }
@@ -607,18 +705,32 @@ export default function ResearchDNAPage({ user, profile, onLogout }) {
                 </div>
 
                 {/* Action CTA */}
-                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between">
-                  <span className="text-[10px] font-mono text-slate-400">ORCID: {fac.orcid}</span>
+                <div className="pt-3 border-t border-slate-200/60 flex flex-wrap items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setSelectedProfessorForOutreach(fac);
+                        setIsOutreachModalOpen(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl text-xs font-black transition-all shadow-sm shadow-indigo-500/20 hover:scale-[1.02] cursor-pointer"
+                    >
+                      <Sparkles size={13} className="text-indigo-200" />
+                      <span>Draft AI Outreach Email</span>
+                    </button>
+                  </div>
 
-                  <a
-                    href={fac.scholarUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
-                  >
-                    <span>View ORCID Profile</span>
-                    <ArrowUpRight size={13} />
-                  </a>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono text-slate-400 hidden sm:inline">ORCID: {fac.orcid}</span>
+                    <a
+                      href={fac.scholarUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all shadow-xs"
+                    >
+                      <span>ORCID Profile</span>
+                      <ExternalLink size={12} />
+                    </a>
+                  </div>
                 </div>
 
               </div>
@@ -812,6 +924,17 @@ export default function ResearchDNAPage({ user, profile, onLogout }) {
             </div>
           </div>
         )}
+
+        {/* AI Professor Outreach Drafter Modal */}
+        <ProfessorOutreachModal
+          isOpen={isOutreachModalOpen}
+          onClose={() => setIsOutreachModalOpen(false)}
+          professor={selectedProfessorForOutreach}
+          academicField={academicField}
+          userName={userName}
+          userTier={userTier}
+          shareToken={shareToken}
+        />
       </div>
     </WorkspaceLayout>
   );

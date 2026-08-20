@@ -16,7 +16,54 @@ body {
   background-color: var(--color-sds-bg);
   color: var(--color-sds-text);
   font-family: var(--font-sds-ui);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
 }
+
+/* Fast tap response & eliminate 300ms mobile delay */
+button, a, input, select, textarea, [role="button"] {
+  touch-action: manipulation;
+}
+
+/* Momentum scrolling for iOS & Android */
+.smooth-scroll, [data-scroll-container] {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* Safe Area Inset Support for iPhone Notch / Dynamic Island / Android Navigation Bar */
+.safe-top {
+  padding-top: max(env(safe-area-inset-top, 0px), 12px);
+}
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 12px);
+}
+
+/* Mobile-Specific Hardware Acceleration & Layout Stability */
+@media (max-width: 768px) {
+  /* Prevent iOS Safari auto-zooming into inputs and distorting UI layout */
+  input:not([type="checkbox"]):not([type="radio"]), 
+  textarea, 
+  select {
+    font-size: 16px !important;
+  }
+
+  /* Optimize heavy GPU filters on mobile to ensure locked 60-120 FPS */
+  .backdrop-blur-xl, .backdrop-blur-2xl, .backdrop-blur-3xl {
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+  }
+
+  /* Hardware acceleration for mobile cards & modals */
+  .mobile-card, .mobile-modal {
+    transform: translateZ(0);
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+  }
+}
+
 .research-text {
   line-height: 1.75;
 }

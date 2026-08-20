@@ -48,6 +48,7 @@ import About from './pages/About'
 import PaperDetail from './components/PaperDetail'
 import AIReport from './components/AIReport'
 import SupportBot from './components/SupportBot'
+import MobileBottomNav from './components/MobileBottomNav'
 
 /**
  * SessionExpiryRedirector — Must live inside <BrowserRouter> to access useNavigate.
@@ -817,6 +818,7 @@ function App() {
             <Route path="/news" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}><NewsHub user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense>} />
             <Route path="/opportunities" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div></div>}><OpportunityHub user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense>} />
             <Route path="/academy" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div></div>}><AcademyHub user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense>} />
+            <Route path="/dna" element={<Navigate to="/research-dna" replace />} />
             <Route path="/research-dna" element={<ProtectedRoute user={user}><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-violet-600 border-t-transparent rounded-full animate-spin"></div></div>}><ResearchDNAPage user={user} profile={profile} onLogout={handleLogout} /></Suspense></ProtectedRoute>} />
             <Route path="/dna/:shareToken" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-950 text-white"><div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div></div>}><PublicResearchDNAPage /></Suspense>} />
             <Route path="/pricing" element={<Pricing user={user} profile={profile} />} />
@@ -837,6 +839,8 @@ function App() {
             <Route path="/about" element={<About />} />
             <Route path="/shared/:shareToken" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-950 text-white"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>}><SharedAudit user={user} /></Suspense>} />
           </Routes>
+          {/* Mobile Native Bottom Navigation Bar */}
+          <MobileBottomNav user={user} />
         </>
       )}
     </BrowserRouter>

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 import { BASE_URL, fireSessionExpired } from '../utils/api'
+import { APICostObservability } from '../components/admin/APICostObservability'
 
 // Status Badge Component
 const StatusBadge = ({ status }) => {
@@ -1311,12 +1312,13 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
       <div className="md:hidden bg-white border-b border-slate-200 px-3 py-2 flex items-center gap-1.5 overflow-x-auto scrollbar-none whitespace-nowrap z-20 shrink-0">
         {[
           { id: 'overview', label: 'Overview', icon: LayoutDashboardIcon },
+          { id: 'api_monitoring', label: 'API & Costs', icon: DollarSign },
           { id: 'ai_routing', label: 'AI Engine', icon: Cpu },
           { id: 'ai_gateway', label: 'AI Gateway', icon: Sliders },
           { id: 'upstash', label: 'Upstash', icon: Database },
           { id: 'intelligence', label: 'Intelligence', icon: Radio },
           { id: 'users', label: 'Users', icon: Users },
-           { id: 'payments', label: 'Payments', icon: CreditCard, badge: pendingPayments.length },
+          { id: 'payments', label: 'Payments', icon: CreditCard, badge: pendingPayments.length },
           { id: 'coupons', label: 'Coupons', icon: Percent },
           { id: 'announcements', label: 'Announce', icon: Megaphone },
           { id: 'feedback', label: 'Feedback', icon: MessageSquare },
@@ -1354,7 +1356,8 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
             <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest px-3 mb-2 block">Command Menu</span>
             
             {[
-              { id: 'overview', label: 'Overview & Burn Rate', icon: LayoutDashboardIcon },
+              { id: 'overview', label: 'Overview & Health', icon: LayoutDashboardIcon },
+              { id: 'api_monitoring', label: 'API & Cost Center', icon: DollarSign },
               { id: 'ai_routing', label: 'AI Resolver Engine', icon: Cpu },
               { id: 'ai_gateway', label: 'Universal AI Gateway', icon: Sliders },
               { id: 'upstash', label: 'Upstash & DB Metrics', icon: Database },
@@ -1405,6 +1408,9 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
 
         {/* Dashboard Content */}
         <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
+          {activeTab === 'api_monitoring' && (
+            <APICostObservability apiFetch={apiFetch} />
+          )}
           {activeTab === 'ai_routing' && (
             <AIRoutingSettings authToken={authToken} apiFetch={apiFetch} />
           )}

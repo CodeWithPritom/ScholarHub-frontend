@@ -280,7 +280,8 @@ export default function SuccessStories3D() {
       {/* ─── R3F Canvas (inside-sphere view) ─── */}
       <Canvas
         camera={{ position: [0, 0, 0.1], fov: 80 }}
-        gl={{ antialias: true }}
+        dpr={typeof window !== 'undefined' && window.innerWidth < 768 ? [1, 1.5] : [1, 2]}
+        gl={{ antialias: true, powerPreference: 'high-performance' }}
       >
         <color attach="background" args={['#000000']} />
         <ambientLight intensity={1.2} />

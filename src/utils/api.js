@@ -62,13 +62,17 @@ window.fetch = async function(resource, config) {
         if (candidateUrl === matchedPrefix) continue; // Skip identical
         try {
           const newUrlStr = urlStr.replace(matchedPrefix, candidateUrl);
-          let newResource = resource;
-          if (typeof resource === 'string') {
-            newResource = newUrlStr;
-          } else if (resource instanceof Request) {
-            newResource = new Request(newUrlStr, resource);
+          let newResource = newUrlStr;
+          let newConfig = config;
+          if (resource instanceof Request) {
+            try {
+              newResource = resource.clone();
+              newResource = new Request(newUrlStr, newResource);
+            } catch (cloneErr) {
+              newResource = newUrlStr;
+            }
           }
-          const backupRes = await originalFetch(newResource, config);
+          const backupRes = await originalFetch(newResource, newConfig);
           if (backupRes && backupRes.status < 500) {
             return backupRes;
           }

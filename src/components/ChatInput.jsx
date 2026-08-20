@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, Paperclip, Folder, Search, Mic, Lock, Square, X, 
   Sparkles, Zap, FlaskConical, Calculator, Globe, Box, Share2, 
-  BarChart3, Workflow, Dna, Command
+  BarChart3, Workflow, Dna, Command, ShieldCheck, Award
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SCIENTIFIC_SKILLS, findSkillsByQuery } from '../utils/scientificSkills';
@@ -17,7 +17,10 @@ const ICON_MAP = {
   Share2,
   BarChart3,
   Workflow,
-  Dna
+  Dna,
+  ShieldCheck,
+  Award,
+  Mic
 };
 
 export const ChatInput = React.memo(({ 

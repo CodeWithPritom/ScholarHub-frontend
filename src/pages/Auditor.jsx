@@ -5,7 +5,8 @@ import {
   ArrowLeft, Search, Plus, ChevronDown, Check,
   BookOpen, FileUp, X, ExternalLink, RefreshCw, ChevronRight,
   Copy, Download, Layout, ZoomIn, ZoomOut, FileSpreadsheet, FolderPlus, Loader2, CheckCircle, Quote, Share2,
-  Paperclip, Folder, AlertCircle, Lock, Mic, Sparkles, Pencil, FileText, ThumbsUp, ThumbsDown, Image as ImageIcon, Clock
+  Paperclip, Folder, AlertCircle, Lock, Mic, Sparkles, Pencil, FileText, ThumbsUp, ThumbsDown, Image as ImageIcon, Clock,
+  Calculator, ShieldCheck, Award
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../supabaseClient';
@@ -27,6 +28,9 @@ import { VisualDispatcher } from '../components/uve/VisualDispatcher';
 import { MermaidDiagram } from '../components/MermaidDiagram';
 import ChatInput from '../components/ChatInput';
 import { ShareModal } from '../components/ShareModal';
+import { StatsAdvisorModal } from '../components/tools/StatsAdvisorModal';
+import { AIDisclosureModal } from '../components/tools/AIDisclosureModal';
+import { ScientificPitchModal } from '../components/tools/ScientificPitchModal';
 import { 
   downloadFile, 
   generateBibTeX, 
@@ -890,6 +894,9 @@ const Auditor = ({ user, onLogout }) => {
   const [exportCount, setExportCount] = useState(0);
   const [latestHistorySession, setLatestHistorySession] = useState(null);
   const [showWorkspaceLimitModal, setShowWorkspaceLimitModal] = useState(false);
+  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+  const [isDisclosureModalOpen, setIsDisclosureModalOpen] = useState(false);
+  const [isPitchModalOpen, setIsPitchModalOpen] = useState(false);
 
   // Refs & Scroll Intent
   const recognitionRef = useRef(null);
@@ -3155,6 +3162,8 @@ const Auditor = ({ user, onLogout }) => {
                             <option value="research">🔬 Research Agent</option>
                             <option value="report" disabled={userTier === 'free'}>📄 Research Report {userTier === 'free' ? '🔒' : ''}</option>
                             <option value="systematic">📋 Semantic Review</option>
+                            <option value="peer_review">⚖️ The Peer Reviewer (Critical Appraisal)</option>
+                            <option value="pitch">🎙️ Scientific Pitch Suite</option>
                             <option value="chat">💬 Chat with papers</option>
                           </select>
                           <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -3679,7 +3688,7 @@ const Auditor = ({ user, onLogout }) => {
                 >
 
                   {/* Left Pane: Conversation */}
-                  <div className={`flex flex-col relative overflow-hidden h-[80vh] lg:h-full bg-slate-50/50 transition-all duration-300 rounded-2xl lg:rounded-none shrink-0 lg:shrink ${showRightPane && !isMobile ? 'lg:w-[60%] lg:flex-none' : 'w-full lg:flex-1'}`}>
+                  <div className={`flex flex-col relative overflow-hidden h-[80dvh] lg:h-full bg-slate-50/50 transition-all duration-300 rounded-2xl lg:rounded-none shrink-0 lg:shrink ${showRightPane && !isMobile ? 'lg:w-[60%] lg:flex-none' : 'w-full lg:flex-1'}`}>
                     {/* Conversation Header (Sleek Single Horizontal Row on Mobile) */}
                     <div className="px-3 sm:px-6 py-2.5 bg-white border-b border-slate-200/80 flex items-center justify-between gap-2 shrink-0 relative z-50">
                       {/* Left: Active Workflow Badge */}
@@ -3690,8 +3699,38 @@ const Auditor = ({ user, onLogout }) => {
                         {activeWorkflow === 'chat' && <><span>💬</span> <span className="hidden xs:inline">Chat with papers</span><span className="xs:hidden">Chat</span></>}
                       </div>
 
-                      {/* Right: Actions Row (Share, Export & New Chat) */}
+                      {/* Right: Actions Row (Mastery Tools, Share, Export & New Chat) */}
                       <div className="flex items-center gap-1.5 sm:gap-2 relative z-50">
+                        {/* Stats Advisor Launcher */}
+                        <button
+                          onClick={() => setIsStatsModalOpen(true)}
+                          title="Statistical Test Selector & APA 7th Reporter (Skill #6)"
+                          className="p-2 sm:px-3 sm:py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all shadow-2xs cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap min-h-[38px]"
+                        >
+                          <Calculator size={15} className="text-indigo-600" />
+                          <span className="hidden xl:inline">Stats Advisor</span>
+                        </button>
+
+                        {/* AI Disclosure Launcher */}
+                        <button
+                          onClick={() => setIsDisclosureModalOpen(true)}
+                          title="Generate Publication-Ready AI Ethics & Disclosure Statement (Nature, Elsevier, ICMJE)"
+                          className="p-2 sm:px-3 sm:py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all shadow-2xs cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap min-h-[38px]"
+                        >
+                          <ShieldCheck size={15} className="text-emerald-600" />
+                          <span className="hidden xl:inline">AI Disclosure</span>
+                        </button>
+
+                        {/* Scientific Pitch Suite Launcher */}
+                        <button
+                          onClick={() => setIsPitchModalOpen(true)}
+                          title="Scientific Pitch & 3-Minute Thesis (3MT) Generator (Skill #10)"
+                          className="p-2 sm:px-3 sm:py-2 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all shadow-2xs cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap min-h-[38px]"
+                        >
+                          <Mic size={15} className="text-purple-600" />
+                          <span className="hidden xl:inline">Pitch Suite</span>
+                        </button>
+
                         {/* Share Button */}
                         {messages.length > 0 && (
                           <button
@@ -4788,6 +4827,27 @@ const Auditor = ({ user, onLogout }) => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* ─── Academic Mastery Suite Modals (10 Pillars of Research) ─── */}
+        <StatsAdvisorModal
+          isOpen={isStatsModalOpen}
+          onClose={() => setIsStatsModalOpen(false)}
+        />
+
+        <AIDisclosureModal
+          isOpen={isDisclosureModalOpen}
+          onClose={() => setIsDisclosureModalOpen(false)}
+          userName={user?.user_metadata?.full_name || user?.email?.split('@')[0] || ''}
+          academicField={profile?.academic_field || 'General Research'}
+        />
+
+        <ScientificPitchModal
+          isOpen={isPitchModalOpen}
+          onClose={() => setIsPitchModalOpen(false)}
+          defaultTopic={query || (activePapers[0]?.title || '')}
+          articles={activePapers}
+          academicField={profile?.academic_field || 'General Research'}
+        />
       </div>
     </WorkspaceLayout>
   );

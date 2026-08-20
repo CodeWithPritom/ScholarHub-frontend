@@ -43,6 +43,7 @@ const MyLibrary = ({ user, onLogout }) => {
   const [editingAlbum, setEditingAlbum] = useState(null)
   const [editAlbumName, setEditAlbumName] = useState('')
   const [deletingAlbum, setDeletingAlbum] = useState(null)
+  const [showZoteroGuide, setShowZoteroGuide] = useState(false)
 
   const showToast = (message, type = 'success') => {
     if (type === 'success') toast.success(message)
@@ -53,6 +54,30 @@ const MyLibrary = ({ user, onLogout }) => {
     const citation = generateCitation(paper.full_metadata || paper, 'apa');
     navigator.clipboard.writeText(citation);
     toast.success('Citation copied to clipboard!');
+  };
+
+  const handleExportRIS = (targetPapers = null) => {
+    const list = targetPapers || filteredBookmarks.map(b => b.full_metadata || b);
+    if (!list || list.length === 0) return toast.error('No papers to export.');
+    const risData = generateRIS(list);
+    downloadFile(risData, `ScholarHub_Zotero_Sync_${Date.now()}.ris`, 'application/x-research-info-systems;charset=utf-8;');
+    toast.success(`Exported ${list.length} paper(s) to Zotero/Mendeley (.ris)!`);
+  };
+
+  const handleExportBibTeX = (targetPapers = null) => {
+    const list = targetPapers || filteredBookmarks.map(b => b.full_metadata || b);
+    if (!list || list.length === 0) return toast.error('No papers to export.');
+    const bibData = generateBibTeX(list);
+    downloadFile(bibData, `ScholarHub_BibTeX_${Date.now()}.bib`, 'application/x-bibtex;charset=utf-8;');
+    toast.success(`Exported ${list.length} paper(s) to BibTeX (.bib)!`);
+  };
+
+  const handleCopyAllBibTeX = () => {
+    const list = filteredBookmarks.map(b => b.full_metadata || b);
+    if (!list || list.length === 0) return toast.error('No papers to copy.');
+    const bibData = generateBibTeX(list);
+    navigator.clipboard.writeText(bibData);
+    toast.success(`Copied BibTeX for ${list.length} paper(s) to clipboard!`);
   };
 
   useEffect(() => {
@@ -306,13 +331,49 @@ const MyLibrary = ({ user, onLogout }) => {
             </div>
 
             {filteredBookmarks.length > 0 && (
-              <div className="relative">
-                <button
-                  onClick={() => setShowExportMenu(!showExportMenu)}
-                  className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer shadow-sm"
-                >
-                  Export Collection <ChevronDown size={14} />
-                </button>
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Zotero & Mendeley Bridge 1-Click Buttons */}
+                <div className="hidden sm:flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80">
+                  <button
+                    onClick={() => handleExportRIS()}
+                    className="px-3 py-1.5 bg-white hover:bg-purple-50 text-purple-700 hover:border-purple-200 border border-slate-200/80 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    title="Export Research Information Systems file for Zotero, Mendeley & EndNote"
+                  >
+                    <span>📁</span> <span>Zotero (.ris)</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleExportBibTeX()}
+                    className="px-3 py-1.5 bg-white hover:bg-indigo-50 text-indigo-700 hover:border-indigo-200 border border-slate-200/80 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    title="Export BibTeX file for LaTeX, Overleaf & Typst"
+                  >
+                    <span>📜</span> <span>BibTeX (.bib)</span>
+                  </button>
+
+                  <button
+                    onClick={handleCopyAllBibTeX}
+                    className="px-2.5 py-1.5 hover:bg-white text-slate-600 hover:text-slate-900 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                    title="Copy all BibTeX citations to clipboard"
+                  >
+                    <Copy size={13} />
+                  </button>
+
+                  <button
+                    onClick={() => setShowZoteroGuide(true)}
+                    className="px-2 py-1.5 text-[11px] font-bold text-slate-500 hover:text-purple-700 hover:bg-white rounded-xl transition-colors cursor-pointer"
+                    title="How to sync with Zotero Desktop"
+                  >
+                    <AlertCircle size={13} />
+                  </button>
+                </div>
+
+                <div className="relative">
+                  <button
+                    onClick={() => setShowExportMenu(!showExportMenu)}
+                    className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer shadow-sm"
+                  >
+                    More Formats <ChevronDown size={14} />
+                  </button>
 
                 {showExportMenu && (
                   <>
@@ -381,6 +442,7 @@ const MyLibrary = ({ user, onLogout }) => {
                     </div>
                   </>
                 )}
+                </div>
               </div>
             )}
           </div>
@@ -603,6 +665,74 @@ const MyLibrary = ({ user, onLogout }) => {
                 </div>
               </div>
             </motion.div>
+          </div>
+        )}
+
+        {/* ─── Zotero & Mendeley Sync Guide Modal ─── */}
+        {showZoteroGuide && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-5">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center font-black text-sm">
+                    Z/M
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 leading-tight">
+                      Zotero & Mendeley 1-Click Sync Bridge
+                    </h3>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                      Direct reference ecosystem for PhD & graduate researchers
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowZoteroGuide(false)}
+                  className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-colors cursor-pointer"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs text-slate-700 font-medium">
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/70 flex items-start gap-3">
+                  <span className="w-5 h-5 rounded-full bg-purple-600 text-white font-black text-[11px] flex items-center justify-center shrink-0 mt-0.5">1</span>
+                  <div>
+                    <strong className="text-slate-900 block">Download .RIS or .BIB File</strong>
+                    Click <strong>"Zotero (.ris)"</strong> or <strong>"BibTeX (.bib)"</strong> above to download your full active library collection.
+                  </div>
+                </div>
+
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/70 flex items-start gap-3">
+                  <span className="w-5 h-5 rounded-full bg-purple-600 text-white font-black text-[11px] flex items-center justify-center shrink-0 mt-0.5">2</span>
+                  <div>
+                    <strong className="text-slate-900 block">Drag & Drop into Zotero / Mendeley</strong>
+                    Simply drag the downloaded <code className="bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded font-mono text-[10px]">.ris</code> file directly into the Zotero or Mendeley window.
+                  </div>
+                </div>
+
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/70 flex items-start gap-3">
+                  <span className="w-5 h-5 rounded-full bg-purple-600 text-white font-black text-[11px] flex items-center justify-center shrink-0 mt-0.5">3</span>
+                  <div>
+                    <strong className="text-slate-900 block">Instant Metadata & Full Citation Sync</strong>
+                    Zotero will automatically index all author names, journal titles, DOIs, publication years, and abstract notes!
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-3">
+                <button
+                  onClick={() => {
+                    setShowZoteroGuide(false);
+                    handleExportRIS();
+                  }}
+                  className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <span>📁 Download Zotero .RIS Now</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </AnimatePresence>
