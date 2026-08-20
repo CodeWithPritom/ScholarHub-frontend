@@ -19,16 +19,18 @@ export const BACKUP_URL = 'https://local-api.scholarhub-ai.com';
 export const TAILSCALE_FALLBACK_URL = 'https://arup-vivobook-asuslaptop-x509dj-d509dj.taila8249c.ts.net';
 export const getBaseUrl = () => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-  if (typeof window !== 'undefined' && window.location) {
+  if (typeof window !== 'undefined' && window.location && window.location.hostname) {
     const host = window.location.hostname;
-    if (host && host !== 'localhost' && host !== '127.0.0.1') {
-      return PRIMARY_URL;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return 'http://localhost:8000';
     }
   }
-  return import.meta.env.PROD ? PRIMARY_URL : 'http://localhost:8000';
+  return PRIMARY_URL;
 };
 
-export const BASE_URL = getBaseUrl();
+export const BASE_URL = typeof window !== 'undefined' && window.location && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:8000'
+  : (import.meta.env.VITE_API_URL || PRIMARY_URL);
 
 // All production known backend origins for the auto-fallback interceptor
 const KNOWN_PRIMARY_PREFIXES = [PRIMARY_URL, RENDER_FALLBACK_URL, BASE_URL].filter(Boolean);
