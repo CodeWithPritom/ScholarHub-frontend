@@ -540,18 +540,18 @@ const MyLibrary = ({ user, onLogout }) => {
       <AnimatePresence>
         {selectedDetailPaper && (
           <div 
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fadeIn"
+            className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-sm p-3 sm:p-6 flex min-h-full items-center justify-center animate-in fade-in duration-200"
             onClick={() => setSelectedDetailPaper(null)}
           >
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="w-full max-w-2xl bg-slate-50 border border-slate-200 rounded-[2rem] flex flex-col max-h-[85vh] shadow-2xl overflow-hidden text-slate-900"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-2xl bg-slate-50 border border-slate-200 rounded-3xl flex flex-col max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] shadow-2xl overflow-hidden text-slate-900 my-auto overscroll-contain"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="p-6 border-b border-slate-200 bg-white flex items-start justify-between shrink-0 gap-4">
+              <div className="p-4 sm:p-6 border-b border-slate-200 bg-white flex items-start justify-between shrink-0 gap-4">
                 <div className="flex-1 min-w-0">
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider mb-2">
                     {selectedDetailPaper.source || 'Database'} Record
@@ -562,13 +562,14 @@ const MyLibrary = ({ user, onLogout }) => {
                       Verified Metadata
                     </span>
                   )}
-                  <h3 className="text-xl font-black text-slate-900 leading-snug">
+                  <h3 className="text-lg sm:text-xl font-black text-slate-900 leading-snug">
                     {selectedDetailPaper.title}
                   </h3>
                 </div>
                 <button
                   onClick={() => setSelectedDetailPaper(null)}
-                  className="p-2 text-slate-400 hover:text-slate-650 rounded-xl transition-colors cursor-pointer"
+                  className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                  aria-label="Close modal"
                 >
                   <X size={18} />
                 </button>
@@ -670,8 +671,14 @@ const MyLibrary = ({ user, onLogout }) => {
 
         {/* ─── Zotero & Mendeley Sync Guide Modal ─── */}
         {showZoteroGuide && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-5">
+          <div 
+            className="fixed inset-0 z-50 overflow-y-auto p-3 sm:p-6 bg-slate-900/70 backdrop-blur-sm flex min-h-full items-center justify-center animate-in fade-in duration-200"
+            onClick={() => setShowZoteroGuide(false)}
+          >
+            <div 
+              className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-5 sm:p-6 space-y-5 max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] overflow-y-auto my-auto overscroll-contain"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center font-black text-sm">

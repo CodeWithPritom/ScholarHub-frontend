@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../supabaseClient';
-import { BASE_URL } from '../utils/api';
+import { BASE_URL, notifyCreditsUpdated } from '../utils/api';
 import { getOrCreateDeviceId } from '../utils/deviceSync';
 import WorkspaceLayout from '../components/WorkspaceLayout';
 import mermaid from 'mermaid';
@@ -2685,6 +2685,7 @@ const Auditor = ({ user, onLogout }) => {
       setMessages(prev => prev.map(msg => 
         msg.id === tempId ? newAssistantMessage : msg
       ));
+      notifyCreditsUpdated();
 
       // Save or update session in Supabase audit_history table
       try {
@@ -3384,7 +3385,7 @@ const Auditor = ({ user, onLogout }) => {
                                             className="w-full text-left px-4 py-2 hover:bg-slate-50 transition-colors flex flex-col"
                                           >
                                             <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Standard ⚡</span>
-                                            <span className="text-[10px] text-slate-500 mt-0.5">10 Zaps • Quick answers</span>
+                                            <span className="text-[10px] text-slate-500 mt-0.5">50 Zaps • Quick answers</span>
                                           </button>
                                           <button
                                             type="button"
@@ -3392,7 +3393,7 @@ const Auditor = ({ user, onLogout }) => {
                                             className="w-full text-left px-4 py-2 hover:bg-slate-50 transition-colors flex flex-col border-t border-slate-100"
                                           >
                                             <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>Advanced ✨</span>
-                                            <span className="text-[10px] text-slate-500 mt-0.5">50 Zaps • Deep thoroughness</span>
+                                            <span className="text-[10px] text-slate-500 mt-0.5">100 Zaps • Deep thoroughness</span>
                                           </button>
                                           <button
                                             type="button"
@@ -3602,6 +3603,38 @@ const Auditor = ({ user, onLogout }) => {
                     </>
                   )}
 
+                  {/* ─── Academic Mastery Suite Quick Launch Strip (Pre-chat) ─── */}
+                  {!isRefining && (
+                    <div className="w-full flex flex-wrap items-center justify-center gap-2 mt-4">
+                      <button
+                        type="button"
+                        onClick={() => setIsStatsModalOpen(true)}
+                        className="px-3.5 py-2 bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-200/80 text-indigo-700 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Calculator size={14} className="text-indigo-600" />
+                        <span>Biostatistics Test Advisor</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsDisclosureModalOpen(true)}
+                        className="px-3.5 py-2 bg-emerald-50/80 hover:bg-emerald-100 border border-emerald-200/80 text-emerald-700 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer flex items-center gap-1.5"
+                      >
+                        <ShieldCheck size={14} className="text-emerald-600" />
+                        <span>AI Ethics Disclosure Generator</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsPitchModalOpen(true)}
+                        className="px-3.5 py-2 bg-purple-50/80 hover:bg-purple-100 border border-purple-200/80 text-purple-700 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Mic size={14} className="text-purple-600" />
+                        <span>Scientific Pitch & 3MT Suite</span>
+                      </button>
+                    </div>
+                  )}
+
                   {/* ─── Action Cards Grid (visible only pre-chat) ─── */}
                   {!isRefining && (
                     <motion.div
@@ -3609,7 +3642,7 @@ const Auditor = ({ user, onLogout }) => {
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       transition={{ delay: 0.15 }}
-                      className="w-full grid grid-cols-1 md:grid-cols-3 gap-3 mt-6"
+                      className="w-full grid grid-cols-1 md:grid-cols-3 gap-3 mt-4"
                     >
                       {/* Card 1: Resume */}
                       {latestHistorySession ? (
@@ -4769,7 +4802,7 @@ const Auditor = ({ user, onLogout }) => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[300] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+              className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-950/70 backdrop-blur-sm p-4 flex min-h-full items-center justify-center"
               onClick={() => setShowWorkspaceLimitModal(false)}
             >
               <motion.div
@@ -4778,7 +4811,7 @@ const Auditor = ({ user, onLogout }) => {
                 exit={{ opacity: 0, scale: 0.95, y: 10 }}
                 transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                 onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-md mx-4 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden"
+                className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-auto relative"
               >
                 {/* Header */}
                 <div className="px-6 pt-6 pb-4">

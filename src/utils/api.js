@@ -92,6 +92,28 @@ window.fetch = async function(resource, config) {
  */
 export const SESSION_EXPIRED_EVENT = 'scholarhub:session-expired';
 export const DEVICE_ERROR_EVENT = 'scholarhub:device-error';
+export const CREDITS_UPDATED_EVENT = 'scholarhub:credits-updated';
+
+/**
+ * Fires the global credits-updated event so all UI components (Sidebar, Profile, Badges)
+ * reflect real-time credit deductions without requiring page reload.
+ * 
+ * @param {number|null} [remaining] - Optional new credit balance
+ */
+export function notifyCreditsUpdated(remaining) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent(CREDITS_UPDATED_EVENT, {
+        detail: { remaining }
+      })
+    );
+    window.dispatchEvent(
+      new CustomEvent('credits_updated', {
+        detail: { remaining }
+      })
+    );
+  }
+}
 
 /**
  * Fires the global session-expired event.

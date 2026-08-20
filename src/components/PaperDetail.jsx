@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import { generateCitations, copyToClipboard } from '../utils/citationUtils'
 import { formatAbstract } from '../utils/formatters'
-import { BASE_URL } from '../utils/api'
+import { BASE_URL, notifyCreditsUpdated } from '../utils/api'
 import CopyButton from './CopyButton'
 
 import Footer from '../Footer'
@@ -150,6 +150,8 @@ const PaperDetail = ({ user, profile }) => {
       const data = await res.json()
       setOutreachEmail(data.output)
       
+      // Live reactive credit sync
+      notifyCreditsUpdated(data.credits_remaining)
     } catch (err) {
       setOutreachError(err.message)
     } finally {
@@ -675,7 +677,7 @@ const PaperDetail = ({ user, profile }) => {
                     {generatingOutreach ? (
                       <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Drafting Email...</>
                     ) : (
-                      <><Sparkles size={14} /> Generate High-Impact Outreach Email</>
+                      <><Sparkles size={14} /> Draft AI Outreach Email (⚡ 10 Zaps)</>
                     )}
                   </button>
                 ) : (
@@ -687,10 +689,10 @@ const PaperDetail = ({ user, profile }) => {
                           onClick={handleGenerateOutreach}
                           disabled={generatingOutreach}
                           className="text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-100/50 hover:bg-indigo-200/50 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 border border-indigo-200/40"
-                          title="Re-generate email draft"
+                          title="Re-generate email draft (⚡ 10 Zaps)"
                         >
                           <Sparkles size={12} className={generatingOutreach ? "animate-spin" : ""} />
-                          {generatingOutreach ? 'Drafting...' : 'Regenerate'}
+                          {generatingOutreach ? 'Drafting...' : 'Regenerate (⚡ 10 Zaps)'}
                         </button>
                         <button
                           onClick={() => {
@@ -903,16 +905,22 @@ const PaperDetail = ({ user, profile }) => {
 
       {/* Lightbox / Modal for selected figure */}
       {selectedImage && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-[#FAFAF8]/80 backdrop-blur-md" onClick={() => setSelectedImage(null)} />
-          <div className="relative bg-[#FAFAF8] rounded-3xl shadow-2xl p-6 w-full 2xl:px-12 w-full max-h-[90vh] overflow-y-auto border border-slate-100 flex flex-col">
+        <div 
+          className="fixed inset-0 z-[110] overflow-y-auto bg-slate-900/80 backdrop-blur-md p-3 sm:p-6 flex min-h-full items-center justify-center animate-in fade-in duration-200"
+          onClick={() => setSelectedImage(null)}
+        >
+          <div 
+            className="relative bg-white rounded-3xl shadow-2xl p-4 sm:p-6 max-w-4xl w-full max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] overflow-y-auto border border-slate-100 flex flex-col my-auto overscroll-contain"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button 
               onClick={() => setSelectedImage(null)}
-              className="absolute top-4 right-4 bg-slate-100 hover:bg-slate-200 text-[#171717] hover:text-[#171717] font-bold p-2 rounded-full transition-colors z-20 w-8 h-8 flex items-center justify-center"
+              className="absolute top-4 right-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold p-2 rounded-xl transition-colors z-20 w-8 h-8 flex items-center justify-center cursor-pointer"
+              aria-label="Close figure modal"
             >
               ✕
             </button>
-            <div className="flex-1 flex items-center justify-center bg-[#FAFAF8] rounded-2xl border border-slate-100 p-4 min-h-[300px] max-h-[60vh] overflow-hidden mb-6 mt-8">
+            <div className="flex-1 flex items-center justify-center bg-slate-50 rounded-2xl border border-slate-100 p-4 min-h-[250px] max-h-[60vh] overflow-hidden mb-4 mt-6">
               <FigureLoader 
                 fig={selectedImage} 
                 idx={0} 

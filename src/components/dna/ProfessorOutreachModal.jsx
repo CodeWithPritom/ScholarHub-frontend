@@ -5,7 +5,7 @@ import {
   Sliders, MessageSquare, AlertCircle, Info, ArrowUpRight
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { BASE_URL } from '../../utils/api'
+import { BASE_URL, notifyCreditsUpdated } from '../../utils/api'
 import { supabase } from '../../supabaseClient'
 
 export const ProfessorOutreachModal = ({
@@ -117,7 +117,10 @@ export const ProfessorOutreachModal = ({
           setBody(data.output)
         }
       }
-      toast.success('High-impact outreach email crafted specifically for this PI!')
+      
+      // Live reactive credit sync
+      notifyCreditsUpdated(data.credits_remaining)
+      toast.success('High-impact outreach email crafted! (-10 Zaps deducted)')
     } catch (err) {
       setError(err.message)
       toast.error(err.message)
@@ -149,41 +152,48 @@ export const ProfessorOutreachModal = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[92vh] flex flex-col overflow-hidden">
+    <div 
+      className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-950/75 backdrop-blur-md p-3 sm:p-6 md:p-8 flex justify-center items-start sm:items-center animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[calc(100dvh-2.5rem)] sm:max-h-[calc(100dvh-4rem)] flex flex-col overflow-hidden my-auto relative shrink-0"
+        onClick={(e) => e.stopPropagation()}
+      >
         
-        {/* ─── Header ─── */}
-        <div className="p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/70 shrink-0">
-          <div className="flex items-center gap-3">
+        {/* ─── Header (Sticky & Never Cut Off) ─── */}
+        <div className="sticky top-0 z-20 p-4 sm:p-6 border-b border-slate-150 flex items-start justify-between bg-white/95 backdrop-blur-md shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
               <Mail size={20} />
             </div>
-            <div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-[10px] font-black uppercase tracking-wider text-indigo-700 mb-0.5">
-                <Sparkles size={11} /> AI Academic Outreach Architect
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-[10px] font-black uppercase tracking-wider text-indigo-700 mb-0.5 truncate">
+                <Sparkles size={11} className="shrink-0" /> AI Academic Outreach Architect
               </div>
-              <h3 className="text-base font-black text-slate-900 leading-tight">
+              <h3 className="text-sm sm:text-base font-black text-slate-900 leading-tight truncate">
                 Draft Outreach to {professor.name}
               </h3>
-              <p className="text-xs text-slate-500 font-medium flex items-center gap-1.5 mt-0.5">
-                <GraduationCap size={13} className="text-slate-400" />
-                <span>{professor.institution}</span>
+              <p className="text-[11px] sm:text-xs text-slate-500 font-medium flex items-center gap-1.5 mt-0.5 truncate">
+                <GraduationCap size={13} className="text-slate-400 shrink-0" />
+                <span className="truncate">{professor.institution}</span>
                 <span>•</span>
-                <span className="text-emerald-600 font-bold">{professor.matchScore}% Research Match</span>
+                <span className="text-emerald-600 font-bold shrink-0">{professor.matchScore}% Match</span>
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-colors cursor-pointer"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-colors cursor-pointer shrink-0 ml-3"
+            aria-label="Close modal"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         </div>
 
         {/* ─── Body Scrollable ─── */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-slate-200">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 scrollbar-thin scrollbar-thumb-slate-200 overscroll-contain">
           
           {/* Target Professor Snapshot Card */}
           <div className="p-4 bg-gradient-to-r from-indigo-50/60 to-purple-50/60 rounded-2xl border border-indigo-100 space-y-2">
@@ -310,7 +320,7 @@ export const ProfessorOutreachModal = ({
               ) : (
                 <>
                   <Sparkles size={15} />
-                  <span>Generate High-Converting Outreach Email (10 Credits)</span>
+                  <span>Draft AI Outreach Email (⚡ 10 Zaps)</span>
                 </>
               )}
             </button>
@@ -358,13 +368,13 @@ export const ProfessorOutreachModal = ({
               {/* Email Body Field */}
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">
-                  Email Message Body (Editable)
+                  Email Message Body (Editable & Scrollable)
                 </label>
                 <textarea
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
-                  rows={12}
-                  className="w-full bg-[#FAFAF8] border border-slate-200 rounded-2xl p-4 text-xs font-medium leading-[1.8] text-slate-900 focus:outline-none focus:border-indigo-500 font-sans resize-y"
+                  rows={9}
+                  className="w-full bg-[#FAFAF8] border border-slate-200 rounded-2xl p-4 text-xs font-medium leading-[1.8] text-slate-900 focus:outline-none focus:border-indigo-500 font-sans max-h-64 sm:max-h-72 overflow-y-auto overscroll-contain scrollbar-thin resize-y"
                 />
               </div>
             </div>

@@ -1454,25 +1454,64 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Est. Gross MRR</span>
-                    <div className="text-2xl font-black text-slate-900 mt-1">৳{((stats?.tier_counts?.starter || 0) * 150 + (stats?.tier_counts?.pro || 0) * 500).toLocaleString()}</div>
-                    <span className="text-[10px] text-emerald-600 font-bold block mt-1">Based on active subscriptions</span>
+                    <div className="text-2xl font-black text-slate-900 mt-1">
+                      ৳{(((stats?.tier_counts?.starter || 0) * 199) + ((stats?.tier_counts?.pro || 0) * 499)).toLocaleString()}
+                    </div>
+                    <span className="text-[10px] text-emerald-600 font-bold block mt-1">
+                      ~${((((stats?.tier_counts?.starter || 0) * 199) + ((stats?.tier_counts?.pro || 0) * 499)) / 120).toFixed(1)} USD / mo
+                    </span>
                   </div>
 
                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Est. Platform Cost</span>
-                    <div className="text-2xl font-black text-slate-900 mt-1">৳21,600</div>
-                    <span className="text-[10px] text-red-500 font-bold block mt-1">Vercel, Render, DB, APIs</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Platform & API Cost</span>
+                    <div className="text-2xl font-black text-slate-900 mt-1">
+                      ৳{Math.round((7.00 + (upstashMgmt?.estimated_monthly_burn_usd || 1.50)) * 120).toLocaleString()}
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-bold block mt-1">
+                      Render ($7) + Upstash + Tokens (~${(7.00 + (upstashMgmt?.estimated_monthly_burn_usd || 1.50)).toFixed(2)})
+                    </span>
                   </div>
 
                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Net Monthly Profit</span>
-                    <div className={`text-2xl font-black mt-1 ${(((stats?.tier_counts?.starter || 0) * 150 + (stats?.tier_counts?.pro || 0) * 500) - 21600) >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                      ৳{(((stats?.tier_counts?.starter || 0) * 150 + (stats?.tier_counts?.pro || 0) * 500) - 21600).toLocaleString()}
-                    </div>
-                    <span className="text-[10px] text-slate-500 block mt-1">MRR - Platform Cost</span>
+                    {(() => {
+                      const gross = ((stats?.tier_counts?.starter || 0) * 199) + ((stats?.tier_counts?.pro || 0) * 499);
+                      const cost = Math.round((7.00 + (upstashMgmt?.estimated_monthly_burn_usd || 1.50)) * 120);
+                      const net = gross - cost;
+                      return (
+                        <>
+                          <div className={`text-2xl font-black mt-1 ${net >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            ৳{net.toLocaleString()}
+                          </div>
+                          <span className="text-[10px] text-slate-500 block mt-1">
+                            {net >= 0 ? `~+$${(net / 120).toFixed(1)} Net Revenue` : 'Below Breakeven'}
+                          </span>
+                        </>
+                      );
+                    })()}
+                  </div>
+
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Net Profit Margin</span>
+                    {(() => {
+                      const gross = ((stats?.tier_counts?.starter || 0) * 199) + ((stats?.tier_counts?.pro || 0) * 499);
+                      const cost = Math.round((7.00 + (upstashMgmt?.estimated_monthly_burn_usd || 1.50)) * 120);
+                      const net = gross - cost;
+                      const margin = gross > 0 ? Math.round((net / gross) * 100) : 0;
+                      return (
+                        <>
+                          <div className="text-2xl font-black text-indigo-600 mt-1">
+                            {gross > 0 ? `${margin}%` : '0%'}
+                          </div>
+                          <span className="text-[10px] text-emerald-600 font-bold block mt-1">
+                            {gross > 0 && margin > 70 ? '🔥 High SaaS Margin' : 'Profitable Operations'}
+                          </span>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -2263,6 +2302,8 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
                     <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 bg-slate-50 border border-slate-200 rounded-xl">
                       {[
                         { id: 'both', label: 'All Packages (Global)' },
+                        { id: 'starter', label: 'All Starter Plans' },
+                        { id: 'pro', label: 'All Pro Plans' },
                         { id: 'starter_1_month', label: 'Starter 1 Month' },
                         { id: 'starter_3_months', label: 'Starter 3 Months' },
                         { id: 'starter_6_months', label: 'Starter 6 Months' },
@@ -2588,20 +2629,29 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
 
       {/* ── User Deep Dive Modal ── */}
       {showUserModal && selectedUser && (
-        <div className="fixed inset-0 bg-[#FAFAF8]/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200/90 rounded-3xl p-6 md:p-8 max-w-lg w-full space-y-6 shadow-sm relative">
-            <button
-              onClick={() => setShowUserModal(false)}
-              className="absolute top-4 right-4 text-slate-500 hover:text-slate-700 cursor-pointer p-1 rounded-full hover:bg-slate-100"
-            >
-              <X size={20} />
-            </button>
+        <div 
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 overflow-y-auto p-3 sm:p-6 flex min-h-full items-center justify-center animate-in fade-in duration-200"
+          onClick={() => setShowUserModal(false)}
+        >
+          <div 
+            className="bg-white border border-slate-200/90 rounded-3xl p-5 sm:p-8 max-w-lg w-full space-y-5 shadow-2xl relative max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] overflow-y-auto my-auto overscroll-contain"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-base font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <UserCheck size={18} className="text-indigo-600" /> Researcher Deep Dive
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5 font-semibold truncate max-w-xs">{selectedUser.email}</p>
+              </div>
 
-            <div>
-              <h3 className="text-base font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                <UserCheck size={18} className="text-indigo-600" /> Researcher Deep Dive
-              </h3>
-              <p className="text-xs text-slate-500 mt-1 font-semibold">{selectedUser.email}</p>
+              <button
+                onClick={() => setShowUserModal(false)}
+                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                aria-label="Close modal"
+              >
+                <X size={18} />
+              </button>
             </div>
 
             {loadingDeepDive ? (

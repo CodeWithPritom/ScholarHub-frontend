@@ -159,11 +159,15 @@ const Pricing = ({ user, profile }) => {
     const isCouponApplicable = isCouponApplicableFor(tierName)
 
     if (tierName.toLowerCase() === 'starter') {
-      baseNum = duration === '1 month' ? 150 : duration === '3 months' ? 400 : duration === '6 months' ? 750 : 1200;
+      baseNum = duration === '1 month' ? 199 : duration === '3 months' ? 499 : duration === '6 months' ? 899 : 1499;
       planPriceNum = isCouponApplicable ? Math.floor(baseNum * (1 - couponStatus.discount / 100)) : baseNum
     } else if (tierName.toLowerCase() === 'pro') {
-      baseNum = duration === '1 month' ? 500 : duration === '3 months' ? 1350 : duration === '6 months' ? 2500 : 4000;
+      baseNum = duration === '1 month' ? 499 : duration === '3 months' ? 1299 : duration === '6 months' ? 2399 : 3999;
       planPriceNum = isCouponApplicable ? Math.floor(baseNum * (1 - couponStatus.discount / 100)) : baseNum
+    } else if (tierName.toLowerCase() === 'custom') {
+      const text = `Hi Pritom, I am interested in a Custom / Institutional Lab Plan for ScholarHub AI.\nMy email is [${email}]. Please share pricing for multi-seat / department setup.`
+      window.open(`https://wa.me/8801853343176?text=${encodeURIComponent(text)}`, '_blank')
+      return
     }
     
     let text = `Hi Pritom, I want to upgrade to [${tierName.toUpperCase()}] [${duration.toUpperCase()}].\n`
@@ -183,12 +187,16 @@ const Pricing = ({ user, profile }) => {
 
   const isCouponApplicableFor = (tierName) => {
     if (!couponStatus?.success) return false;
-    const applicable = (couponStatus.applicable_tier || 'both').split(',').map(s => s.trim().toLowerCase());
-    if (applicable.includes('both')) return true;
+    const applicableStr = (couponStatus.applicable_tier || 'both').toLowerCase();
+    const applicable = applicableStr.split(',').map(s => s.trim());
+    
+    if (applicable.includes('both') || applicable.includes('all')) return true;
     if (applicable.includes(tierName.toLowerCase())) return true;
     
-    const currentPkg = `${tierName.toLowerCase()}_${duration.replace(' ', '_').toLowerCase()}`;
+    const cleanDuration = duration.replace(' ', '_').toLowerCase();
+    const currentPkg = `${tierName.toLowerCase()}_${cleanDuration}`;
     if (applicable.includes(currentPkg)) return true;
+    if (applicable.includes(cleanDuration)) return true;
     
     return false;
   }
@@ -197,18 +205,20 @@ const Pricing = ({ user, profile }) => {
     {
       name: 'FREE',
       price: '৳0',
-      description: 'Perfect for starting your academic research journey.',
+      description: 'Essential toolkit for undergraduates and early-stage literature exploration.',
       features: [
-
-        { name: '500 Credits / mo', included: true },
-        { name: '10 Exports / mo', included: true },
-        { name: '200 Saved Papers, Unlimited Albums', included: true },
-        { name: 'All databases (NCBI, arXiv, OpenAlex...)', included: true },
-        { name: 'Basic Search Speed (10s Delay)', included: true },
-        { name: 'AI-Powered Email Outreach to Authors', included: false },
-        { name: 'Research Report Mode', included: false },
-        { name: 'Literature Review Synthesis', included: false },
-        { name: 'AI Research Gap Detection', included: false }
+        { name: '500 Compute Credits (Zaps) / mo', included: true },
+        { name: '10 Reference Exports / mo (Zotero & Mendeley)', included: true },
+        { name: '3 PDF Document Uploads / day (Max 10MB)', included: true },
+        { name: '200 Saved Papers & Unlimited Collections', included: true },
+        { name: 'Unified Search (PubMed, arXiv, OpenAlex — 250M+)', included: true },
+        { name: 'AI Disclosure & Ethics Generator (Skill #4)', included: true },
+        { name: 'Standard Search Speed (Normal queue)', included: true },
+        { name: 'Faculty & Author Cold Outreach Drafter (Skill #7)', included: false },
+        { name: 'Stats Advisor & Python/R Script Generator (Skill #6)', included: false },
+        { name: 'Scientific Pitch Suite (1-min, 3-min, Defense Q&A)', included: false },
+        { name: 'The Peer Reviewer & Risk of Bias Matrix (Skill #5)', included: false },
+        { name: 'Deep Reasoning 🧠 Compute Access', included: false }
       ],
       color: 'slate',
       buttonText: user ? (userTier === 'free' ? 'Current Plan' : 'Free Tier') : 'Register & Start Researching',
@@ -217,52 +227,54 @@ const Pricing = ({ user, profile }) => {
     },
     {
       name: 'STARTER',
-      price: duration === '1 month' ? '৳150' : duration === '3 months' ? '৳400' : duration === '6 months' ? '৳750' : '৳1200',
-      basePriceNum: duration === '1 month' ? 150 : duration === '3 months' ? 400 : duration === '6 months' ? 750 : 1200,
-      period: duration === '1 month' ? '/mo' : duration === '3 months' ? '/3 mo' : duration === '6 months' ? '/6 mo' : '/yr',
-      originalPrice: duration === '1 month' ? null : duration === '3 months' ? '৳450' : duration === '6 months' ? '৳900' : '৳1800',
-      savings: duration === '1 month' ? null : duration === '3 months' ? '50' : duration === '6 months' ? '150' : '600',
-      description: 'Higher limits and advanced filters for active researchers.',
+      price: duration === '1 month' ? '৳199' : duration === '3 months' ? '৳499' : duration === '6 months' ? '৳899' : duration === '1 year' ? '৳1,499' : 'Custom Quote',
+      basePriceNum: duration === '1 month' ? 199 : duration === '3 months' ? 499 : duration === '6 months' ? 899 : duration === '1 year' ? 1499 : 0,
+      period: duration === '1 month' ? '/mo' : duration === '3 months' ? '/3 mo' : duration === '6 months' ? '/6 mo' : duration === '1 year' ? '/yr' : '',
+      originalPrice: duration === '1 month' ? null : duration === '3 months' ? '৳597' : duration === '6 months' ? '৳1,194' : duration === '1 year' ? '৳2,388' : null,
+      savings: duration === '1 month' ? null : duration === '3 months' ? '98' : duration === '6 months' ? '295' : duration === '1 year' ? '889' : null,
+      description: 'High-speed synthesis & academic tools for active university & graduate researchers.',
       features: [
-
-        { name: '1500 Credits / mo', included: true },
-        { name: '50 Exports / mo', included: true },
-        { name: '200 Saved Papers, Unlimited Albums', included: true },
-        { name: 'All databases (NCBI, arXiv, OpenAlex...)', included: true },
-        { name: 'High-Speed Search (5s Delay)', included: true },
-        { name: 'AI-Powered Email Outreach to Authors', included: true },
-        { name: 'Research Report Mode', included: true },
-        { name: 'Literature Review Synthesis', included: false },
-        { name: 'AI Research Gap Detection', included: false }
+        { name: '1,500 Compute Credits (Zaps) / mo', included: true },
+        { name: '50 Reference Exports / mo (Zotero, Mendeley, BibTeX)', included: true },
+        { name: '9 PDF Document Uploads / day (Max 25MB)', included: true },
+        { name: 'High-Speed Search (5s Cooldown Bypass)', included: true },
+        { name: 'AI Ethics & Disclosure Statement Generator (Skill #4)', included: true },
+        { name: 'Statistical Test Advisor & Python/R Code (Skill #6)', included: true },
+        { name: 'Scientific Pitch Suite (1-min, 3-min, Defense Q&A)', included: true },
+        { name: 'Research DNA Profile & Supervisor Outreach (Skill #7)', included: true },
+        { name: 'Research Report & Structured Review Mode', included: true },
+        { name: 'The Peer Reviewer & Risk of Bias Matrix (Skill #5)', included: false },
+        { name: 'Deep Reasoning 🧠 Compute Access', included: false }
       ],
       color: 'blue',
-      buttonText: user ? (userTier === 'starter' ? 'Current Plan' : 'Upgrade to Starter') : 'Login to Upgrade',
+      buttonText: user ? (userTier === 'starter' ? 'Current Plan' : duration === 'Custom' ? 'Contact for Lab Quote' : 'Upgrade to Starter') : 'Login to Upgrade',
       isCurrent: userTier === 'starter',
       isUpgrade: true,
       popular: true
     },
     {
       name: 'PRO',
-      price: duration === '1 month' ? '৳500' : duration === '3 months' ? '৳1350' : duration === '6 months' ? '৳2500' : '৳4000',
-      basePriceNum: duration === '1 month' ? 500 : duration === '3 months' ? 1350 : duration === '6 months' ? 2500 : 4000,
-      originalPrice: duration === '1 month' ? null : duration === '3 months' ? '৳1500' : duration === '6 months' ? '৳3000' : '৳6000',
-      savings: duration === '1 month' ? null : duration === '3 months' ? '150' : duration === '6 months' ? '500' : '2000',
-      period: duration === '1 month' ? '/mo' : duration === '3 months' ? '/3 mo' : duration === '6 months' ? '/6 mo' : '/yr',
-      description: 'For power researchers demanding the full Unified IDE experience.',
+      price: duration === '1 month' ? '৳499' : duration === '3 months' ? '৳1,299' : duration === '6 months' ? '৳2,399' : duration === '1 year' ? '৳3,999' : 'Custom Quote',
+      basePriceNum: duration === '1 month' ? 499 : duration === '3 months' ? 1299 : duration === '6 months' ? 2399 : duration === '1 year' ? 3999 : 0,
+      originalPrice: duration === '1 month' ? null : duration === '3 months' ? '৳1,497' : duration === '6 months' ? '৳2,994' : duration === '1 year' ? '৳5,988' : null,
+      savings: duration === '1 month' ? null : duration === '3 months' ? '198' : duration === '6 months' ? '595' : duration === '1 year' ? '1,989' : null,
+      period: duration === '1 month' ? '/mo' : duration === '3 months' ? '/3 mo' : duration === '6 months' ? '/6 mo' : duration === '1 year' ? '/yr' : '',
+      description: 'The ultimate AI Research IDE for PhD candidates, principal investigators & heavy compute.',
       features: [
-
-        { name: '3000 Credits / mo', included: true },
-        { name: '100 Exports / mo', included: true },
-        { name: '200 Saved Papers, Unlimited Albums', included: true },
-        { name: 'All databases (NCBI, arXiv, OpenAlex...)', included: true },
-        { name: 'Instant Search (Zero Delay & Cooldown)', included: true },
-        { name: 'AI-Powered Email Outreach to Authors', included: true },
-        { name: 'Research Report Mode', included: true },
-        { name: 'Literature Review Synthesis', included: true },
-        { name: 'AI Research Gap Detection', included: true }
+        { name: '3,000 Compute Credits (Zaps) / mo', included: true },
+        { name: '100 Reference Exports / mo (Unlimited styles)', included: true },
+        { name: '15 PDF Document Uploads / day (Max 50MB)', included: true },
+        { name: 'Instant Search (Zero cooldown & highest priority)', included: true },
+        { name: 'Deep Reasoning 🧠 Compute (Full Chain-of-Thought)', included: true },
+        { name: 'The Peer Reviewer & Risk of Bias Matrix (Skill #5)', included: true },
+        { name: 'Vision-RAG Multimodal Paper & Chart Parser (Skill #2)', included: true },
+        { name: 'AI Research Gap Detector & Novelty Radar (Skill #3)', included: true },
+        { name: 'Statistical Test Advisor + Python/R Scripts (Skill #6)', included: true },
+        { name: 'Scientific Pitch Suite & Defense Simulator (Skill #8)', included: true },
+        { name: 'Priority 24/7 VIP Admin Support', included: true }
       ],
       color: 'amber',
-      buttonText: user ? (userTier === 'pro' ? 'Current Plan' : 'Upgrade to Pro') : 'Login to Upgrade',
+      buttonText: user ? (userTier === 'pro' ? 'Current Plan' : duration === 'Custom' ? 'Contact for Institutional Quote' : 'Upgrade to Pro') : 'Login to Upgrade',
       isCurrent: userTier === 'pro',
       isUpgrade: true,
       premium: true
@@ -359,7 +371,7 @@ const Pricing = ({ user, profile }) => {
         {/* Duration Toggle */}
         <div className="flex justify-center mb-16 relative z-20 w-full overflow-x-auto pb-4">
           <div className="bg-white p-1.5 rounded-full flex items-center relative gap-1 border border-sds-border min-w-max">
-            {['1 month', '3 months', '6 months', '1 year'].map(opt => (
+            {['1 month', '3 months', '6 months', '1 year', 'Custom'].map(opt => (
               <button
                 key={opt}
                 onClick={() => setDuration(opt)}
@@ -376,7 +388,12 @@ const Pricing = ({ user, profile }) => {
                   {opt}
                   {opt === '1 year' && (
                     <span className="bg-emerald-100 text-emerald-800 text-[9px] px-1.5 py-0.5 rounded-full font-black tracking-wider border border-emerald-300 whitespace-nowrap">
-                      Save 30%+
+                      Save 35%+
+                    </span>
+                  )}
+                  {opt === 'Custom' && (
+                    <span className="bg-purple-100 text-purple-800 text-[9px] px-1.5 py-0.5 rounded-full font-black tracking-wider border border-purple-300 whitespace-nowrap">
+                      Lab / Multi-Seat
                     </span>
                   )}
                 </span>
@@ -506,8 +523,9 @@ const Pricing = ({ user, profile }) => {
           </p>
         </div>
 
+
         {/* Student Outreach Program Section */}
-        <div className="mt-20 w-full 2xl:px-12 mx-auto">
+        <div className="mt-12 w-full 2xl:px-12 mx-auto">
           <div className="bg-white border-2 border-sds-border rounded-[2.5rem] p-10 relative overflow-hidden shadow-sm">
             <div className="absolute -right-10 -top-10 text-slate-950/20">
               <GraduationCap size={200} />
@@ -538,48 +556,46 @@ const Pricing = ({ user, profile }) => {
       {/* Student Verification Modal */}
       <AnimatePresence>
         {isStudentModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-sds-bg/60 backdrop-blur-sm"
-              onClick={() => setStudentModalOpen(false)}
-            />
+          <div 
+            className="fixed inset-0 z-[100] overflow-y-auto bg-slate-900/60 backdrop-blur-sm p-3 sm:p-6 flex min-h-full items-center justify-center animate-in fade-in duration-200"
+            onClick={() => setStudentModalOpen(false)}
+          >
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="relative bg-white border border-sds-border rounded-[12px] w-full max-w-md p-8 shadow-sm overflow-hidden"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative bg-white border border-sds-border rounded-3xl w-full max-w-md p-6 sm:p-8 shadow-2xl overflow-y-auto max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] my-auto overscroll-contain"
+              onClick={(e) => e.stopPropagation()}
             >
               <button 
                 onClick={() => setStudentModalOpen(false)}
-                className="absolute top-6 right-6 text-slate-700 hover:text-sds-text transition-colors bg-sds-bg p-2 rounded-full"
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 p-2 rounded-xl transition-colors cursor-pointer"
+                aria-label="Close modal"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
               
-              <div className="w-16 h-16 bg-indigo-100 text-indigo-700 rounded-[12px] flex items-center justify-center mb-6">
-                <GraduationCap size={32} />
+              <div className="w-14 h-14 bg-indigo-100 text-indigo-700 rounded-2xl flex items-center justify-center mb-5">
+                <GraduationCap size={28} />
               </div>
               
-              <h3 className="text-2xl font-black text-sds-text mb-2">Verify Student Status 🎓</h3>
-              <p className="text-sm font-medium text-slate-700 mb-8">
+              <h3 className="text-xl sm:text-2xl font-black text-sds-text mb-2">Verify Student Status 🎓</h3>
+              <p className="text-xs sm:text-sm font-medium text-slate-600 mb-6">
                 Follow these exact steps to claim your free 1-month PRO plan. Admin approval takes up to 24 hours.
               </p>
               
-              <div className="space-y-4 mb-8">
-                <div className="flex items-start gap-3 bg-white p-4 rounded-[12px] border border-slate-100">
-                  <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-black shrink-0 mt-0.5">1</div>
-                  <p className="text-sm font-semibold text-slate-700">Upload a clear picture of your Valid Student ID (Front and Back side).</p>
+              <div className="space-y-3 mb-6">
+                <div className="flex items-start gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-150">
+                  <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-black shrink-0 mt-0.5">1</div>
+                  <p className="text-xs font-semibold text-slate-700">Upload a clear picture of your Valid Student ID (Front and Back side).</p>
                 </div>
-                <div className="flex items-start gap-3 bg-white p-4 rounded-[12px] border border-slate-100">
-                  <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-black shrink-0 mt-0.5">2</div>
-                  <p className="text-sm font-semibold text-slate-700">Provide your institutional (Student) email address.</p>
+                <div className="flex items-start gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-150">
+                  <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-black shrink-0 mt-0.5">2</div>
+                  <p className="text-xs font-semibold text-slate-700">Provide your institutional (Student) email address.</p>
                 </div>
-                <div className="flex items-start gap-3 bg-white p-4 rounded-[12px] border border-slate-100">
-                  <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-black shrink-0 mt-0.5">3</div>
-                  <p className="text-sm font-semibold text-slate-700">Send these details directly to the Founder via WhatsApp.</p>
+                <div className="flex items-start gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-150">
+                  <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-black shrink-0 mt-0.5">3</div>
+                  <p className="text-xs font-semibold text-slate-700">Send these details directly to the Founder via WhatsApp.</p>
                 </div>
               </div>
 
@@ -589,7 +605,7 @@ const Pricing = ({ user, profile }) => {
                   window.open(`https://wa.me/8801853343176?text=${encodeURIComponent(msg)}`, '_blank')
                   setStudentModalOpen(false)
                 }}
-                className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-sds-text rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-none"
+                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md shadow-indigo-500/20 cursor-pointer"
               >
                 Send to WhatsApp & Claim
               </button>
@@ -601,46 +617,44 @@ const Pricing = ({ user, profile }) => {
       {/* Coupon Confirmation Modal */}
       <AnimatePresence>
         {isConfirmModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-sds-bg/60 backdrop-blur-sm"
-              onClick={() => setConfirmModalOpen(false)}
-            />
+          <div 
+            className="fixed inset-0 z-[100] overflow-y-auto bg-slate-900/60 backdrop-blur-sm p-3 sm:p-6 flex min-h-full items-center justify-center animate-in fade-in duration-200"
+            onClick={() => setConfirmModalOpen(false)}
+          >
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="relative bg-white border border-sds-border rounded-[12px] w-full max-w-md p-8 shadow-sm overflow-hidden text-sds-text"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative bg-white border border-sds-border rounded-3xl w-full max-w-md p-6 sm:p-8 shadow-2xl overflow-y-auto max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] text-sds-text my-auto overscroll-contain"
+              onClick={(e) => e.stopPropagation()}
             >
               <button 
                 onClick={() => setConfirmModalOpen(false)}
-                className="absolute top-6 right-6 text-slate-700 hover:text-sds-text transition-colors bg-sds-bg p-2 rounded-full"
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 p-2 rounded-xl transition-colors cursor-pointer"
+                aria-label="Close modal"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
               
-              <div className="w-16 h-16 bg-amber-100 text-amber-700 rounded-[12px] flex items-center justify-center mb-6">
-                <Tag size={32} />
+              <div className="w-14 h-14 bg-amber-100 text-amber-700 rounded-2xl flex items-center justify-center mb-5">
+                <Tag size={28} />
               </div>
               
-              <h3 className="text-2xl font-black text-sds-text mb-2">Confirm Coupon Redemption</h3>
-              <p className="text-sm font-medium text-slate-700 mb-8">
+              <h3 className="text-xl sm:text-2xl font-black text-sds-text mb-2">Confirm Coupon Redemption</h3>
+              <p className="text-xs sm:text-sm font-medium text-slate-600 mb-6">
                 Are you sure you want to proceed? Once applied, this coupon will be permanently locked to your account and cannot be used again.
               </p>
 
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2.5">
                 <button
                   onClick={confirmRedemption}
-                  className="w-full py-4 bg-[#315CFF] hover:bg-[#2547d0] text-white text-sds-text rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                  className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md shadow-indigo-500/20 cursor-pointer"
                 >
                   Proceed & Apply
                 </button>
                 <button
                   onClick={() => setConfirmModalOpen(false)}
-                  className="w-full py-4 bg-sds-bg hover:bg-white border border-sds-border text-slate-600 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                  className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -653,40 +667,32 @@ const Pricing = ({ user, profile }) => {
       {/* Auto-Upgrade Celebration Modal */}
       <AnimatePresence>
         {isCelebrationModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-sds-bg/60 backdrop-blur-sm"
-            />
+          <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-900/60 backdrop-blur-sm p-3 sm:p-6 flex min-h-full items-center justify-center animate-in fade-in duration-200">
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="relative bg-white border border-sds-border rounded-[2.5rem] w-full max-w-md p-10 shadow-sm overflow-hidden text-center text-sds-text"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative bg-white border border-sds-border rounded-3xl w-full max-w-md p-6 sm:p-8 shadow-2xl overflow-y-auto max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] text-center text-sds-text my-auto overscroll-contain"
             >
-              <div className="relative z-10">
-                <div className="w-24 h-24 bg-amber-500 text-sds-text rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Sparkles size={40} strokeWidth={2.5} />
-                </div>
-                
-                <h3 className="text-3xl font-black text-sds-text mb-4 tracking-tight">Congratulations! 🎉</h3>
-                <p className="text-base font-semibold text-slate-600 mb-10 leading-relaxed">
-                  Your account has been upgraded to <span className="text-amber-550 font-black">{upgradedTierText}</span> instantly. Welcome to the elite research hub.
-                </p>
-
-                <button
-                  onClick={() => {
-                    sessionStorage.removeItem('active_coupon_status')
-                    sessionStorage.removeItem('active_coupon_code')
-                    navigate('/research')
-                  }}
-                  className="w-full py-5 bg-sds-bg hover:bg-white border border-sds-border text-sds-text rounded-[12px] text-sm font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
-                >
-                  Go to Workspace <ArrowRight size={18} />
-                </button>
+              <div className="w-20 h-20 bg-amber-500 text-white rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-amber-500/30">
+                <Sparkles size={36} strokeWidth={2.5} />
               </div>
+              
+              <h3 className="text-2xl sm:text-3xl font-black text-sds-text mb-3 tracking-tight">Congratulations! 🎉</h3>
+              <p className="text-sm font-semibold text-slate-600 mb-8 leading-relaxed">
+                Your account has been upgraded to <span className="text-amber-600 font-black">{upgradedTierText}</span> instantly. Welcome to ScholarHub AI.
+              </p>
+
+              <button
+                onClick={() => {
+                  sessionStorage.removeItem('active_coupon_status')
+                  sessionStorage.removeItem('active_coupon_code')
+                  navigate('/research')
+                }}
+                className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md shadow-indigo-500/20 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                Go to Workspace <ArrowRight size={16} />
+              </button>
             </motion.div>
           </div>
         )}
@@ -695,33 +701,30 @@ const Pricing = ({ user, profile }) => {
       {/* Exit Warning Modal */}
       <AnimatePresence>
         {showExitWarning && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-sds-bg/60 backdrop-blur-sm"
-              onClick={() => setShowExitWarning(false)}
-            />
+          <div 
+            className="fixed inset-0 z-[100] overflow-y-auto bg-slate-900/60 backdrop-blur-sm p-3 sm:p-6 flex min-h-full items-center justify-center animate-in fade-in duration-200"
+            onClick={() => setShowExitWarning(false)}
+          >
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="relative bg-white border border-sds-border rounded-[12px] w-full max-w-md p-8 shadow-sm overflow-hidden text-sds-text"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative bg-white border border-sds-border rounded-3xl w-full max-w-md p-6 sm:p-8 shadow-2xl overflow-y-auto max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] text-sds-text my-auto overscroll-contain"
+              onClick={(e) => e.stopPropagation()}
             >
-              <div className="w-16 h-16 bg-red-100 text-red-700 rounded-[12px] flex items-center justify-center mb-6">
-                <AlertCircle size={32} />
+              <div className="w-14 h-14 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mb-5">
+                <AlertCircle size={28} />
               </div>
               
-              <h3 className="text-2xl font-black text-sds-text mb-2">Forfeit Discount?</h3>
-              <p className="text-sm font-medium text-slate-700 mb-8">
+              <h3 className="text-xl sm:text-2xl font-black text-sds-text mb-2">Forfeit Discount?</h3>
+              <p className="text-xs sm:text-sm font-medium text-slate-600 mb-6">
                 You have an active one-time discount applied. If you leave this page, your coupon session will be destroyed and cannot be used again. Are you sure?
               </p>
 
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2.5">
                 <button
                   onClick={() => setShowExitWarning(false)}
-                  className="w-full py-4 bg-sds-bg hover:bg-white border border-sds-border text-sds-text rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                  className="w-full py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
                 >
                   Stay & Complete Upgrade
                 </button>
@@ -732,7 +735,7 @@ const Pricing = ({ user, profile }) => {
                     setShowExitWarning(false)
                     navigate(pendingPath)
                   }}
-                  className="w-full py-4 bg-red-100 hover:bg-red-200 text-red-700 border border-red-300 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                  className="w-full py-3 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
                 >
                   Lose Discount & Leave
                 </button>

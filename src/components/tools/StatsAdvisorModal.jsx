@@ -1,11 +1,13 @@
 import React, { useState, useMemo } from 'react'
 import {
-  Calculator, Check, Copy, Sliders, ArrowRight, HelpCircle,
-  FileCode, BookOpen, AlertCircle, X, Sparkles, CheckCircle2, ChevronRight
+  Calculator, Check, Copy, Sliders, ArrowRight, ArrowLeft, HelpCircle,
+  FileCode, BookOpen, AlertCircle, X, Sparkles, CheckCircle2, ChevronRight,
+  Layers, CheckSquare
 } from 'lucide-react'
 import { toast } from 'sonner'
 
 export const StatsAdvisorModal = ({ isOpen, onClose }) => {
+  const [activeStep, setActiveStep] = useState('design') // design, recommendation, apa, code
   const [goal, setGoal] = useState('compare_means') // compare_means, correlation, regression, survival, categorical
   const [groups, setGroups] = useState('2_independent') // 2_independent, 2_paired, 3_independent, 3_repeated
   const [distribution, setDistribution] = useState('parametric') // parametric, non_parametric
@@ -228,24 +230,39 @@ export const StatsAdvisorModal = ({ isOpen, onClose }) => {
     setTimeout(() => setCopiedAPA(false), 2000)
   }
 
+  const stepsList = [
+    { id: 'design', label: '1. Research Design & Variables', shortLabel: '1. Design' },
+    { id: 'recommendation', label: '2. Recommended Test & Assumptions', shortLabel: '2. Test & Assumptions' },
+    { id: 'apa', label: '3. APA 7th Reporting Template', shortLabel: '3. APA 7th' },
+    { id: 'code', label: '4. Executable Code (Python / R)', shortLabel: '4. Code' }
+  ]
+
+  const currentStepIndex = stepsList.findIndex(s => s.id === activeStep)
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden">
+    <div 
+      className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-950/80 backdrop-blur-md p-3 sm:p-6 md:p-8 flex justify-center items-start sm:items-center animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-2xl max-w-4xl w-full max-h-[calc(100dvh-2.5rem)] sm:max-h-[calc(100dvh-4rem)] flex flex-col overflow-hidden my-auto relative shrink-0"
+        onClick={(e) => e.stopPropagation()}
+      >
         
-        {/* ─── Header ─── */}
-        <div className="p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/70 shrink-0">
-          <div className="flex items-center gap-3">
+        {/* ─── Header (Sticky & Never Cut Off) ─── */}
+        <div className="sticky top-0 z-20 p-4 sm:p-5 border-b border-slate-150 flex items-start justify-between bg-white/95 backdrop-blur-md shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
               <Calculator size={20} />
             </div>
-            <div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-[10px] font-black uppercase tracking-wider text-indigo-700 mb-0.5">
-                <Sparkles size={11} /> Statistical Advisory & Biostatistics Engine (Skill #6)
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-[10px] font-black uppercase tracking-wider text-indigo-700 mb-0.5 truncate">
+                <Sparkles size={11} className="shrink-0" /> Statistical Advisory & Biostatistics Engine (Skill #6)
               </div>
-              <h3 className="text-base font-black text-slate-900 leading-tight">
+              <h3 className="text-sm sm:text-base font-black text-slate-900 leading-tight truncate">
                 Statistical Test Selector & APA 7th Reporter
               </h3>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">
+              <p className="text-[11px] sm:text-xs text-slate-500 font-medium mt-0.5 line-clamp-1">
                 Decide exact parametric vs non-parametric hypotheses tests, assumptions & reporting syntax
               </p>
             </div>
@@ -253,207 +270,353 @@ export const StatsAdvisorModal = ({ isOpen, onClose }) => {
 
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-colors cursor-pointer"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-colors cursor-pointer shrink-0 ml-3"
+            aria-label="Close modal"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         </div>
 
-        {/* ─── Body Scrollable ─── */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-slate-200">
-          
-          {/* Step 1: Research Goal */}
-          <div className="space-y-2">
-            <label className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-[11px] font-black flex items-center justify-center">1</span>
-              <span>Primary Research Objective & Variable Architecture</span>
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-              {[
-                { id: 'compare_means', label: 'Group Means / Differences', desc: 't-test, ANOVA' },
-                { id: 'correlation', label: 'Correlation & Association', desc: 'Pearson, Spearman' },
-                { id: 'regression', label: 'Prediction & Modeling', desc: 'OLS, Logistic' },
-                { id: 'survival', label: 'Survival & Hazard', desc: 'Kaplan-Meier, Cox' },
-                { id: 'categorical', label: 'Proportions / Frequencies', desc: 'Chi-Square, Fisher' }
-              ].map(g => (
+        {/* ─── Stepper / Tab Switcher Navigation ─── */}
+        <div className="px-4 sm:px-6 pt-3 pb-2 bg-slate-50/90 border-b border-slate-200/80 shrink-0 overflow-x-auto scrollbar-none">
+          <div className="flex items-center gap-1.5 min-w-max">
+            {stepsList.map((step, idx) => {
+              const active = activeStep === step.id
+              const isPast = idx < currentStepIndex
+              return (
                 <button
-                  key={g.id}
-                  onClick={() => setGoal(g.id)}
-                  className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                    goal === g.id
-                      ? 'bg-indigo-50/80 border-indigo-400 text-indigo-950 shadow-xs ring-1 ring-indigo-400'
-                      : 'bg-slate-50/80 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  key={step.id}
+                  onClick={() => setActiveStep(step.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    active
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : isPast
+                      ? 'bg-indigo-50 text-indigo-800 hover:bg-indigo-100'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
                   }`}
                 >
-                  <span className="text-xs font-extrabold block leading-tight">{g.label}</span>
-                  <span className="text-[10px] font-medium text-slate-500 mt-1 block">{g.desc}</span>
+                  <span className={`w-4 h-4 rounded-full text-[10px] font-black flex items-center justify-center ${
+                    active ? 'bg-white text-indigo-600' : isPast ? 'bg-indigo-200 text-indigo-900' : 'bg-slate-200 text-slate-700'
+                  }`}>
+                    {isPast ? '✓' : idx + 1}
+                  </span>
+                  <span className="hidden sm:inline">{step.label}</span>
+                  <span className="sm:hidden">{step.shortLabel}</span>
                 </button>
-              ))}
-            </div>
+              )
+            })}
           </div>
+        </div>
 
-          {/* Step 2: Grouping & Distribution Parameters */}
-          {goal === 'compare_means' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-black uppercase tracking-wider text-slate-700">
-                  Number of Groups & Study Design
+        {/* ─── Body Scrollable ─── */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 scrollbar-thin scrollbar-thumb-slate-200 overscroll-contain">
+          
+          {/* TAB 1: RESEARCH DESIGN & VARIABLES */}
+          {activeStep === 'design' && (
+            <div className="space-y-5 animate-in fade-in duration-200">
+              {/* Step 1: Research Goal */}
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-[11px] font-black flex items-center justify-center">1</span>
+                    <span>Primary Research Objective & Study Type</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium">Select 1</span>
                 </label>
-                <select
-                  value={groups}
-                  onChange={(e) => setGroups(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
-                >
-                  <option value="2_independent">2 Independent Groups (e.g. Treatment vs Control)</option>
-                  <option value="2_paired">2 Paired / Matched Groups (e.g. Pre vs Post Test)</option>
-                  <option value="3_independent">3+ Independent Groups (e.g. Dose A vs B vs C)</option>
-                  <option value="3_repeated">3+ Repeated Measures (e.g. Baseline, 1mo, 3mo)</option>
-                </select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                  {[
+                    { id: 'compare_means', label: 'Group Means / Differences', desc: 't-test, ANOVA, Kruskal-Wallis', icon: '📊' },
+                    { id: 'correlation', label: 'Correlation & Association', desc: 'Pearson r, Spearman rho', icon: '🔗' },
+                    { id: 'regression', label: 'Prediction & Modeling', desc: 'OLS Linear, Binary Logistic', icon: '📈' },
+                    { id: 'survival', label: 'Survival & Hazard', desc: 'Kaplan-Meier, Cox Proportional', icon: '⏳' },
+                    { id: 'categorical', label: 'Proportions / Frequencies', desc: 'Chi-Square, Fisher Exact', icon: '🔢' }
+                  ].map(g => (
+                    <button
+                      key={g.id}
+                      onClick={() => setGoal(g.id)}
+                      className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                        goal === g.id
+                          ? 'bg-indigo-50/90 border-indigo-500 text-indigo-950 shadow-xs ring-2 ring-indigo-400/50'
+                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm">{g.icon}</span>
+                        {goal === g.id && <span className="w-2 h-2 rounded-full bg-indigo-600"></span>}
+                      </div>
+                      <span className="text-xs font-extrabold block leading-tight">{g.label}</span>
+                      <span className="text-[10px] font-medium text-slate-500 mt-1 block">{g.desc}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-black uppercase tracking-wider text-slate-700">
-                  Data Distribution & Sample Rigor
+              {/* Step 2: Specific Variables & Distribution Parameters */}
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-[11px] font-black flex items-center justify-center">2</span>
+                  <span>Study Architecture & Variable Distribution</span>
                 </label>
-                <select
-                  value={distribution}
-                  onChange={(e) => setDistribution(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+
+                {goal === 'compare_means' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-black uppercase tracking-wider text-slate-700">
+                        Number of Groups & Study Design
+                      </label>
+                      <select
+                        value={groups}
+                        onChange={(e) => setGroups(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+                      >
+                        <option value="2_independent">2 Independent Groups (e.g. Treatment vs Control)</option>
+                        <option value="2_paired">2 Paired / Matched Groups (e.g. Pre vs Post Test)</option>
+                        <option value="3_independent">3+ Independent Groups (e.g. Dose A vs B vs C)</option>
+                        <option value="3_repeated">3+ Repeated Measures (e.g. Baseline, 1mo, 3mo)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-black uppercase tracking-wider text-slate-700">
+                        Data Distribution & Sample Rigor
+                      </label>
+                      <select
+                        value={distribution}
+                        onChange={(e) => setDistribution(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+                      >
+                        <option value="parametric">Normally Distributed (Parametric / N ≥ 30)</option>
+                        <option value="non_parametric">Skewed / Non-Normal / Small Sample (Non-Parametric)</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {goal === 'correlation' && (
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-1.5">
+                    <label className="text-[11px] font-black uppercase tracking-wider text-slate-700">
+                      Relationship Linearity & Distribution
+                    </label>
+                    <select
+                      value={distribution}
+                      onChange={(e) => setDistribution(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+                    >
+                      <option value="parametric">Linear & Bivariate Normal (Pearson r)</option>
+                      <option value="non_parametric">Monotonic Non-Linear or Ranked/Ordinal (Spearman rho)</option>
+                    </select>
+                  </div>
+                )}
+
+                {(goal === 'regression' || goal === 'survival' || goal === 'categorical') && (
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs font-medium text-slate-600 leading-relaxed">
+                    <span>Selected Model Target: </span>
+                    <strong className="text-slate-900 font-bold">
+                      {goal === 'regression' ? 'Multivariate continuous/binary outcome modeling' :
+                       goal === 'survival' ? 'Time-to-event cohort analysis with censoring' :
+                       'Cross-tabulated categorical contingency distribution'}
+                    </strong>
+                  </div>
+                )}
+              </div>
+
+              {/* Quick Preview Badge & Next Trigger */}
+              <div className="p-4 bg-indigo-50/70 border border-indigo-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 block">Matched Algorithm:</span>
+                  <span className="text-xs font-extrabold text-indigo-950">{decision.title}</span>
+                </div>
+                <button
+                  onClick={() => setActiveStep('recommendation')}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0"
                 >
-                  <option value="parametric">Normally Distributed (Parametric / N ≥ 30)</option>
-                  <option value="non_parametric">Skewed / Non-Normal / Small Sample (Non-Parametric)</option>
-                </select>
+                  <span>View Full Test Details</span>
+                  <ArrowRight size={13} />
+                </button>
               </div>
             </div>
           )}
 
-          {goal === 'correlation' && (
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-1.5">
-              <label className="text-[11px] font-black uppercase tracking-wider text-slate-700">
-                Relationship Linearity & Distribution
-              </label>
-              <select
-                value={distribution}
-                onChange={(e) => setDistribution(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
-              >
-                <option value="parametric">Linear & Bivariate Normal (Pearson r)</option>
-                <option value="non_parametric">Monotonic Non-Linear or Ranked/Ordinal (Spearman rho)</option>
-              </select>
-            </div>
-          )}
-
-          {/* ─── Recommendation Card ─── */}
-          <div className="p-5 bg-gradient-to-r from-indigo-900 to-slate-900 text-white rounded-3xl shadow-xl space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-400/40 text-[10px] font-black uppercase tracking-wider text-indigo-300">
-                <CheckCircle2 size={12} className="text-emerald-400" /> Recommended Statistical Test
-              </span>
-              <span className="text-[10px] font-mono text-slate-400">
-                Significance Threshold: α = 0.05
-              </span>
-            </div>
-
-            <h4 className="text-xl font-black text-white leading-snug">
-              {decision.title}
-            </h4>
-            <p className="text-xs text-indigo-200/90 font-medium">
-              {decision.subtitle}
-            </p>
-
-            <div className="pt-2 border-t border-white/10 text-xs text-slate-300 flex items-center gap-2 font-medium">
-              <strong className="text-indigo-300">Null Hypothesis:</strong>
-              <span className="font-mono bg-black/30 px-2 py-0.5 rounded-md text-[11px]">{decision.nullHypothesis}</span>
-            </div>
-          </div>
-
-          {/* Key Assumptions Checklist */}
-          <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-2">
-            <h5 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-              <BookOpen size={14} className="text-indigo-600" /> Mandatory Assumptions & Diagnostic Checklist
-            </h5>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-              {decision.assumptions.map((ass, i) => (
-                <div key={i} className="p-2.5 bg-slate-50 rounded-xl text-xs font-medium text-slate-700 flex items-start gap-2 border border-slate-200/60">
-                  <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">✓</span>
-                  <span>{ass}</span>
+          {/* TAB 2: RECOMMENDED TEST & ASSUMPTIONS */}
+          {activeStep === 'recommendation' && (
+            <div className="space-y-5 animate-in fade-in duration-200">
+              {/* ─── Recommendation Card ─── */}
+              <div className="p-5 bg-gradient-to-r from-indigo-900 to-slate-900 text-white rounded-3xl shadow-xl space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-400/40 text-[10px] font-black uppercase tracking-wider text-indigo-300">
+                    <CheckCircle2 size={12} className="text-emerald-400" /> Recommended Statistical Test
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-400">
+                    Significance Threshold: α = 0.05
+                  </span>
                 </div>
-              ))}
-            </div>
-          </div>
 
-          {/* APA 7th Reporting Template Card */}
-          <div className="p-4 bg-indigo-50/40 border border-indigo-100 rounded-2xl space-y-2">
-            <div className="flex items-center justify-between">
-              <h5 className="text-xs font-black uppercase tracking-wider text-indigo-900 flex items-center gap-1.5">
-                <Sparkles size={13} className="text-indigo-600" /> Publication-Ready APA 7th Edition Reporting Template
-              </h5>
-              <button
-                onClick={handleCopyAPA}
-                className="px-2.5 py-1 bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 text-[11px] font-bold rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
-              >
-                {copiedAPA ? <Check size={12} /> : <Copy size={12} />}
-                <span>{copiedAPA ? 'Copied Template' : 'Copy Template'}</span>
-              </button>
-            </div>
-            <div className="p-3.5 bg-white border border-indigo-200/80 rounded-xl text-xs font-medium text-slate-900 leading-relaxed font-sans">
-              {decision.apaTemplate}
-            </div>
-          </div>
+                <h4 className="text-lg sm:text-xl font-black text-white leading-snug">
+                  {decision.title}
+                </h4>
+                <p className="text-xs text-indigo-200/90 font-medium">
+                  {decision.subtitle}
+                </p>
 
-          {/* Executable Code Snippets */}
-          <div className="p-4 bg-slate-900 text-slate-100 rounded-2xl space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <div className="flex items-center gap-2">
-                <FileCode size={15} className="text-indigo-400" />
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => setActiveCodeTab('python')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                      activeCodeTab === 'python' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Python (SciPy / Statsmodels)
-                  </button>
-                  <button
-                    onClick={() => setActiveCodeTab('r')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                      activeCodeTab === 'r' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    R Statistical Script
-                  </button>
+                <div className="pt-2 border-t border-white/10 text-xs text-slate-300 flex flex-wrap items-center gap-2 font-medium">
+                  <strong className="text-indigo-300">Null Hypothesis:</strong>
+                  <span className="font-mono bg-black/30 px-2 py-0.5 rounded-md text-[11px]">{decision.nullHypothesis}</span>
                 </div>
               </div>
 
-              <button
-                onClick={handleCopyCode}
-                className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
-              >
-                {copiedCode ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                <span>{copiedCode ? 'Copied' : 'Copy Code'}</span>
-              </button>
-            </div>
+              {/* Key Assumptions Checklist */}
+              <div className="p-4 bg-white border border-slate-200 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <h5 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                    <BookOpen size={14} className="text-indigo-600" /> Mandatory Assumptions & Diagnostic Checklist
+                  </h5>
+                  <span className="text-[10px] font-bold text-slate-400 font-mono">
+                    {decision.assumptions.length} Diagnostics
+                  </span>
+                </div>
 
-            <pre className="text-xs font-mono text-emerald-300 p-2 overflow-x-auto whitespace-pre-wrap leading-relaxed">
-              {activeCodeTab === 'python' ? decision.pythonCode : decision.rCode}
-            </pre>
-          </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 max-h-56 overflow-y-auto overscroll-contain scrollbar-thin pr-1">
+                  {decision.assumptions.map((ass, i) => (
+                    <div key={i} className="p-2.5 bg-slate-50 rounded-xl text-xs font-medium text-slate-700 flex items-start gap-2 border border-slate-200/60">
+                      <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">✓</span>
+                      <span>{ass}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Alternative Fallback */}
+              {decision.altTitle && (
+                <div className="p-3.5 bg-amber-50/80 border border-amber-200/80 rounded-2xl text-xs text-amber-900 font-medium flex items-start gap-2.5">
+                  <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="font-bold">Violation Alternative: </strong>
+                    <span>If distribution or variance assumptions are violated, deploy <strong>{decision.altTitle}</strong>.</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: APA 7TH REPORTING TEMPLATE */}
+          {activeStep === 'apa' && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="p-4 bg-indigo-50/40 border border-indigo-100 rounded-2xl space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h5 className="text-xs font-black uppercase tracking-wider text-indigo-900 flex items-center gap-1.5">
+                      <Sparkles size={13} className="text-indigo-600" /> Publication-Ready APA 7th Edition Reporting Template
+                    </h5>
+                    <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                      Drop into your Results section. Replace bracketed values [ ] with your study's empirical statistics.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleCopyAPA}
+                    className="px-3 py-1.5 bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                  >
+                    {copiedAPA ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                    <span>{copiedAPA ? 'Copied Template' : 'Copy Template'}</span>
+                  </button>
+                </div>
+
+                <div className="p-4 bg-white border border-indigo-200/80 rounded-2xl text-xs font-medium text-slate-900 leading-[1.8] font-sans max-h-60 sm:max-h-72 overflow-y-auto overscroll-contain scrollbar-thin shadow-inner whitespace-pre-wrap">
+                  {decision.apaTemplate}
+                </div>
+              </div>
+
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-[11px] text-slate-600 font-medium space-y-1">
+                <span className="font-bold text-slate-800 block uppercase tracking-wider text-[10px]">APA 7th Guidelines Reminder:</span>
+                <p>• Italicize all statistical symbols (e.g., <em>p</em>, <em>t</em>, <em>F</em>, <em>M</em>, <em>SD</em>, <em>r</em>, <em>d</em>, <em>N</em>).</p>
+                <p>• Report exact <em>p</em>-values to two or three decimal places (e.g., <em>p</em> = .024). For values under .001, report <em>p</em> &lt; .001.</p>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: EXECUTABLE CODE SNIPPETS */}
+          {activeStep === 'code' && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="p-4 bg-slate-900 text-slate-100 rounded-2xl space-y-3 shadow-lg">
+                <div className="flex flex-wrap items-center justify-between border-b border-slate-800 pb-2.5 gap-2">
+                  <div className="flex items-center gap-2">
+                    <FileCode size={15} className="text-indigo-400" />
+                    <div className="flex gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                      <button
+                        onClick={() => setActiveCodeTab('python')}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          activeCodeTab === 'python' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Python (SciPy / Statsmodels)
+                      </button>
+                      <button
+                        onClick={() => setActiveCodeTab('r')}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          activeCodeTab === 'r' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        R Statistical Script
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleCopyCode}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors border border-slate-700"
+                  >
+                    {copiedCode ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                    <span>{copiedCode ? 'Copied Code' : 'Copy Script'}</span>
+                  </button>
+                </div>
+
+                <div className="max-h-60 sm:max-h-72 overflow-y-auto overscroll-contain scrollbar-thin rounded-xl bg-slate-950 p-3.5 border border-slate-800/80">
+                  <pre className="text-xs font-mono text-emerald-300 overflow-x-auto whitespace-pre-wrap leading-relaxed">
+                    {activeCodeTab === 'python' ? decision.pythonCode : decision.rCode}
+                  </pre>
+                </div>
+              </div>
+            </div>
+          )}
 
         </div>
 
         {/* ─── Footer Controls ─── */}
-        <div className="p-4 sm:p-6 border-t border-slate-100 bg-slate-50/90 flex items-center justify-between gap-3 shrink-0">
-          <span className="text-[11px] font-bold text-slate-500">
-            Compliant with ICMJE, APA 7th Edition & Nature Methods Statistical Guidelines
-          </span>
-          <button
-            onClick={onClose}
-            className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
-          >
-            Done
-          </button>
+        <div className="p-4 sm:p-5 border-t border-slate-150 bg-slate-50/90 flex items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-2">
+            {currentStepIndex > 0 && (
+              <button
+                onClick={() => setActiveStep(stepsList[currentStepIndex - 1].id)}
+                className="px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <ArrowLeft size={13} />
+                <span>Previous</span>
+              </button>
+            )}
+            <span className="text-[11px] font-bold text-slate-500 hidden sm:inline">
+              Step {currentStepIndex + 1} of {stepsList.length}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {currentStepIndex < stepsList.length - 1 ? (
+              <button
+                onClick={() => setActiveStep(stepsList[currentStepIndex + 1].id)}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>Next: {stepsList[currentStepIndex + 1].shortLabel}</span>
+                <ArrowRight size={13} />
+              </button>
+            ) : (
+              <button
+                onClick={onClose}
+                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+              >
+                Done
+              </button>
+            )}
+          </div>
         </div>
+
       </div>
     </div>
   )

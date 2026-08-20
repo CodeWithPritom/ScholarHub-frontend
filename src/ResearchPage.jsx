@@ -10,7 +10,7 @@ import {
   Download, FolderPlus, BarChart3, BarChart2, Plus, Loader2, Lock
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
-import { BASE_URL, fireSessionExpired, fireDeviceSyncError } from './utils/api';
+import { BASE_URL, fireSessionExpired, fireDeviceSyncError, notifyCreditsUpdated } from './utils/api';
 import { getOrCreateDeviceId, ensureDeviceIsRegistered } from './utils/deviceSync';
 import Footer from './Footer';
 import AuthModal from './AuthModal';
@@ -280,7 +280,8 @@ const SidePanel = ({ paper, onClose, onChatWithPaper, onFindRelated, userTier })
       
       const data = await res.json();
       setOutreachEmail(data.output);
-      toast.success('Outreach email drafted!');
+      notifyCreditsUpdated(data.credits_remaining);
+      toast.success('Outreach email drafted! (-10 Zaps deducted)');
     } catch (err) {
       setOutreachError(err.message);
       toast.error(err.message);
@@ -874,6 +875,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       const data = await response.json();
       setLitReviewContent(data.output);
       setCachedGapAnalysis({ key: currentKey, content: data.output });
+      notifyCreditsUpdated(data.credits_remaining);
     } catch (err) {
       console.error(err);
       if (err.name === 'AbortError') {
@@ -973,6 +975,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       const data = await response.json();
       setLitReviewContent(data.output);
       setCachedLitReview({ key: currentKey, content: data.output });
+      notifyCreditsUpdated(data.credits_remaining);
     } catch (err) {
       console.error(err);
       if (err.name === 'AbortError') {
@@ -1238,6 +1241,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       }
       const data = await response.json();
       fetchUserDashboardStats();
+      notifyCreditsUpdated(data.credits_remaining);
 
       setAiSummary(data.output);
       setChatHistory([{ role: 'assistant', content: 'Here is your executive summary. Feel free to ask any specific questions about these papers.' }]);
@@ -1304,6 +1308,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       }
       const data = await response.json();
       fetchUserDashboardStats();
+      notifyCreditsUpdated(data.credits_remaining);
       setChatHistory(prev => [...prev, { role: 'assistant', content: data.output }]);
     } catch (err) {
       console.error(err);
@@ -1375,6 +1380,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       }
       const data = await response.json();
       fetchUserDashboardStats();
+      notifyCreditsUpdated(data.credits_remaining);
 
       setChatHistory(prev => [...prev, { role: 'assistant', content: data.output }]);
     } catch (err) {
@@ -2122,36 +2128,29 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       {/* Literature Review Generation Overlay */}
       <AnimatePresence>
         {litReviewModalOpen && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-0 sm:p-6">
+          <div className="fixed inset-0 z-[120] overflow-y-auto bg-slate-900/70 backdrop-blur-md p-3 sm:p-6 flex min-h-full items-center justify-center animate-in fade-in duration-200">
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              /* Locked backdrop: do NOT close on click — user must use the Close button */
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
-            />
-
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="relative w-full h-full sm:h-auto w-full 2xl:px-12 bg-white rounded-none sm:rounded-[3rem] shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-screen sm:max-h-[85vh] z-10"
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              className="relative w-full max-w-4xl bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] z-10 my-auto overscroll-contain"
             >
               {/* Header */}
-              <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-amber-200">
+              <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-amber-200 shrink-0">
                     <Sparkles size={20} />
                   </div>
-                  <div>
-                    <h3 className="text-lg font-black text-[#171717] leading-none">{litReviewTitle}</h3>
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-black text-[#171717] leading-none truncate">{litReviewTitle}</h3>
                     <p className="text-[10px] text-slate-600 font-bold uppercase tracking-widest mt-1">Llama 3.1 PRO Synthesis</p>
                   </div>
                 </div>
                 {!litReviewLoading && (
                   <button
                     onClick={() => setLitReviewModalOpen(false)}
-                    className="w-10 h-10 rounded-xl hover:bg-slate-100 flex items-center justify-center text-slate-600 hover:text-slate-600 transition-colors"
+                    className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors cursor-pointer shrink-0 ml-3"
+                    aria-label="Close review modal"
                   >
                     <X size={18} />
                   </button>
@@ -2408,14 +2407,18 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
 
       <AnimatePresence>
         {showLibrarySaveModal && (
-          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fadeIn">
+          <div 
+            className="fixed inset-0 z-[80] overflow-y-auto bg-slate-900/60 backdrop-blur-sm p-3 sm:p-6 flex min-h-full items-center justify-center animate-in fade-in duration-200"
+            onClick={() => setShowLibrarySaveModal(false)}
+          >
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="w-full max-w-md bg-slate-50 border border-slate-200 rounded-2xl flex flex-col max-h-[85vh] shadow-2xl overflow-hidden text-[#171717]"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-slate-50 border border-slate-200 rounded-3xl flex flex-col max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] shadow-2xl overflow-hidden text-[#171717] my-auto overscroll-contain"
+              onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-5 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
+              <div className="p-4 sm:p-5 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
                   <FolderPlus size={18} className="text-slate-700" />
                   <span className="text-sm font-bold uppercase tracking-wider text-slate-800">
@@ -2424,7 +2427,8 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
                 </div>
                 <button
                   onClick={() => setShowLibrarySaveModal(false)}
-                  className="p-2 text-slate-600 hover:text-slate-650 rounded-lg transition-colors cursor-pointer"
+                  className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer"
+                  aria-label="Close modal"
                 >
                   <X size={18} />
                 </button>

@@ -421,7 +421,7 @@ export const ChatInput = React.memo(({
                           className="w-full text-left px-4 py-2 hover:bg-slate-50 transition-colors flex flex-col"
                         >
                           <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Standard ⚡</span>
-                          <span className="text-[10px] text-slate-500 mt-0.5">10 Zaps • Quick answers</span>
+                          <span className="text-[10px] text-slate-500 mt-0.5">50 Zaps • Quick answers</span>
                         </button>
                         <button
                           type="button"
@@ -432,7 +432,7 @@ export const ChatInput = React.memo(({
                           className="w-full text-left px-4 py-2 hover:bg-slate-50 transition-colors flex flex-col border-t border-slate-100"
                         >
                           <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>Advanced ✨</span>
-                          <span className="text-[10px] text-slate-500 mt-0.5">50 Zaps • Deep thoroughness</span>
+                          <span className="text-[10px] text-slate-500 mt-0.5">100 Zaps • Deep thoroughness</span>
                         </button>
                         <button
                           type="button"

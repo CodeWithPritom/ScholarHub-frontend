@@ -91,9 +91,18 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
 
     // Listen for custom window events triggered by API calls across the app
     const handleEvents = () => fetchCredits();
-    window.addEventListener('user-credits-updated', handleEvents);
-    window.addEventListener('zapsUpdated', handleEvents);
-    window.addEventListener('creditsUpdated', handleEvents);
+    const handleDirectCredits = (e) => {
+      if (e?.detail?.remaining !== undefined && e.detail.remaining !== null) {
+        setComputeCredits(e.detail.remaining);
+      } else {
+        fetchCredits();
+      }
+    };
+    window.addEventListener('scholarhub:credits-updated', handleDirectCredits);
+    window.addEventListener('credits_updated', handleDirectCredits);
+    window.addEventListener('user-credits-updated', handleDirectCredits);
+    window.addEventListener('zapsUpdated', handleDirectCredits);
+    window.addEventListener('creditsUpdated', handleDirectCredits);
     window.addEventListener('bookmarkUpdated', handleEvents);
     window.addEventListener('exportUpdated', handleEvents);
     window.addEventListener('auditSessionDeleted', handleEvents);
@@ -116,9 +125,11 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
     }
 
     return () => {
-      window.removeEventListener('user-credits-updated', handleEvents);
-      window.removeEventListener('zapsUpdated', handleEvents);
-      window.removeEventListener('creditsUpdated', handleEvents);
+      window.removeEventListener('scholarhub:credits-updated', handleDirectCredits);
+      window.removeEventListener('credits_updated', handleDirectCredits);
+      window.removeEventListener('user-credits-updated', handleDirectCredits);
+      window.removeEventListener('zapsUpdated', handleDirectCredits);
+      window.removeEventListener('creditsUpdated', handleDirectCredits);
       window.removeEventListener('bookmarkUpdated', handleEvents);
       window.removeEventListener('exportUpdated', handleEvents);
       window.removeEventListener('auditSessionDeleted', handleEvents);

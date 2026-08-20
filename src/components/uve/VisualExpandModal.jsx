@@ -4,13 +4,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Minus, RotateCcw, Code, Copy } from 'lucide-react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 
-export const VisualExpandModal = ({ 
-  isOpen, 
-  onClose, 
-  isTable, 
+export const VisualExpandModal = ({
+  isOpen,
+  onClose,
+  isTable,
   onShowSource,
   onCopyData,
-  children 
+  children
 }) => {
   if (!isOpen) return null;
 

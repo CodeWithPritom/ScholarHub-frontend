@@ -135,17 +135,20 @@ const FeedbackModal = ({ user }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-      {/* Modal Backdrop Click to Close */}
-      <div className="absolute inset-0" onClick={() => setIsOpen(false)} />
-
+    <div 
+      className="fixed inset-0 z-[999] overflow-y-auto p-3 sm:p-6 bg-slate-900/70 backdrop-blur-sm flex min-h-full items-center justify-center animate-in fade-in duration-200"
+      onClick={() => setIsOpen(false)}
+    >
       {/* Main Form Container */}
-      <div className="relative w-full max-w-lg bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-2xl overflow-hidden animate-slideUp z-10 flex flex-col max-h-[90vh]">
+      <div 
+        className="relative w-full max-w-lg bg-white rounded-3xl border border-slate-200 p-5 sm:p-8 shadow-2xl overflow-hidden z-10 flex flex-col max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] my-auto overscroll-contain"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-100 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100 text-blue-600">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100 text-blue-600 shrink-0">
               <MessageSquare size={20} />
             </div>
             <div>
@@ -155,9 +158,10 @@ const FeedbackModal = ({ user }) => {
           </div>
           <button 
             onClick={() => setIsOpen(false)}
-            className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
+            aria-label="Close feedback modal"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 

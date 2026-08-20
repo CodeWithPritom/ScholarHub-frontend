@@ -22,6 +22,8 @@ export default function ResearchDNAPage({ user, profile, onLogout }) {
   // AI Professor Outreach Modal State
   const [selectedProfessorForOutreach, setSelectedProfessorForOutreach] = useState(null);
   const [isOutreachModalOpen, setIsOutreachModalOpen] = useState(false);
+  const [facultyPage, setFacultyPage] = useState(1);
+  const facultyPerPage = 2;
 
   useEffect(() => {
     async function loadResearchData() {
@@ -660,7 +662,7 @@ export default function ResearchDNAPage({ user, profile, onLogout }) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {recommendedFaculty.map((fac) => (
+            {recommendedFaculty.slice((facultyPage - 1) * facultyPerPage, facultyPage * facultyPerPage).map((fac) => (
               <div key={fac.name} className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/90 rounded-2xl p-6 space-y-4 transition-all hover:shadow-md">
                 
                 {/* Header */}
@@ -736,6 +738,34 @@ export default function ResearchDNAPage({ user, profile, onLogout }) {
               </div>
             ))}
           </div>
+
+          {/* Faculty Pagination Controls */}
+          {recommendedFaculty.length > facultyPerPage && (
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500">
+                Showing {((facultyPage - 1) * facultyPerPage) + 1}–{Math.min(facultyPage * facultyPerPage, recommendedFaculty.length)} of {recommendedFaculty.length} Matched Faculty
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setFacultyPage(prev => Math.max(prev - 1, 1))}
+                  disabled={facultyPage === 1}
+                  className="px-3 py-1.5 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed border border-slate-200 rounded-xl text-xs font-bold text-slate-700 transition-all cursor-pointer"
+                >
+                  Previous
+                </button>
+                <span className="text-xs font-mono font-bold text-slate-600 px-2">
+                  {facultyPage} / {Math.ceil(recommendedFaculty.length / facultyPerPage)}
+                </span>
+                <button
+                  onClick={() => setFacultyPage(prev => Math.min(prev + 1, Math.ceil(recommendedFaculty.length / facultyPerPage)))}
+                  disabled={facultyPage >= Math.ceil(recommendedFaculty.length / facultyPerPage)}
+                  className="px-3 py-1.5 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed border border-slate-200 rounded-xl text-xs font-bold text-slate-700 transition-all cursor-pointer"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* RECENT SAVED LITERATURE SNAPSHOT */}
@@ -755,8 +785,8 @@ export default function ResearchDNAPage({ user, profile, onLogout }) {
               No saved literature in your library yet. Search and save papers in the Research tab to refine your DNA vector.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {bookmarks.slice(0, 6).map((b) => {
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-72 overflow-y-auto overscroll-contain scrollbar-thin pr-1">
+              {bookmarks.slice(0, 10).map((b) => {
                 const title = b.title || b.full_metadata?.title || 'Untitled Research Paper';
                 const authors = b.authors || b.full_metadata?.authors || 'Academic Authors';
                 const journal = b.journal || b.journal_name || b.full_metadata?.journal || 'Peer Reviewed';
@@ -778,8 +808,8 @@ export default function ResearchDNAPage({ user, profile, onLogout }) {
 
         {/* SHARE RESEARCH DNA MODAL */}
         {isShareModalOpen && (
-          <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-slate-900 border border-slate-800 text-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 space-y-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-950/80 backdrop-blur-md p-3 sm:p-6 md:p-8 flex justify-center items-start sm:items-center animate-in fade-in duration-200">
+            <div className="bg-slate-900 border border-slate-800 text-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 space-y-6 shadow-2xl relative max-h-[calc(100dvh-2.5rem)] sm:max-h-[calc(100dvh-4rem)] flex flex-col overflow-y-auto my-auto scrollbar-thin">
               
               {/* Close Button */}
               <button

@@ -136,7 +136,7 @@ export const nuclearFallbackStrip = (code) => {
   const lines = code.split('\n');
   const cleanLines = ['graph TD'];
   const nodes = extractNodes(code);
-  
+
   if (nodes.length > 1) {
     // Generate an ultra-clean sequential node chain
     for (let i = 0; i < nodes.length; i++) {

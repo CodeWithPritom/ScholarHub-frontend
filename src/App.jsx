@@ -141,21 +141,22 @@ const ProfileSetupModal = ({ isOpen, user, onClose }) => {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
+      <div 
+        className="fixed inset-0 z-[99999] overflow-y-auto bg-slate-900/60 backdrop-blur-sm p-3 sm:p-6 flex min-h-full items-center justify-center animate-in fade-in duration-200"
+      >
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full relative z-10"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          className="bg-white rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full relative z-10 my-auto max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] overflow-y-auto overscroll-contain"
         >
           <div className="text-center mb-6">
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Complete Your Profile</h2>
-            <p className="text-sm font-medium text-slate-500 mt-2">Just a few more details to personalize your workspace.</p>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Complete Your Profile</h2>
+            <p className="text-xs sm:text-sm font-medium text-slate-500 mt-2">Just a few more details to personalize your workspace.</p>
           </div>
 
           {error && (
-            <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm font-bold mb-4">
+            <div className="p-3 bg-red-50 text-red-600 rounded-xl text-xs sm:text-sm font-bold mb-4">
               {error}
             </div>
           )}
@@ -203,7 +204,7 @@ const ProfileSetupModal = ({ isOpen, user, onClose }) => {
               </select>
             </div>
             <button type="submit" disabled={loading}
-              className="w-full mt-4 p-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[14px] font-black tracking-wide transition-all shadow-lg flex justify-center items-center gap-2"
+              className="w-full mt-4 p-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[14px] font-black tracking-wide transition-all shadow-lg flex justify-center items-center gap-2 cursor-pointer"
             >
               {loading ? 'Saving...' : 'Save Profile'}
             </button>
@@ -232,13 +233,16 @@ const DeviceSecurityModal = ({ isOpen, message, onClose }) => {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md" onClick={onClose} />
+      <div 
+        className="fixed inset-0 z-[999999] overflow-y-auto bg-slate-950/70 backdrop-blur-md p-3 sm:p-6 flex min-h-full items-center justify-center animate-in fade-in duration-200"
+        onClick={onClose}
+      >
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 15 }}
-          className="bg-white rounded-3xl shadow-2xl p-6 sm:p-8 max-w-lg w-full relative z-10 border border-slate-200 text-left overflow-hidden"
+          className="bg-white rounded-3xl shadow-2xl p-6 sm:p-8 max-w-lg w-full relative z-10 border border-slate-200 text-left overflow-y-auto max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] my-auto overscroll-contain"
+          onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 flex items-center justify-center shadow-xs">
@@ -246,7 +250,8 @@ const DeviceSecurityModal = ({ isOpen, message, onClose }) => {
             </div>
             <button
               onClick={onClose}
-              className="p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
+              aria-label="Close modal"
             >
               <X size={18} />
             </button>
