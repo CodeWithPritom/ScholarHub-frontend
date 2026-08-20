@@ -475,11 +475,22 @@ function App() {
       }
     };
 
-    // Initial session check
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Initial session check with stale refresh token cleanup guard
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error && (error.message?.includes('Refresh Token') || error.status === 400)) {
+        console.warn('[App] Stale or invalid refresh token detected. Cleaning local auth state.');
+        supabase.auth.signOut().catch(() => {});
+        fetchAndSetProfile(null);
+        return;
+      }
       fetchAndSetProfile(session?.user ?? null);
       if (session?.user) {
         checkPasswordRecoveryOverride(session, null);
+      }
+    }).catch(err => {
+      if (err?.message?.includes('Refresh Token') || err?.status === 400) {
+        supabase.auth.signOut().catch(() => {});
+        fetchAndSetProfile(null);
       }
     });
 
