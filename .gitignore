@@ -1,5 +1,30 @@
-# Logs
-logs
+# ─── Dependencies ───
+node_modules/
+.pnp
+.pnp.js
+.pnpm-store/
+
+# ─── Build & Production Outputs ───
+dist/
+dist-ssr/
+build/
+.output/
+.vercel/
+.turbo/
+*.tsbuildinfo
+
+# ─── Environment Variables & Secrets ───
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+*.pem
+*.key
+
+# ─── Logs ───
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,40 +32,43 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
+# ─── OS & IDE Configuration ───
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Tt]humbs.db
+.idea/
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 
-# Local env files
-.env
-.env.local
-.env.*
-
-# Scratch pads and temp scripts
+# ─── Python Caching & Scratchpads ───
+__pycache__/
+**/__pycache__/**
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
 scratch*
 temp*
+refactor*.py
+check_quotes.py
+fix_*.py
 replace_script.py
-fix_aspect_ratio.py
 
-# Large Assets, Demos & External Samples
+# ─── Large Media, Demos & External Samples ───
 public/gif/
 elicit demo/
-frontend/elicit demo/
 elicit some exo/
 **/elicit demo/**
 **/elicit some exo/**
 *.pdf.bak
 *.gif.bak
-
