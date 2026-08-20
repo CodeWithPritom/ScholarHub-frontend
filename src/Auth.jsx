@@ -274,11 +274,11 @@ const Auth = () => {
                   userAgent.includes('Mac') ? 'Mac' :
                     userAgent.includes('Mobi') ? 'Mobile Device' : 'Unknown Device'
 
-                await supabase.from('user_devices').insert({
+                await supabase.from('user_devices').upsert({
                   user_id: authData.user.id,
                   device_id: deviceId,
                   device_name: deviceName
-                })
+                }, { onConflict: 'user_id,device_id' })
               }
             }
 

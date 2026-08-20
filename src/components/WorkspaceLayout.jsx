@@ -21,6 +21,7 @@ const WorkspaceLayout = React.memo(({ user, profile, onLogout, lockScroll = fals
         collapsed={desktopCollapsed}
         setCollapsed={setDesktopCollapsed}
         user={user}
+        profile={profile}
       />
       
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden relative bg-sds-bg text-sds-text">

@@ -11,6 +11,23 @@ import { toast } from 'sonner';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { Code, RefreshCw, ZoomIn, ZoomOut, Layout } from 'lucide-react';
 
+const CircuitAdapter = React.lazy(() => import('./adapters/CircuitAdapter').then(m => ({ default: m.CircuitAdapter })));
+const ChemistryAdapter = React.lazy(() => import('./adapters/ChemistryAdapter').then(m => ({ default: m.ChemistryAdapter })));
+const MathPlotAdapter = React.lazy(() => import('./adapters/MathPlotAdapter').then(m => ({ default: m.MathPlotAdapter })));
+const GeoAdapter = React.lazy(() => import('./adapters/GeoAdapter').then(m => ({ default: m.GeoAdapter })));
+const ThreeDAdapter = React.lazy(() => import('./adapters/ThreeDAdapter').then(m => ({ default: m.ThreeDAdapter })));
+
+const LazyAdapterWrapper = ({ children }) => (
+  <React.Suspense fallback={
+    <div className="w-full h-full min-h-[350px] flex flex-col items-center justify-center gap-3 bg-slate-50/80 rounded-xl">
+      <div className="w-8 h-8 rounded-full border-3 border-indigo-200 border-t-indigo-600 animate-spin" />
+      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 animate-pulse">Loading Scientific Engine...</span>
+    </div>
+  }>
+    {children}
+  </React.Suspense>
+);
+
 class VisualizationErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -344,6 +361,16 @@ export const VisualDispatcher = React.memo(({ payload, rawJson, onSourceClick })
       case 'markdown':
       case 'table':
         return { icon: '📋', shortLabel: 'Summary Table', engineName: 'Table' };
+      case 'circuit':
+        return { icon: '⚡', shortLabel: 'Circuit Schematic', engineName: 'Circuit Engine' };
+      case 'chemistry':
+        return { icon: '🧪', shortLabel: 'Molecular Structure', engineName: 'Chemistry Engine' };
+      case 'math-plot':
+        return { icon: '📐', shortLabel: 'Math Plot', engineName: 'Math Engine' };
+      case 'geo':
+        return { icon: '🌍', shortLabel: 'Research Map', engineName: 'Geo Engine' };
+      case '3d':
+        return { icon: '🧊', shortLabel: '3D Model', engineName: '3D Engine' };
       default:
         return { icon: '🔍', shortLabel: 'Visual Analysis', engineName: engine || 'Visual' };
     }
@@ -364,8 +391,6 @@ export const VisualDispatcher = React.memo(({ payload, rawJson, onSourceClick })
     }
   };
 
-
-
   const renderContent = (expanded = false) => {
     switch (engine) {
       case 'mermaid':
@@ -384,6 +409,16 @@ export const VisualDispatcher = React.memo(({ payload, rawJson, onSourceClick })
       case 'markdown':
       case 'table':
         return <MarkdownAdapter config={config} isExpanded={expanded} />;
+      case 'circuit':
+        return <LazyAdapterWrapper><CircuitAdapter config={config} isExpanded={expanded} /></LazyAdapterWrapper>;
+      case 'chemistry':
+        return <LazyAdapterWrapper><ChemistryAdapter type={type} config={config} isExpanded={expanded} /></LazyAdapterWrapper>;
+      case 'math-plot':
+        return <LazyAdapterWrapper><MathPlotAdapter type={type} config={config} isExpanded={expanded} /></LazyAdapterWrapper>;
+      case 'geo':
+        return <LazyAdapterWrapper><GeoAdapter config={config} isExpanded={expanded} /></LazyAdapterWrapper>;
+      case '3d':
+        return <LazyAdapterWrapper><ThreeDAdapter type={type} config={config} isExpanded={expanded} /></LazyAdapterWrapper>;
       default:
         if (typeof config === 'string') {
           return <MermaidAdapter config={config} isExpanded={expanded} />;
@@ -469,7 +504,7 @@ export const VisualDispatcher = React.memo(({ payload, rawJson, onSourceClick })
           }}
           onExpand={() => setIsExpanded(true)}
           isTable={isTable}
-          isReactFlow={engine === 'react-flow' || engine === 'mindmap'}
+          isReactFlow={['react-flow', 'mindmap', 'circuit', 'chemistry', 'math-plot', 'geo', '3d'].includes(engine)}
           isECharts={engine === 'echarts' || engine === 'chart'}
         >
           <VisualizationErrorBoundary key={renderKey} onRetry={() => setRenderKey(k => k + 1)}>

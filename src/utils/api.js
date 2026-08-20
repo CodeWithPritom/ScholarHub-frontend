@@ -72,6 +72,7 @@ window.fetch = async function(resource, config) {
  * App.jsx listens for this; any component or utility can dispatch it.
  */
 export const SESSION_EXPIRED_EVENT = 'scholarhub:session-expired';
+export const DEVICE_ERROR_EVENT = 'scholarhub:device-error';
 
 /**
  * Fires the global session-expired event.
@@ -84,6 +85,20 @@ export function fireSessionExpired(detail) {
   window.dispatchEvent(
     new CustomEvent(SESSION_EXPIRED_EVENT, {
       detail: detail || 'Your premium plan has expired. You have been reverted to the Free plan.'
+    })
+  );
+}
+
+/**
+ * Fires the global device-error event.
+ * Prompts the user to reset password to clear device conflicts.
+ * 
+ * @param {string} [detail] - Optional message to include in the device error notification
+ */
+export function fireDeviceSyncError(detail) {
+  window.dispatchEvent(
+    new CustomEvent(DEVICE_ERROR_EVENT, {
+      detail: detail || 'Device not detected or security sync pending. Please reset your password to clear device sessions.'
     })
   );
 }
@@ -131,7 +146,11 @@ export async function apiFetch(path, options = {}) {
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || err.error || `Request failed (${res.status})`);
+    const errText = err.detail || err.error || `Request failed (${res.status})`;
+    if (typeof errText === 'string' && (errText.toLowerCase().includes('device') || errText.toLowerCase().includes('unregistered'))) {
+      fireDeviceSyncError(errText);
+    }
+    throw new Error(errText);
   }
 
   return res.json();

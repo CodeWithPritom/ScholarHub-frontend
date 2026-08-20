@@ -117,16 +117,15 @@ export async function ensureDeviceIsRegistered(userId, onDeviceLimitReached) {
     if (deviceCount < 2) {
       const { error: insertError } = await supabase
         .from('user_devices')
-        .insert({
+        .upsert({
           user_id: userId,
           device_id: deviceId,
           device_name: getDeviceName()
-        });
+        }, { onConflict: 'user_id,device_id' });
 
       if (insertError) {
-        // Handle potential race condition (duplicate insert)
+        // Handle potential race condition
         if (insertError.code === '23505') {
-          // Unique constraint violation — already inserted by another tab/call
           return { synced: true, deviceId };
         }
         console.warn('[DeviceSync] Error registering device:', insertError.message);

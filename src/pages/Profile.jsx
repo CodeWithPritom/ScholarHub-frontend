@@ -7,10 +7,12 @@ import {
   Globe, FileDown, Eye, Gauge, Compass, MessageCircle, RefreshCw, Clock
 } from 'lucide-react'
 import { supabase } from '../supabaseClient'
+import { toast } from 'sonner'
 import { BASE_URL } from '../utils/api'
 import Footer from '../Footer'
 import { motion, AnimatePresence } from 'framer-motion'
 import WorkspaceLayout from '../components/WorkspaceLayout'
+import ResearchDNA from '../components/ResearchDNA'
 
 const Profile = ({ user }) => {
   const navigate = useNavigate()
@@ -18,7 +20,7 @@ const Profile = ({ user }) => {
   const [loading, setLoading] = useState(true)
   const [tierData, setTierData] = useState({ tier: 'free', valid_until: null, isExpired: false })
   const [usageStats, setUsageStats] = useState({ aiSummaries: 0 })
-  const [profileData, setProfileData] = useState({ full_name: '', academic_field: 'Genetic Eng. & Biotech (GEB)', compute_credits: 1000, total_credits: 1000, export_count: 0, user_tier: 'free', saved_papers_count: 0, last_reset_date: null })
+  const [profileData, setProfileData] = useState({ full_name: '', academic_field: user?.user_metadata?.academic_field || '', compute_credits: 500, total_credits: 500, export_count: 0, user_tier: 'free', saved_papers_count: 0, last_reset_date: null })
   const [devices, setDevices] = useState([])
 
   const fetchDevices = useCallback(async () => {
@@ -55,10 +57,10 @@ const Profile = ({ user }) => {
 
         // 1. Fetch Profile (Full Name, Academic Field, user_tier)
         let fullName = user.user_metadata?.full_name || user.user_metadata?.name || ''
-        let academicField = 'Genetic Eng. & Biotech (GEB)'
+        let academicField = user?.user_metadata?.academic_field || ''
         let currentTier = 'free'
-        let computeCredits = 1000
-        let totalCredits = 1000
+        let computeCredits = 500
+        let totalCredits = 500
         let exportCount = 0
         let lastResetDate = null
         
@@ -696,6 +698,16 @@ const Profile = ({ user }) => {
               </div>
             </motion.div>
           </div>
+
+          {/* Research DNA Dashboard Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.25, ease: 'easeOut' }}
+            className="mt-8"
+          >
+            <ResearchDNA profile={profileData} user={user} />
+          </motion.div>
 
           {/* Connected Devices Section */}
           <motion.div

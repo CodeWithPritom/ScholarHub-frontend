@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
+import * as echarts from 'echarts';
 import { SLATE_THEME } from '../slateThemeToken';
 
 /**
@@ -57,6 +58,22 @@ export const EChartsAdapter = React.memo(({ type, config, onSourceClick }) => {
     };
 
     const sanitizedOption = deepClean(rawOption);
+
+    // Sanitize visualMap to prevent legacy 'visualMap.color' uncaught errors
+    if (sanitizedOption.visualMap && typeof sanitizedOption.visualMap === 'object') {
+      if (Array.isArray(sanitizedOption.visualMap)) {
+        sanitizedOption.visualMap = sanitizedOption.visualMap.map(vm => {
+          if (vm && vm.color && !vm.inRange) {
+            const { color, ...rest } = vm;
+            return { ...rest, inRange: { color } };
+          }
+          return vm;
+        });
+      } else if (sanitizedOption.visualMap.color && !sanitizedOption.visualMap.inRange) {
+        const { color, ...rest } = sanitizedOption.visualMap;
+        sanitizedOption.visualMap = { ...rest, inRange: { color } };
+      }
+    }
 
     const VALID_ECHARTS_TYPES = new Set(['line', 'bar', 'pie', 'scatter', 'radar']);
     const normalizeSeriesType = (t) => {
@@ -224,6 +241,7 @@ export const EChartsAdapter = React.memo(({ type, config, onSourceClick }) => {
   return (
     <div className="w-full h-[380px] min-h-[380px] min-w-[300px] relative p-2 bg-white flex flex-col justify-center items-center overflow-hidden">
       <ReactECharts 
+        echarts={echarts}
         option={option} 
         style={{ height: '380px', width: '100%', minHeight: '380px' }} 
         opts={{ width: 'auto', height: 380 }}

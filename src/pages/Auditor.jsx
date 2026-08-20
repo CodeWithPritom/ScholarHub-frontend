@@ -878,6 +878,7 @@ const Auditor = ({ user, onLogout }) => {
   const [showDynamicSuggestions, setShowDynamicSuggestions] = useState(false);
   const [hoveredCitation, setHoveredCitation] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [latentConnection, setLatentConnection] = useState(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showSourcesExportMenu, setShowSourcesExportMenu] = useState(false);
@@ -2221,6 +2222,20 @@ const Auditor = ({ user, onLogout }) => {
           headers: fetchHeaders
         });
 
+        // Trigger Project Nexus Shadow Agent for cross-context latent connections
+        try {
+          fetch(`${BASE_URL}/api/intelligence/shadow-links`, {
+            method: 'POST',
+            headers: fetchHeaders,
+            body: JSON.stringify({ query: searchKeyword })
+          }).then(r => r.json()).then(data => {
+            if (data && data.has_latent_link) {
+              setLatentConnection(data);
+              toast.info(`🔗 Shadow Agent: Latent connection found!`);
+            }
+          }).catch(() => {});
+        } catch (e) {}
+
         if (!searchRes.ok && searchRes.status !== 202) {
           throw new Error('Failed to fetch search results from academic databases.');
         }
@@ -2535,7 +2550,7 @@ const Auditor = ({ user, onLogout }) => {
             chat_history: conversation.slice(-3),
             audit_mode: auditMode,
             workflow: activeWorkflow,
-            academic_field: profile?.academic_field || 'Genetic Eng. & Biotech (GEB)',
+            academic_field: profile?.academic_field || '',
             academic_status: profile?.academic_status || 'Undergraduate'
           })
         });
@@ -2717,11 +2732,14 @@ const Auditor = ({ user, onLogout }) => {
       }
 
     } catch (error) {
-      let userMsg = 'An error occurred during AI analysis.';
-      
       if (error.name === 'AbortError' || error.message?.includes('aborted')) {
-        userMsg = 'The analysis took too long and was interrupted by the browser. Please check your History or try again with a lighter task.';
-      } else if (error.message?.includes('Failed to fetch') || error.message?.includes('fetch')) {
+        setMessages(prev => prev.map(m => m.isStreaming ? { ...m, isStreaming: false } : m));
+        toast.info('Generation stopped.');
+        return;
+      }
+      
+      let userMsg = 'An error occurred during AI analysis.';
+      if (error.message?.includes('Failed to fetch') || error.message?.includes('fetch')) {
         userMsg = 'The Global Research Databases are currently experiencing high latency. We apologize for this external delay. Please try again in a few moments as we re-establish the connection.';
       } else {
         userMsg = error.message || userMsg;
@@ -3216,6 +3234,19 @@ const Auditor = ({ user, onLogout }) => {
                         </div>
                       ) : (
                         <form onSubmit={handleQuerySubmit} className="w-full flex flex-col items-center">
+                          {latentConnection && (
+                            <div className="w-full max-w-xl mb-4 p-3.5 bg-slate-900 border border-indigo-500/40 text-white rounded-2xl shadow-xl flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3">
+                                <Sparkles size={16} className="text-indigo-400 animate-pulse shrink-0" />
+                                <div className="text-xs">
+                                  <span className="font-black text-indigo-300 uppercase tracking-widest block text-[10px]">Project Nexus Latent Link ({latentConnection.confidence_score}% Match)</span>
+                                  <span className="font-medium text-slate-200">{latentConnection.synthesis_note}</span>
+                                </div>
+                              </div>
+                              <button type="button" onClick={() => setLatentConnection(null)} className="text-slate-400 hover:text-white text-xs font-bold p-1">✕</button>
+                            </div>
+                          )}
+
                           {/* Compact Elegant Title */}
                           <h1 className="text-2xl font-black text-slate-800 mb-1 tracking-tight text-center">
                             Literature Review Auditor
@@ -4136,6 +4167,7 @@ const Auditor = ({ user, onLogout }) => {
                       toggleVoiceRecognition={toggleVoiceRecognition}
                       isListening={isListening}
                       isAnalyzing={isAnalyzing || isRequesting.current}
+                      onStopGeneration={handleStopGeneration}
                     />
                   </div>
 

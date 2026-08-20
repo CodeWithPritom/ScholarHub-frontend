@@ -10,7 +10,7 @@ try {
   mermaid.initialize({
     startOnLoad: false,
     securityLevel: 'loose',
-    theme: 'default',
+    theme: 'base',
     flowchart: {
       htmlLabels: true,
       wrap: true,
@@ -19,7 +19,15 @@ try {
     },
     themeVariables: {
       fontSize: '13px',
-      fontFamily: 'Inter, system-ui, sans-serif'
+      fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+      primaryColor: '#EEF2FF',
+      primaryTextColor: '#1E1B4B',
+      primaryBorderColor: '#6366F1',
+      lineColor: '#475569',
+      secondaryColor: '#F0FDF4',
+      tertiaryColor: '#FFF7ED',
+      clusterBkg: '#F8FAFC',
+      clusterBorder: '#CBD5E1'
     }
   });
 } catch (e) { }
@@ -30,6 +38,9 @@ export const sanitizeMermaid = (code) => {
 
   // Clean markdown block wrappers if they exist
   sanitized = sanitized.replace(/^```mermaid/i, '').replace(/```$/g, '').trim();
+
+  // Strip raw markdown bold ** or * inside node labels e.g. **Cell Isolation** -> Cell Isolation
+  sanitized = sanitized.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1');
 
   // Strip comments
   sanitized = sanitized.replace(/%%[^\n]*/g, '');
@@ -224,18 +235,53 @@ export const MermaidDiagram = React.memo(({ chart, isExpanded = false }) => {
         const styleEl = doc.createElementNS('http://www.w3.org/2000/svg', 'style');
         styleEl.textContent = `
           .node foreignObject { overflow: visible !important; }
+          .node rect, .node circle, .node polygon, .node path {
+            rx: 10px !important;
+            ry: 10px !important;
+            stroke-width: 2px !important;
+            filter: drop-shadow(0 2px 5px rgba(15, 23, 42, 0.06)) !important;
+          }
           .node foreignObject div, .label foreignObject div {
             white-space: normal !important;
             word-break: break-word !important;
             overflow-wrap: break-word !important;
             text-align: center !important;
             font-size: 13px !important;
-            line-height: 1.4 !important;
-            padding: 4px 8px !important;
+            font-weight: 600 !important;
+            color: #0f172a !important;
+            line-height: 1.45 !important;
+            padding: 6px 12px !important;
             box-sizing: border-box !important;
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
+            font-family: 'Inter', system-ui, sans-serif !important;
+          }
+          .edgePath path {
+            stroke: #475569 !important;
+            stroke-width: 2px !important;
+          }
+          .edgeLabel {
+            background-color: #ffffff !important;
+            padding: 2px 6px !important;
+            border-radius: 6px !important;
+            font-size: 11px !important;
+            font-weight: 600 !important;
+            color: #475569 !important;
+          }
+          .cluster rect {
+            rx: 14px !important;
+            ry: 14px !important;
+            fill: #f8fafc !important;
+            stroke: #cbd5e1 !important;
+            stroke-width: 1.5px !important;
+          }
+          .cluster span {
+            font-weight: 800 !important;
+            color: #1e293b !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.05em !important;
+            font-size: 12px !important;
           }
         `;
         svg.insertBefore(styleEl, svg.firstChild);

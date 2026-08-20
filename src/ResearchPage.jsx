@@ -10,7 +10,7 @@ import {
   Download, FolderPlus, BarChart3, BarChart2, Plus, Loader2, Lock
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
-import { BASE_URL, fireSessionExpired } from './utils/api';
+import { BASE_URL, fireSessionExpired, fireDeviceSyncError } from './utils/api';
 import { getOrCreateDeviceId, ensureDeviceIsRegistered } from './utils/deviceSync';
 import Footer from './Footer';
 import AuthModal from './AuthModal';
@@ -23,33 +23,7 @@ import SearchBar from './components/SearchBar';
 import ArticleGrid from './components/ArticleGrid';
 
 
-const getPortalDetails = (portalId) => {
-  switch (portalId) {
-    case 'eng': return { name: 'Engineering', source: 'arXiv Engineering Hub' };
-    case 'physics': return { name: 'Physics', source: 'Physics Archive' };
-    case 'math': return { name: 'Mathematics', source: 'Math Records' };
-    case 'social': return { name: 'Social Sciences', source: 'Global Scholar Databases' };
-    case 'law': return { name: 'Legal', source: 'Global Scholar Databases' };
-    case 'chem': return { name: 'Chemistry', source: 'Chemistry Hub' };
-    case 'geb': return { name: 'GEB', source: 'Genetic Engineering Database' };
-    case 'pharma': return { name: 'Pharmacy', source: 'Pharmacology Database' };
-    default: return { name: 'GEB', source: 'Genetic Engineering Database' };
-  }
-};
 
-const mapAcademicFieldToPortal = (field) => {
-  if (!field) return 'universal';
-  const f = field.toLowerCase();
-  if (f.includes('genetic') || f.includes('geb') || f.includes('biotech')) return 'geb';
-  if (f.includes('pharmacology') || f.includes('pharmacy')) return 'pharma';
-  if (f.includes('engineering') || f.includes('cs')) return 'eng';
-  if (f.includes('physics')) return 'physics';
-  if (f.includes('mathematics') || f.includes('math')) return 'math';
-  if (f.includes('social')) return 'social';
-  if (f.includes('law') || f.includes('legal')) return 'law';
-  if (f.includes('chemistry')) return 'chem';
-  return 'universal';
-};
 
 // Utility functions for Lit Review Modal
 const parseInline = (text) => {
@@ -646,44 +620,13 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
     });
   };
 
-  const [portal, setPortal] = useState(() => {
-    const cached = sessionStorage.getItem('active_portal');
-    if (cached) return cached;
-
-    const consent = localStorage.getItem('scholarhub_cookie_consent') === 'true';
-    if (consent) {
-      const saved = localStorage.getItem('last_used_portal');
-      if (saved) return saved;
-    }
-
-    // Auth Sync: Fallback to user metadata
-    const fieldMap = {
-      'Genetic Eng. & Biotech (GEB)': 'geb',
-      'Pharmacy & Pharmacology': 'pharma',
-      'Engineering/CS': 'eng',
-      'Engineering': 'eng',
-      'Physics': 'physics',
-      'Mathematics': 'math',
-      'Social Sciences': 'social',
-      'Chemistry / Pharmacy': 'chem',
-      'Law / Legal Studies': 'law'
-    };
-    const metadata = user?.user_metadata || {};
-    const field = metadata.academic_field || 'Genetic Eng. & Biotech (GEB)';
-    return fieldMap[field] || 'universal';
-  });
-
   const [hasSearched, setHasSearched] = useState(() => {
-    const p = sessionStorage.getItem('active_portal');
-    if (!p) return false;
-    const val = sessionStorage.getItem(`hasSearched_${p}`);
+    const val = sessionStorage.getItem('hasSearched');
     return val ? JSON.parse(val) : false;
   });
 
   const [searchTerm, setSearchTerm] = useState(() => {
-    const p = sessionStorage.getItem('active_portal');
-    if (!p) return '';
-    return sessionStorage.getItem(`searchTerm_${p}`) || '';
+    return sessionStorage.getItem('searchTerm') || '';
   });
 
   const [lastSearched, setLastSearched] = useState('');
@@ -759,7 +702,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
   useEffect(() => {
     if (!user) {
       setUserTier('free');
-      setAcademicField('Genetic Eng. & Biotech (GEB)');
+      setAcademicField('');
       setBookmarkCount(0);
       return;
     }
@@ -774,7 +717,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
         if (fetchErr) throw fetchErr;
 
         let tier = (profData?.user_tier || 'free').toLowerCase();
-        let field = profData?.academic_field || user?.user_metadata?.academicField || user?.user_metadata?.academic_field || 'Genetic Eng. & Biotech (GEB)';
+        let field = profData?.academic_field || user?.user_metadata?.academicField || user?.user_metadata?.academic_field || '';
 
         try {
           const { data: subData } = await supabase
@@ -797,47 +740,15 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
         setUserTier(tier);
         setAcademicField(field);
 
-        // Frontend Sync: Manage session portal based on consent
-        setPortal(prev => {
-          const consent = localStorage.getItem('scholarhub_cookie_consent') === 'true';
-          let proPortal = prev || mapAcademicFieldToPortal(field);
-
-          if (consent) {
-            const stored = localStorage.getItem('last_used_portal');
-            if (stored) proPortal = stored;
-          }
-          if (prev !== proPortal) {
-            sessionStorage.setItem('active_portal', proPortal);
-            setTimeout(() => hydratePortalState(proPortal), 0);
-            return proPortal;
-          }
-          if (!prev) {
-            const def = mapAcademicFieldToPortal(field);
-            sessionStorage.setItem('active_portal', def);
-            setTimeout(() => hydratePortalState(def), 0);
-            return def;
-          }
-          return prev;
-        });
       } catch (err) {
         console.error("Error fetching tier/profile:", err);
         setProfileError("Database connection issue. Fallback profile loaded.");
 
         const metadata = user?.user_metadata || {};
-        const field = metadata.academicField || metadata.academic_field || 'Genetic Eng. & Biotech (GEB)';
+        const field = metadata.academicField || metadata.academic_field || '';
 
         setUserTier('free');
         setAcademicField(field);
-
-        setPortal(prev => {
-          const def = mapAcademicFieldToPortal(field);
-          if (!prev) {
-            sessionStorage.setItem('active_portal', def);
-            setTimeout(() => hydratePortalState(def), 0);
-            return def;
-          }
-          return prev;
-        });
       }
     };
     getTierAndProfile();
@@ -855,14 +766,14 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const query = params.get('q');
-    if (query && userTier && portal) {
+    if (query && userTier) {
       const url = new URL(window.location);
       url.searchParams.delete('q');
       window.history.replaceState({}, document.title, url.pathname + url.search);
       setSearchTerm(query);
       searchPubMed(null, query);
     }
-  }, [userTier, portal]);
+  }, [userTier]);
 
   const [showAuthModal, setShowAuthModal] = useState(false);
 
@@ -934,7 +845,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
             title: art.title,
             abstract: art.abstract || ''
           })),
-          portal: portal || 'universal'
+          portal: 'universal'
         }),
         signal: controller.signal
       });
@@ -952,8 +863,9 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
           if (errData.error) errMsg = errData.error;
           else if (errData.detail) errMsg = errData.detail;
 
-          if (typeof errMsg === 'string' && errMsg.includes('Device ID not registered')) {
-            errMsg = 'This device is not registered. Please manage your devices in the Profile page.';
+          if (typeof errMsg === 'string' && (errMsg.includes('Device ID not registered') || errMsg.toLowerCase().includes('device'))) {
+            fireDeviceSyncError(errMsg);
+            errMsg = 'Device sync error. Please reset your password to resolve device session locks.';
           }
         } catch { /* ignore parsing errors */ }
         throw new Error(errMsg);
@@ -1076,9 +988,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
   };
 
   const [articles, setArticles] = useState(() => {
-    const p = sessionStorage.getItem('active_portal');
-    if (!p) return [];
-    const val = sessionStorage.getItem(`results_${p}`);
+    const val = sessionStorage.getItem('results');
     return val ? JSON.parse(val) : [];
   });
 
@@ -1092,22 +1002,16 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
   const [globalLatestLoading, setGlobalLatestLoading] = useState(true);
 
   const [aiPromptVisible, setAiPromptVisible] = useState(() => {
-    const p = sessionStorage.getItem('active_portal');
-    if (!p) return false;
-    const val = sessionStorage.getItem(`aiPromptVisible_${p}`);
+    const val = sessionStorage.getItem('aiPromptVisible');
     return val ? JSON.parse(val) : false;
   });
   const [aiChatOpen, setAiChatOpen] = useState(() => {
-    const p = sessionStorage.getItem('active_portal');
-    if (!p) return false;
-    const val = sessionStorage.getItem(`aiChatOpen_${p}`);
+    const val = sessionStorage.getItem('aiChatOpen');
     return val ? JSON.parse(val) : false;
   });
   const [aiThinking, setAiThinking] = useState(false);
   const [aiSummary, setAiSummary] = useState(() => {
-    const p = sessionStorage.getItem('active_portal');
-    if (!p) return '';
-    return sessionStorage.getItem(`aiSummary_${p}`) || '';
+    return sessionStorage.getItem('aiSummary') || '';
   });
   const [aiStep, setAiStep] = useState('');
   const [aiProgress, setAiProgress] = useState(0);
@@ -1115,9 +1019,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
   const [isAiLimitReached, setIsAiLimitReached] = useState(false);
 
   const [chatHistory, setChatHistory] = useState(() => {
-    const p = sessionStorage.getItem('active_portal');
-    if (!p) return [];
-    const val = sessionStorage.getItem(`chatHistory_${p}`);
+    const val = sessionStorage.getItem('chatHistory');
     return val ? JSON.parse(val) : [];
   });
   const [chatInput, setChatInput] = useState('');
@@ -1130,7 +1032,6 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
     setUserTier('free');
     sessionStorage.clear();
     setResultLimit(50);
-    setPortal(portal || 'universal');
     setShowExpiryToast(true);
     setTimeout(() => setShowExpiryToast(false), 5000);
 
@@ -1138,88 +1039,28 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
     fireSessionExpired('Your premium session has expired. Please renew to continue using Pro features.');
   };
 
-  const hydratePortalState = (newPortal) => {
-    const loadedArticles = sessionStorage.getItem(`results_${newPortal}`);
-    setArticles(loadedArticles ? JSON.parse(loadedArticles) : []);
-
-    setSearchTerm(sessionStorage.getItem(`searchTerm_${newPortal}`) || '');
-    setAiSummary(sessionStorage.getItem(`aiSummary_${newPortal}`) || '');
-
-    const loadedHistory = sessionStorage.getItem(`chatHistory_${newPortal}`);
-    setChatHistory(loadedHistory ? JSON.parse(loadedHistory) : []);
-
-    const loadedSearched = sessionStorage.getItem(`hasSearched_${newPortal}`);
-    setHasSearched(loadedSearched ? JSON.parse(loadedSearched) : false);
-
-    const loadedPrompt = sessionStorage.getItem(`aiPromptVisible_${newPortal}`);
-    setAiPromptVisible(loadedPrompt ? JSON.parse(loadedPrompt) : false);
-
-    const loadedChat = sessionStorage.getItem(`aiChatOpen_${newPortal}`);
-    setAiChatOpen(loadedChat ? JSON.parse(loadedChat) : false);
-  };
-
-  const handlePortalSwitch = (newPortal) => {
-    // a) Save current portal's data to its specific key in sessionStorage
-    try {
-      const currentP = portal;
-      if (currentP) {
-        sessionStorage.setItem(`results_${currentP}`, JSON.stringify(articles));
-        sessionStorage.setItem(`searchTerm_${currentP}`, searchTerm);
-        sessionStorage.setItem(`aiSummary_${currentP}`, aiSummary);
-        sessionStorage.setItem(`hasSearched_${currentP}`, JSON.stringify(hasSearched));
-        sessionStorage.setItem(`aiPromptVisible_${currentP}`, JSON.stringify(aiPromptVisible));
-        sessionStorage.setItem(`aiChatOpen_${currentP}`, JSON.stringify(aiChatOpen));
-        if (chatHistory && chatHistory.length > 0) {
-          sessionStorage.setItem(`chatHistory_${currentP}`, JSON.stringify(chatHistory));
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to save old portal state', e);
-    }
-
-    // Task 2: Save to localStorage if consent is true (Rule A & Rule C)
-    const consent = localStorage.getItem('scholarhub_cookie_consent') === 'true';
-    if (consent) {
-      if (userTier === 'pro' || !user) {
-        localStorage.setItem('last_used_portal', newPortal);
-      }
-    }
-
-    // b) Update the 'portal' state
-    sessionStorage.setItem('active_portal', newPortal);
-    setPortal(newPortal);
-
-    // c) Immediately load the saved data of the NEW portal from sessionStorage into the state
-    hydratePortalState(newPortal);
-  };
-
   useEffect(() => {
-    // Sync current state to active portal cache continuously
     try {
-      const p = portal;
-      if (!p) return;
-      sessionStorage.setItem('active_portal', p);
-      sessionStorage.setItem(`searchTerm_${p}`, searchTerm);
+      sessionStorage.setItem('searchTerm', searchTerm);
       sessionStorage.setItem('searchCount', JSON.stringify(searchCount));
       sessionStorage.setItem('resultLimit', JSON.stringify(resultLimit));
       sessionStorage.setItem('startDate', startDate);
       sessionStorage.setItem('endDate', endDate);
       sessionStorage.setItem('sortBy', sortBy);
       sessionStorage.setItem('aiWidgetMode', aiWidgetMode);
-
-      sessionStorage.setItem(`results_${p}`, JSON.stringify(articles));
-      sessionStorage.setItem(`aiSummary_${p}`, aiSummary);
-      sessionStorage.setItem(`hasSearched_${p}`, JSON.stringify(hasSearched));
-      sessionStorage.setItem(`aiPromptVisible_${p}`, JSON.stringify(aiPromptVisible));
-      sessionStorage.setItem(`aiChatOpen_${p}`, JSON.stringify(aiChatOpen));
+      sessionStorage.setItem('results', JSON.stringify(articles));
+      sessionStorage.setItem('aiSummary', aiSummary);
+      sessionStorage.setItem('hasSearched', JSON.stringify(hasSearched));
+      sessionStorage.setItem('aiPromptVisible', JSON.stringify(aiPromptVisible));
+      sessionStorage.setItem('aiChatOpen', JSON.stringify(aiChatOpen));
 
       if (chatHistory && chatHistory.length > 0) {
-        sessionStorage.setItem(`chatHistory_${p}`, JSON.stringify(chatHistory));
+        sessionStorage.setItem('chatHistory', JSON.stringify(chatHistory));
       }
     } catch (e) {
-      console.warn('Session storage quota exceeded while saving state. Some data may not persist on navigation.', e);
+      console.warn('Session storage quota exceeded while saving state.', e);
     }
-  }, [searchTerm, lastSearched, hasSearched, searchCount, articles, resultLimit, startDate, endDate, sortBy, aiPromptVisible, aiChatOpen, aiSummary, aiWidgetMode, chatHistory, portal]);
+  }, [searchTerm, lastSearched, hasSearched, searchCount, articles, resultLimit, startDate, endDate, sortBy, aiPromptVisible, aiChatOpen, aiSummary, aiWidgetMode, chatHistory]);
 
   useEffect(() => {
     if (articles && articles.length > 0) {
@@ -1236,19 +1077,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
   };
 
   const fetchGlobalLatest = async (forceRefresh = false) => {
-    const userField = academicField || 'Genetic Eng. & Biotech (GEB)';
-    const primaryFields = {
-      'Genetic Eng. & Biotech (GEB)': 'bio',
-      'Engineering/CS': 'eng',
-      'Physics': 'physics',
-      'Mathematics': 'math',
-      'Social Sciences': 'social',
-      'Law / Legal Studies': 'law',
-      'Chemistry / Pharmacy': 'chem'
-    };
-
-    const isPrimary = userField in primaryFields;
-    const portalParam = isPrimary ? primaryFields[userField] : 'universal';
+    const userField = academicField || 'General Research';
     const CACHE_KEY = `global_latest_research_cache_${userField.replace(/\s+/g, '_')}`;
 
     if (!forceRefresh) {
@@ -1273,23 +1102,46 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
     setGlobalLatestLoading(true);
     try {
       let latestPaper = null;
-      if (isPrimary) {
-        const url = `${BASE_URL}/get-latest-research?portal=${portalParam}${forceRefresh ? '&force=true' : ''}`;
-        const response = await fetch(url, { method: 'GET', mode: 'cors' });
-        if (response.ok) {
-          const data = await response.json();
-          if (data && data.latest) {
-            latestPaper = data.latest;
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      
+      const fetchHeaders = { 'Content-Type': 'application/json' };
+      if (token) {
+        fetchHeaders['Authorization'] = `Bearer ${token}`;
+      }
+
+      const cleanQuery = userField.replace(/\(.*?\)/g, '').trim();
+      const url = `${BASE_URL}/api/search?keyword=${encodeURIComponent(cleanQuery || userField)}&limit=1`;
+      const response = await fetch(url, { method: 'GET', headers: fetchHeaders, mode: 'cors' });
+      
+      if (response.ok) {
+        let data = await response.json();
+        
+        // Handle 202 Async Queued job status
+        if (response.status === 202 || (data.status === 'queued' && data.job_id)) {
+          const jobId = data.job_id;
+          let pollCount = 0;
+          while (pollCount < 30) {
+            await new Promise(r => setTimeout(r, 1000));
+            pollCount++;
+            try {
+              const jobRes = await fetch(`${BASE_URL}/api/job/${jobId}`, { headers: fetchHeaders });
+              if (jobRes.ok) {
+                const jobData = await jobRes.json();
+                const payloadObj = jobData.payload || jobData.result || jobData;
+                if (jobData.status === 'completed' && payloadObj) {
+                  data = payloadObj;
+                  break;
+                }
+              }
+            } catch (pErr) {
+              break;
+            }
           }
         }
-      } else {
-        const url = `${BASE_URL}/api/search?portal=universal&keyword=${encodeURIComponent(userField)}&limit=1`;
-        const response = await fetch(url, { method: 'GET', mode: 'cors' });
-        if (response.ok) {
-          const data = await response.json();
-          if (data && data.articles && data.articles.length > 0) {
-            latestPaper = data.articles[0];
-          }
+
+        if (data && data.articles && data.articles.length > 0) {
+          latestPaper = data.articles[0];
         }
       }
 
@@ -1309,7 +1161,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
 
   useEffect(() => {
     fetchGlobalLatest();
-  }, [portal, academicField]);
+  }, [academicField]);
 
   const onSummarize = async () => {
     if (articles.length === 0) return;
@@ -1331,10 +1183,9 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
     setAiSummary('');
 
     try {
-      const pDetails = getPortalDetails(portal);
       const steps = [
-        { text: `Cross-referencing ${pDetails.source}...`, prog: 30, delay: 800 },
-        { text: `Analyzing ${pDetails.name} Insights...`, prog: 60, delay: 1500 },
+        { text: `Cross-referencing global databases...`, prog: 30, delay: 800 },
+        { text: `Analyzing domain insights...`, prog: 60, delay: 1500 },
         { text: 'Generating Executive Report...', prog: 90, delay: 2200 }
       ];
 
@@ -1435,7 +1286,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
         body: JSON.stringify({
           articles: [{ title: paper.title, abstract: paper.abstract, url: paper.url || '' }],
           user_message: prompt,
-          portal: portal || 'universal',
+          portal: 'universal',
           chat_history: chatHistory
         })
       });
@@ -1493,7 +1344,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
         body: JSON.stringify({
           articles: articles.slice(0, userTier === 'pro' ? 15 : (userTier === 'starter' ? 10 : 5)).map(p => ({ title: p.title, abstract: p.abstract, url: p.url })),
           user_message: userMessage,
-          portal: portal || 'universal',
+          portal: 'universal',
           chat_history: chatHistory
         }),
         signal: controller.signal
@@ -1581,8 +1432,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       }
     }
 
-    const authorizedPortal = portal || 'universal';
-    const queryKey = `cache_${authorizedPortal}_${currentSearchTerm}_${resultLimit}_${startDate}_${endDate}_${sortBy}`;
+    const queryKey = `cache_${currentSearchTerm}_${resultLimit}_${startDate}_${endDate}_${sortBy}`;
     const cachedData = sessionStorage.getItem(queryKey);
     if (cachedData) {
       const results = JSON.parse(cachedData);
@@ -1606,7 +1456,6 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       const newCount = searchCount + 1;
       setSearchCount(newCount);
       sessionStorage.setItem('searchCount', newCount.toString());
-      sessionStorage.setItem('portal', authorizedPortal);
 
       if (userTier === 'free' || !user) {
         setGuestCooldown(5);
@@ -1622,32 +1471,35 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       if (searchAbortControllerRef.current) {
         searchAbortControllerRef.current.abort();
       }
-      searchAbortControllerRef.current = new AbortController();
+      const controller = new AbortController();
+      searchAbortControllerRef.current = controller;
 
-      // Silent Debounce Delay Throttling (10s for free tier, 5s for starter/pro)
-      const delayMs = userTier === 'free' ? 10000 : 5000;
-      await new Promise((resolve, reject) => {
-        const signal = searchAbortControllerRef.current?.signal;
-        if (signal?.aborted) {
-          return reject(new DOMException('Aborted', 'AbortError'));
-        }
-        const timeoutId = setTimeout(() => {
-          signal?.removeEventListener('abort', onAbort);
-          resolve();
-        }, delayMs);
-        function onAbort() {
-          clearTimeout(timeoutId);
-          reject(new DOMException('Aborted', 'AbortError'));
-        }
-        signal?.addEventListener('abort', onAbort);
-      });
+      // Pricing plan delay throttling (10s for free tier, 5s for starter tier, 0s for pro)
+      const delayMs = userTier === 'free' ? 10000 : userTier === 'starter' ? 5000 : 0;
+      if (delayMs > 0) {
+        await new Promise((resolve, reject) => {
+          const signal = controller.signal;
+          if (signal.aborted) {
+            return reject(new DOMException('Aborted', 'AbortError'));
+          }
+          const timeoutId = setTimeout(() => {
+            signal.removeEventListener('abort', onAbort);
+            resolve();
+          }, delayMs);
+          function onAbort() {
+            clearTimeout(timeoutId);
+            reject(new DOMException('Aborted', 'AbortError'));
+          }
+          signal.addEventListener('abort', onAbort);
+        });
+      }
 
       setIsSyncing(false);
 
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
-      const fetchUrl = `${BASE_URL}/api/search?portal=${authorizedPortal}&keyword=${encodeURIComponent(currentSearchTerm)}&limit=${resultLimit}&start_date=${startDate}&end_date=${endDate}&sort_by=${sortBy}`;
+      const fetchUrl = `${BASE_URL}/api/search?keyword=${encodeURIComponent(currentSearchTerm)}&limit=${resultLimit}&start_date=${startDate}&end_date=${endDate}&sort_by=${sortBy}`;
 
       const fetchHeaders = { 'Content-Type': 'application/json' };
       if (token) {
@@ -1658,7 +1510,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
         method: 'GET',
         headers: fetchHeaders,
         mode: 'cors',
-        signal: searchAbortControllerRef.current.signal
+        signal: controller.signal
       });
       if (!response.ok) {
         if (response.status === 401) {
@@ -1781,15 +1633,14 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
 
   const executeForceRefresh = () => {
     setShowRefreshModal(false);
-    const authorizedPortal = portal || 'universal';
-    const queryKey = `cache_${authorizedPortal}_${searchTerm}_${resultLimit}_${startDate}_${endDate}_${sortBy}`;
+    const queryKey = `cache_${searchTerm}_${resultLimit}_${startDate}_${endDate}_${sortBy}`;
     sessionStorage.removeItem(queryKey);
 
-    sessionStorage.removeItem(`results_${authorizedPortal}`);
-    sessionStorage.removeItem(`ai_summary_${authorizedPortal}`);
-    sessionStorage.removeItem(`has_searched_${authorizedPortal}`);
-    sessionStorage.removeItem(`chat_history_${authorizedPortal}`);
-    sessionStorage.removeItem(`search_term_${authorizedPortal}`);
+    sessionStorage.removeItem('results');
+    sessionStorage.removeItem('aiSummary');
+    sessionStorage.removeItem('hasSearched');
+    sessionStorage.removeItem('chatHistory');
+    sessionStorage.removeItem('searchTerm');
 
     setArticles([]);
     setAiSummary('');
@@ -2005,8 +1856,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-16 items-start">
             <div className="lg:col-span-3">
               <SearchBar
-                portal={portal}
-                setPortal={handlePortalSwitch}
+                portal="universal"
                 userTier={userTier}
 
                 setArticles={setArticles}

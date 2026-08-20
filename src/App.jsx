@@ -9,8 +9,8 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams, u
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from './supabaseClient'
 import { ensureDeviceIsRegistered, handlePasswordResetDeviceOverride } from './utils/deviceSync'
-import { SESSION_EXPIRED_EVENT } from './utils/api'
-import { Dna, AlertTriangle, X, CreditCard, KeyRound } from 'lucide-react'
+import { SESSION_EXPIRED_EVENT, DEVICE_ERROR_EVENT } from './utils/api'
+import { Dna, AlertTriangle, X, CreditCard, KeyRound, MonitorSmartphone, ShieldCheck } from 'lucide-react'
 import { Toaster } from 'sonner'
 
 // Pages
@@ -32,6 +32,8 @@ const SharedAudit = lazy(() => import('./pages/SharedAudit'))
 const NewsHub = lazy(() => import('./pages/NewsHub'))
 const OpportunityHub = lazy(() => import('./pages/OpportunityHub'))
 const AcademyHub = lazy(() => import('./pages/AcademyHub'))
+const ResearchDNAPage = lazy(() => import('./pages/ResearchDNAPage'))
+const PublicResearchDNAPage = lazy(() => import('./pages/PublicResearchDNAPage'))
 import MyLibrary from './MyLibrary'
 import Settings from './Settings'
 import VerifyEmail from './VerifyEmail'
@@ -122,7 +124,8 @@ const ProfileSetupModal = ({ isOpen, user, onClose }) => {
         const { error: profileError } = await supabase.from('profiles').update({
           full_name: fullName,
           academic_field: finalField,
-          status: academicStatus
+          academic_status: academicStatus,
+          status: 'active'
         }).eq('id', user.id);
         if (profileError) console.error("Profile update error:", profileError);
       }
@@ -216,6 +219,78 @@ const ProtectedRoute = React.memo(({ user, children }) => {
   return <>{children}</>
 });
 
+const DeviceSecurityModal = ({ isOpen, message, onClose }) => {
+  if (!isOpen) return null;
+
+  const handleResetPasswordClick = () => {
+    onClose();
+    supabase.auth.signOut().then(() => {
+      window.location.href = '/auth?forgot=true';
+    });
+  };
+
+  return (
+    <AnimatePresence>
+      <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md" onClick={onClose} />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 15 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 15 }}
+          className="bg-white rounded-3xl shadow-2xl p-6 sm:p-8 max-w-lg w-full relative z-10 border border-slate-200 text-left overflow-hidden"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 flex items-center justify-center shadow-xs">
+              <MonitorSmartphone size={26} />
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">
+            Device Not Detected / Security Sync Pending
+          </h3>
+
+          <p className="text-xs sm:text-sm text-slate-600 font-medium mt-2 leading-relaxed">
+            {message || 'The system could not verify your active device security session or a device limit was reached.'}
+          </p>
+
+          <div className="my-5 p-4 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-900 text-xs font-semibold leading-relaxed space-y-1.5">
+            <div className="font-extrabold flex items-center gap-1.5 text-amber-800">
+              <ShieldCheck size={14} className="text-amber-600" /> Recommended Resolution:
+            </div>
+            <div>
+              Please <strong>Reset Your Password</strong> — resetting your password automatically purges all stale/conflict device locks from the server and cleanly registers your current device session.
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+            <button
+              onClick={handleResetPasswordClick}
+              className="w-full sm:flex-1 py-3.5 px-5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-amber-600/20 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <KeyRound size={15} />
+              Reset Password Now
+            </button>
+
+            <a
+              href="/profile"
+              onClick={onClose}
+              className="w-full sm:w-auto py-3.5 px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-xs font-bold transition-all text-center"
+            >
+              Manage Devices
+            </a>
+          </div>
+        </motion.div>
+      </div>
+    </AnimatePresence>
+  );
+};
+
 function App() {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
@@ -224,6 +299,8 @@ function App() {
   const [liveUsersCount, setLiveUsersCount] = useState(1)
   const [totalMembersCount, setTotalMembersCount] = useState(0) // Real count via RPC
   const [deviceLimitWarning, setDeviceLimitWarning] = useState(false)
+  const [deviceErrorModalOpen, setDeviceErrorModalOpen] = useState(false)
+  const [deviceErrorMessage, setDeviceErrorMessage] = useState('')
   const [sessionExpired, setSessionExpired] = useState(false)
   const [expiryMessage, setExpiryMessage] = useState('')
   const [needsOnboarding, setNeedsOnboarding] = useState(false)
@@ -238,28 +315,34 @@ function App() {
   }, [user]);
 
   // ─── Global 402 Session Expiry Handler ───
-  // Listens for the custom 'scholarhub:session-expired' event fired by
-  // utils/api.js apiFetch or any component calling fireSessionExpired().
-  // Immediately downgrades the global profile to 'free' and triggers redirect.
   const handleSessionExpiry = useCallback((e) => {
     const detail = e.detail || 'Your premium plan has expired.';
     setExpiryMessage(detail);
     setSessionExpired(true);
 
-    // Downgrade the global profile to free tier immediately
     setProfile(prev => {
       if (!prev) return prev;
       return { ...prev, user_tier: 'free', tier: 'free' };
     });
 
-    // Auto-dismiss expiry toast after 8 seconds
     setTimeout(() => setSessionExpired(false), 8000);
+  }, []);
+
+  // ─── Global Device Sync Error Handler ───
+  const handleDeviceError = useCallback((e) => {
+    const detail = e.detail || 'Device not detected or security sync pending.';
+    setDeviceErrorMessage(detail);
+    setDeviceErrorModalOpen(true);
   }, []);
 
   useEffect(() => {
     window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpiry);
-    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpiry);
-  }, [handleSessionExpiry]);
+    window.addEventListener(DEVICE_ERROR_EVENT, handleDeviceError);
+    return () => {
+      window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpiry);
+      window.removeEventListener(DEVICE_ERROR_EVENT, handleDeviceError);
+    };
+  }, [handleSessionExpiry, handleDeviceError]);
 
   // ─── Fetch Total Members ───
   useEffect(() => {
@@ -347,7 +430,7 @@ function App() {
             tier: resolvedTier,
             role: data?.role || 'user',
             full_name: data?.full_name || sessionUser?.user_metadata?.full_name || '',
-            academic_field: data?.academic_field || sessionUser?.user_metadata?.academic_field || 'Genetic Eng. & Biotech (GEB)',
+            academic_field: data?.academic_field || sessionUser?.user_metadata?.academic_field || '',
             status: data?.status || sessionUser?.user_metadata?.academic_status || 'Undergrad'
           };
 
@@ -361,7 +444,7 @@ function App() {
           setProfile({
             user_tier: 'free',
             tier: 'free',
-            academic_field: 'Genetic Eng. & Biotech (GEB)',
+            academic_field: '',
             academic_status: 'Undergrad',
             role: 'user',
             full_name: ''
@@ -692,6 +775,15 @@ function App() {
             </div>
           )}
 
+          <DeviceSecurityModal 
+            isOpen={deviceErrorModalOpen || deviceLimitWarning} 
+            message={deviceErrorMessage} 
+            onClose={() => {
+              setDeviceErrorModalOpen(false);
+              setDeviceLimitWarning(false);
+            }} 
+          />
+
           <Routes>
             <Route path="/" element={user && !user.email_confirmed_at ? <Navigate to="/verify-email" replace /> : <LandingPage liveUsersCount={liveUsersCount} totalMembersCount={totalMembersCount} user={user} profile={profile} onLogout={handleLogout} />} />
             <Route path="/features/agent" element={<AgentFeature user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
@@ -714,6 +806,8 @@ function App() {
             <Route path="/news" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}><NewsHub user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense>} />
             <Route path="/opportunities" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div></div>}><OpportunityHub user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense>} />
             <Route path="/academy" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div></div>}><AcademyHub user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense>} />
+            <Route path="/research-dna" element={<ProtectedRoute user={user}><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-violet-600 border-t-transparent rounded-full animate-spin"></div></div>}><ResearchDNAPage user={user} profile={profile} onLogout={handleLogout} /></Suspense></ProtectedRoute>} />
+            <Route path="/dna/:shareToken" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-950 text-white"><div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div></div>}><PublicResearchDNAPage /></Suspense>} />
             <Route path="/pricing" element={<Pricing user={user} profile={profile} />} />
             <Route 
               path="/admin" 

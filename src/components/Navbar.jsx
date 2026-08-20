@@ -375,7 +375,7 @@ const Navbar = ({ user, profile, liveUsersCount, onLogout, transparent = false }
                   <Link to="/settings" className="flex items-center gap-3 px-4 py-3 rounded-[12px] text-sm font-semibold text-slate-700 hover:bg-slate-50">
                     <Settings size={18} className="text-slate-500" /> Settings
                   </Link>
-                  {profile?.role === 'admin' && (
+                  {(profile?.role === 'admin' || user?.email === 'arupbhowmikpritom@gmail.com') && (
                     <Link to="/admin" className="flex items-center gap-3 px-4 py-3 rounded-[12px] text-sm font-semibold text-amber-600 bg-amber-50">
                       <ShieldAlert size={18} /> Admin Panel
                     </Link>

@@ -39,7 +39,7 @@ const Dashboard = ({ liveUsersCount, user, profile }) => {
   const [loadingUsers, setLoadingUsers] = useState(true)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [userName, setUserName] = useState('')
-  const [academicField, setAcademicField] = useState(profile?.academic_field || 'Genetic Eng. & Biotech (GEB)')
+  const [academicField, setAcademicField] = useState(profile?.academic_field || '')
 
   useEffect(() => {
     window.scrollTo(0, 0)

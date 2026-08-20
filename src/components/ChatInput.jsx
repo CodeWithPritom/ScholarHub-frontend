@@ -1,7 +1,24 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Paperclip, Folder, Search, Mic, Lock, Square, X } from 'lucide-react';
+import { 
+  Plus, Paperclip, Folder, Search, Mic, Lock, Square, X, 
+  Sparkles, Zap, FlaskConical, Calculator, Globe, Box, Share2, 
+  BarChart3, Workflow, Dna, Command
+} from 'lucide-react';
 import { toast } from 'sonner';
+import { SCIENTIFIC_SKILLS, findSkillsByQuery } from '../utils/scientificSkills';
+
+const ICON_MAP = {
+  Zap,
+  FlaskConical,
+  Calculator,
+  Globe,
+  Box,
+  Share2,
+  BarChart3,
+  Workflow,
+  Dna
+};
 
 export const ChatInput = React.memo(({ 
   onSubmit, 
@@ -24,8 +41,14 @@ export const ChatInput = React.memo(({
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showEffortMenu, setShowEffortMenu] = useState(false);
 
+  // Command Autocomplete state
+  const [showSkillAutocomplete, setShowSkillAutocomplete] = useState(false);
+  const [autocompleteFilter, setAutocompleteFilter] = useState('');
+  const [selectedSkillIndex, setSelectedSkillIndex] = useState(0);
+
   const attachmentMenuRef = useRef(null);
   const effortMenuRef = useRef(null);
+  const autocompleteRef = useRef(null);
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
 
@@ -55,10 +78,30 @@ export const ChatInput = React.memo(({
       if (effortMenuRef.current && !effortMenuRef.current.contains(e.target)) {
         setShowEffortMenu(false);
       }
+      if (autocompleteRef.current && !autocompleteRef.current.contains(e.target)) {
+        setShowSkillAutocomplete(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Detect @ or / trigger for command autocomplete
+  useEffect(() => {
+    const match = localQuery.match(/(?:^|\s)([@/][a-zA-Z0-9_-]*)$/);
+    if (match) {
+      setAutocompleteFilter(match[1]);
+      setShowSkillAutocomplete(true);
+      setSelectedSkillIndex(0);
+    } else {
+      setShowSkillAutocomplete(false);
+    }
+  }, [localQuery]);
+
+  // Filter skills based on trigger typing
+  const filteredSkills = useMemo(() => {
+    return findSkillsByQuery(autocompleteFilter);
+  }, [autocompleteFilter]);
 
   // Auto-expand textarea height up to max-h-44 (176px)
   useEffect(() => {
@@ -68,6 +111,23 @@ export const ChatInput = React.memo(({
     }
   }, [localQuery]);
 
+  const applySkillTemplate = (skill) => {
+    const handle = skill.triggers[0];
+    const match = localQuery.match(/(?:^|\s)([@/][a-zA-Z0-9_-]*)$/);
+    if (match) {
+      const idx = localQuery.lastIndexOf(match[1]);
+      const newQuery = localQuery.substring(0, idx) + handle + ' ';
+      setLocalQuery(newQuery);
+    } else {
+      setLocalQuery((prev) => (prev ? `${prev.trim()} ${handle} ` : `${handle} `));
+    }
+    setShowSkillAutocomplete(false);
+    setShowAttachmentMenu(false);
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  };
+
   const handleSubmit = (e) => {
     if (e) e.preventDefault();
     if (isInputDisabled) return;
@@ -75,12 +135,35 @@ export const ChatInput = React.memo(({
     if (!q) return;
     onSubmit(q);
     setLocalQuery('');
+    setShowSkillAutocomplete(false);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
   };
 
   const handleKeyDown = (e) => {
+    if (showSkillAutocomplete && filteredSkills.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedSkillIndex((prev) => (prev + 1) % filteredSkills.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedSkillIndex((prev) => (prev - 1 + filteredSkills.length) % filteredSkills.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        applySkillTemplate(filteredSkills[selectedSkillIndex]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setShowSkillAutocomplete(false);
+        return;
+      }
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
@@ -96,7 +179,8 @@ export const ChatInput = React.memo(({
         onChange={handleFileChange} 
         className="hidden" 
       />
-      <div className="w-full w-full 2xl:px-12 flex flex-col">
+      <div className="w-full 2xl:px-12 flex flex-col">
+        
         {/* Real-time In-Chat Upload Progress Card */}
         <AnimatePresence>
           {uploadingPdf && uploadMeta && (
@@ -120,7 +204,6 @@ export const ChatInput = React.memo(({
                 </div>
               </div>
 
-              {/* Progress Bar Container */}
               <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-700/80">
                 <motion.div
                   className="h-full bg-gradient-to-r from-indigo-500 via-blue-500 to-emerald-400 rounded-full transition-all duration-150 shadow-sm"
@@ -137,6 +220,50 @@ export const ChatInput = React.memo(({
         </AnimatePresence>
 
         <form onSubmit={handleSubmit} className="bg-white border border-slate-200/90 rounded-2xl p-2.5 md:p-3 flex flex-col gap-2 shadow-sm hover:border-slate-300 transition-all w-full relative">
+          
+          {/* Autocomplete Skill Popup (@ / / command trigger) */}
+          <AnimatePresence>
+            {showSkillAutocomplete && filteredSkills.length > 0 && (
+              <motion.div
+                ref={autocompleteRef}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="absolute bottom-full left-0 mb-2 w-80 max-h-72 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-2xl overflow-y-auto z-[70] py-2 flex flex-col border-t-2 border-t-indigo-500"
+              >
+                <div className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-100 flex items-center justify-between">
+                  <span className="flex items-center gap-1"><Command size={11} className="text-indigo-600" /> Scientific Skills Registry</span>
+                  <span className="font-mono text-slate-400">↑↓ to navigate</span>
+                </div>
+
+                {filteredSkills.map((skill, index) => {
+                  const IconComp = ICON_MAP[skill.iconName] || Sparkles;
+                  const isSelected = index === selectedSkillIndex;
+
+                  return (
+                    <button
+                      key={skill.id}
+                      type="button"
+                      onClick={() => applySkillTemplate(skill)}
+                      className={`w-full text-left px-3 py-2 text-xs flex items-start gap-2.5 transition-colors cursor-pointer border-b border-slate-50 last:border-0 ${isSelected ? 'bg-indigo-50/90 text-indigo-900 font-bold' : 'hover:bg-slate-50 text-slate-700'}`}
+                    >
+                      <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 ${skill.badgeColor}`}>
+                        <IconComp size={14} style={{ color: skill.accentColor }} />
+                      </div>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-extrabold text-xs text-slate-900 truncate">{skill.name}</span>
+                          <span className="text-[10px] font-mono text-indigo-600 bg-indigo-50 px-1.5 py-0.2 rounded font-bold shrink-0">{skill.triggers[0]}</span>
+                        </div>
+                        <span className="text-[10px] text-slate-500 leading-snug line-clamp-1 mt-0.5">{skill.description}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <div className="relative w-full flex items-start">
             <textarea
               ref={textareaRef}
@@ -144,7 +271,7 @@ export const ChatInput = React.memo(({
               onChange={(e) => setLocalQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               rows={1}
-              placeholder={uploadingPdf ? "Uploading document... please wait" : isAnalyzing ? "Research Agent is analyzing & synthesizing..." : "Ask a follow-up or explore another direction..."}
+              placeholder={uploadingPdf ? "Uploading document... please wait" : isAnalyzing ? "Research Agent is analyzing & synthesizing..." : "Type @ or / to invoke Scientific Skills (e.g. @circuit, @chem, @math)..."}
               disabled={isInputDisabled}
               className="w-full bg-transparent text-slate-800 text-sm md:text-base placeholder-slate-400 focus:outline-none py-1 resize-none overflow-y-auto max-h-44 min-h-[40px] disabled:opacity-50 font-sans leading-relaxed"
             />
@@ -152,7 +279,8 @@ export const ChatInput = React.memo(({
 
           <div className="flex justify-between items-center pt-2 border-t border-slate-100/90">
             <div className="flex items-center gap-2">
-              {/* Attach (+) Button on the Left */}
+              
+              {/* Scientific Tool Picker (+) Button */}
               <div className="relative shrink-0" ref={attachmentMenuRef}>
                 <button
                   type="button"
@@ -162,52 +290,102 @@ export const ChatInput = React.memo(({
                     if (isInputDisabled) return;
                     setShowAttachmentMenu(!showAttachmentMenu);
                   }}
-                  className={`w-8 h-8 rounded-full bg-slate-100 border border-slate-200/60 text-slate-500 transition-all flex items-center justify-center shadow-xs ${isInputDisabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-200 hover:text-slate-800 cursor-pointer'}`}
+                  className={`w-8 h-8 rounded-full bg-slate-100 border border-slate-200/60 text-slate-500 transition-all flex items-center justify-center shadow-xs ${isInputDisabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-indigo-600 hover:text-white cursor-pointer'}`}
+                  title="Open Scientific Tool Picker & Attachments"
                 >
                   <Plus size={16} />
                 </button>
                 
-                {/* Popover Menu */}
+                {/* Scientific Tool Picker Popover Menu */}
                 <AnimatePresence>
                   {showAttachmentMenu && !isInputDisabled && (
                     <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-                      className="absolute bottom-full left-0 mb-3 w-52 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 z-[60] flex flex-col overflow-hidden"
+                      className="absolute bottom-full left-0 mb-3 w-80 sm:w-96 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-2xl p-3 z-[60] flex flex-col gap-3"
                     >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowAttachmentMenu(false);
-                          fileInputRef.current?.click();
-                        }}
-                        className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
-                      >
-                        <Paperclip size={14} className="text-slate-400" />
-                        Attach PDF or Image
-                      </button>
-                      {activeWorkflow !== 'research' && (
+                      {/* Section 1: File & Library Attachments */}
+                      <div className="flex items-center justify-between text-[11px] font-extrabold uppercase text-slate-400 pb-1.5 border-b border-slate-100">
+                        <span>Documents & Attachments</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2">
                         <button
                           type="button"
                           onClick={() => {
                             setShowAttachmentMenu(false);
-                            if (onOpenLibraryModal) onOpenLibraryModal();
+                            fileInputRef.current?.click();
                           }}
-                          className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer border-t border-slate-100"
+                          className="w-full p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/70 rounded-xl text-left flex items-center gap-2 transition-all cursor-pointer"
                         >
-                          <Folder size={14} className="text-slate-400" />
-                          Add from library
+                          <Paperclip size={16} className="text-indigo-600" />
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold text-slate-800">Attach Document</span>
+                            <span className="text-[9px] text-slate-500">PDF, PNG, JPG</span>
+                          </div>
                         </button>
-                      )}
+
+                        {activeWorkflow !== 'research' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowAttachmentMenu(false);
+                              if (onOpenLibraryModal) onOpenLibraryModal();
+                            }}
+                            className="w-full p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/70 rounded-xl text-left flex items-center gap-2 transition-all cursor-pointer"
+                          >
+                            <Folder size={16} className="text-indigo-600" />
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold text-slate-800">Add Library Paper</span>
+                              <span className="text-[9px] text-slate-500">Saved articles</span>
+                            </div>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Section 2: Scientific Visual Engines & Skills */}
+                      <div className="flex items-center justify-between text-[11px] font-extrabold uppercase text-slate-400 pt-1 pb-1 border-t border-slate-100">
+                        <span className="flex items-center gap-1.5 text-indigo-600">
+                          <Sparkles size={13} /> UVE v2.0 Scientific Engines
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto no-scrollbar pr-0.5">
+                        {SCIENTIFIC_SKILLS.map((skill) => {
+                          const IconComp = ICON_MAP[skill.iconName] || Sparkles;
+
+                          return (
+                            <button
+                              key={skill.id}
+                              type="button"
+                              onClick={() => applySkillTemplate(skill)}
+                              className="p-2 bg-slate-50 hover:bg-indigo-50/80 border border-slate-200/60 hover:border-indigo-200 rounded-xl text-left flex items-center gap-2 transition-all cursor-pointer group"
+                            >
+                              <div className={`p-1.5 rounded-lg shrink-0 ${skill.badgeColor}`}>
+                                <IconComp size={14} style={{ color: skill.accentColor }} />
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-[11px] font-extrabold text-slate-800 group-hover:text-indigo-900 truncate">{skill.name}</span>
+                                <span className="text-[9px] font-mono text-indigo-600 font-bold">{skill.triggers[0]}</span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
+
+              <span className="text-[11px] font-mono font-bold text-slate-400 hidden sm:inline-block">
+                Type <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-slate-600">@</kbd> for skills
+              </span>
             </div>
 
             <div className="flex items-center gap-3 ml-auto">
+              
               {/* Effort Selector Popover - Only for Chat with Paper & Research Agent */}
               {(activeWorkflow === 'chat' || activeWorkflow === 'research') && (
                 <div className="relative shrink-0" ref={effortMenuRef}>

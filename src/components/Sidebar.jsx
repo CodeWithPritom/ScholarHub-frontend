@@ -3,14 +3,14 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, Microscope, Library, BarChart3, Settings,
   HelpCircle, ChevronLeft, ChevronRight, X, Sparkles, History, Zap, Download,
-  Newspaper, GraduationCap, BookOpen, MessageSquare
+  Newspaper, GraduationCap, BookOpen, MessageSquare, ShieldCheck, Dna
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import logo from '../assets/images/logo.png';
 
-const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, user }) => {
+const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, user, profile }) => {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -21,8 +21,8 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
   const [popoverCoords, setPopoverCoords] = useState({ top: 0, left: 0 });
   const historyRef = useRef(null);
   const hoverTimeoutRef = useRef(null);
-  const [computeCredits, setComputeCredits] = useState(1000);
-  const [totalCredits, setTotalCredits] = useState(1000);
+  const [computeCredits, setComputeCredits] = useState(500);
+  const [totalCredits, setTotalCredits] = useState(500);
   const [savedPapersCount, setSavedPapersCount] = useState(0);
   const [exportCount, setExportCount] = useState(0);
   const [userTier, setUserTier] = useState('free');
@@ -231,6 +231,8 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
     return `${diffDays}d ago`;
   };
 
+  const isAdminUser = profile?.role === 'admin' || user?.email === 'arupbhowmikpritom@gmail.com';
+
   const links = [
     { name: 'Dashboard', path: '/', icon: <Home size={20} /> },
     { name: 'Research', path: '/research', icon: <Microscope size={20} /> },
@@ -241,6 +243,7 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
     { name: 'Opportunities', path: '/opportunities', icon: <GraduationCap size={20} /> },
     { name: 'Academy', path: '/academy', icon: <BookOpen size={20} /> },
     { name: 'Settings', path: '/settings', icon: <Settings size={20} /> },
+    ...(isAdminUser ? [{ name: 'Admin Panel', path: '/admin', icon: <ShieldCheck size={20} /> }] : []),
   ];
 
   const handleSupport = (e) => {
@@ -359,15 +362,28 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
               );
             })}
 
-            {/* Support Button */}
-            <button onClick={handleSupport} className={`w-full relative flex items-center ${collapsed ? 'lg:justify-center' : 'gap-4 px-3'} py-3 rounded-[12px] text-base font-bold text-slate-700 hover:bg-sds-surface hover:text-sds-text transition-all duration-200 group mt-4`}>
-              <div className="shrink-0 text-slate-700 group-hover:text-emerald-400">
-                <HelpCircle size={20} />
+            {/* Dedicated Research DNA Portal Button */}
+            <Link
+              to="/research-dna"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`w-full relative flex items-center ${collapsed ? 'lg:justify-center' : 'gap-4 px-3'} py-3 rounded-[12px] text-base font-bold transition-all duration-200 group mt-4 ${
+                location.pathname === '/research-dna'
+                  ? 'bg-[#315CFF] text-white shadow-sm'
+                  : 'text-slate-700 hover:bg-sds-surface hover:text-sds-text'
+              }`}
+            >
+              <div className={`shrink-0 ${location.pathname === '/research-dna' ? 'text-white' : 'text-slate-700 group-hover:text-violet-500'}`}>
+                <Dna size={20} />
               </div>
               <span className={`truncate whitespace-nowrap ${collapsed ? 'lg:hidden' : 'block'}`}>
-                Support
+                Research DNA
               </span>
-            </button>
+              {collapsed && (
+                <div className="hidden lg:block absolute left-16 bg-sds-surface text-sds-text text-sm font-bold px-3 py-1.5 rounded-[12px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 shadow-sm border border-sds-border">
+                  Research DNA
+                </div>
+              )}
+            </Link>
 
             {/* Feedback Button */}
             <button 

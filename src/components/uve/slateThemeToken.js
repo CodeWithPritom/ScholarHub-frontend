@@ -33,6 +33,39 @@ export const SLATE_THEME = {
     serif: "Merriweather, Georgia, Cambria, serif",
     mono: "JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
   },
+  circuit: {
+    wire: '#3b82f6',
+    component: '#334155',
+    ground: '#0f172a',
+    label: '#64748b',
+    highlight: '#6366f1',
+    background: '#f8fafc',
+  },
+  chemistry: {
+    bond: '#475569',
+    carbon: '#1e293b',
+    oxygen: '#ef4444',
+    nitrogen: '#3b82f6',
+    hydrogen: '#94a3b8',
+    sulfur: '#eab308',
+    phosphorus: '#f97316',
+    chlorine: '#22c55e',
+    ring: '#8b5cf6',
+  },
+  geo: {
+    water: '#0ea5e9',
+    land: '#22c55e',
+    marker: '#ef4444',
+    path: '#6366f1',
+    label: '#0f172a',
+  },
+  math: {
+    axis: '#cbd5e1',
+    grid: '#f1f5f9',
+    curve: '#6366f1',
+    fill: 'rgba(99, 102, 241, 0.1)',
+    annotation: '#f59e0b',
+  },
 };
 
 /**

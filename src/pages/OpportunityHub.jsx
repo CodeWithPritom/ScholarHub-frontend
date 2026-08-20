@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { RefreshCw, Loader2, Award, Search, GraduationCap } from 'lucide-react';
 import WorkspaceLayout from '../components/WorkspaceLayout';
 import OpportunityCard from '../components/intelligence/OpportunityCard';
+import SupervisorDiscovery from '../components/intelligence/SupervisorDiscovery';
 import { BASE_URL } from '../utils/api';
 import { supabase } from '../supabaseClient';
 
 const OPPORTUNITY_TYPES = [
   { id: 'all', label: 'All Positions' },
+  { id: 'supervisors', label: '🔬 Find Supervisors & Labs' },
   { id: 'scholarship', label: 'Scholarships' },
   { id: 'fellowship', label: 'Fellowships' },
   { id: 'phd', label: 'PhD Positions' },
@@ -121,7 +123,9 @@ const OpportunityHub = ({ user, profile, onLogout, liveUsersCount }) => {
         </div>
 
         {/* Grid Area */}
-        {loading ? (
+        {activeType === 'supervisors' ? (
+          <SupervisorDiscovery />
+        ) : loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {[1, 2, 3, 4].map((n) => (
               <div key={n} className="h-56 rounded-[12px] bg-white border border-[#E5E5DF]/80 p-5 animate-pulse flex flex-col justify-between">
