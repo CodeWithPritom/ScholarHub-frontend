@@ -4,6 +4,7 @@ import { RefreshCw, Loader2, Award, Search, GraduationCap } from 'lucide-react';
 import WorkspaceLayout from '../components/WorkspaceLayout';
 import OpportunityCard from '../components/intelligence/OpportunityCard';
 import SupervisorDiscovery from '../components/intelligence/SupervisorDiscovery';
+import SEOHead from '../components/SEOHead';
 import { BASE_URL } from '../utils/api';
 import { supabase } from '../supabaseClient';
 
@@ -73,8 +74,46 @@ const OpportunityHub = ({ user, profile, onLogout, liveUsersCount }) => {
     fetchOpportunities(activeType, searchQuery);
   };
 
+  // Construct Dynamic Schema.org JSON-LD for Academic Grants & Scholarships
+  const oppSchema = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": "Global Research Grants, Fellowships & PhD Positions Directory | ScholarHub AI",
+    "url": "https://scholarhub-ai.com/opportunities",
+    "description": "Curated global academic opportunities from EURAXESS, DAAD, Marie Skłodowska-Curie Actions (MSCA), and leading university research labs.",
+    "mainEntity": {
+      "@type": "ItemList",
+      "itemListElement": opportunities.slice(0, 15).map((opp, idx) => ({
+        "@type": "ListItem",
+        "position": idx + 1,
+        "item": {
+          "@type": "JobPosting",
+          "title": opp.title,
+          "description": opp.description || opp.full_description || opp.title,
+          "datePosted": opp.published_at || new Date().toISOString(),
+          "validThrough": opp.deadline ? `${opp.deadline}T23:59:59Z` : undefined,
+          "hiringOrganization": {
+            "@type": "Organization",
+            "name": opp.organization || opp.source_name || "Academic Institution"
+          },
+          "jobLocation": {
+            "@type": "Place",
+            "address": opp.location || "Global / Remote"
+          },
+          "url": `https://scholarhub-ai.com/opportunities?id=${opp.id}`
+        }
+      }))
+    }
+  };
+
   return (
     <WorkspaceLayout user={user} profile={profile} onLogout={onLogout} hideNav={true}>
+      <SEOHead
+        title="Academic Opportunities, Scholarships & Research Grants | ScholarHub AI"
+        description="Search vetted PhD funding, postdoctoral fellowships, laboratory positions, and international research grants on ScholarHub AI."
+        canonicalPath="/opportunities"
+        schemaJson={oppSchema}
+      />
       <div className="w-full px-4 sm:px-6 md:px-8 2xl:px-12 space-y-8 pt-6 pb-12">
         
         {/* Header Section */}

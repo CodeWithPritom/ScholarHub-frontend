@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import creatorImg from '../assets/images/creator.jpg'
 import architectureImg from '../assets/images/architecture.png'
 import Footer from '../Footer'
+import SEOHead from '../components/SEOHead'
 
 const About = () => {
   const navigate = useNavigate()
@@ -18,6 +19,11 @@ const About = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans selection:bg-blue-100 selection:text-blue-700 flex flex-col">
+      <SEOHead
+        title="About ScholarHub AI | Enterprise Academic Discovery & Synthesis Architecture"
+        description="Learn about the engineering vision, founder story, and neural AI architecture behind ScholarHub AI."
+        canonicalPath="/about"
+      />
       {/* Navbar Minimal */}
       <nav className="border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-50">
         <div className="w-full 2xl:px-12 mx-auto px-6 h-20 flex items-center justify-between">

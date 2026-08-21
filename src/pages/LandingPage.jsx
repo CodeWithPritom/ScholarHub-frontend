@@ -8,6 +8,7 @@ import Footer from '../Footer'
 import Navbar from '../components/Navbar'
 import Testimonials from '../components/Testimonials'
 import CookieBanner from '../components/CookieBanner'
+import SEOHead from '../components/SEOHead'
 
 const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogout }) => {
   const navigate = useNavigate()
@@ -127,6 +128,11 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
 
   return (
     <div className="min-h-screen bg-[#FAFAF8] text-[#171717] font-sans selection:bg-blue-500/30 overflow-hidden relative">
+      <SEOHead
+        title="ScholarHub AI | The Global Academic Research Hub & AI Discovery Engine"
+        description="ScholarHub AI is the unified research discovery hub for global scholars. Real-time search across 250M+ scientific papers, AI literature synthesis, and thesis protocols."
+        canonicalPath="/"
+      />
       
       {/* Background Gradients */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px]  rounded-full pointer-events-none" />

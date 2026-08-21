@@ -14,9 +14,9 @@ export default function SupportBot({ user }) {
   const [messages, setMessages] = useState(() => {
     try {
       const saved = sessionStorage.getItem('support_chat_history');
-      return saved ? JSON.parse(saved) : [{ role: 'assistant', content: 'Hi there! I am Emo ✨, your AI guardian! How can I help you today? 🧬' }];
+      return saved ? JSON.parse(saved) : [{ role: 'assistant', content: 'Hi there! I am Emo, your AI Research Mentor at ScholarHub AI. How can I assist with your literature review, paper audit, or platform questions today?' }];
     } catch {
-      return [{ role: 'assistant', content: 'Hi there! I am Emo ✨, your AI guardian! How can I help you today? 🧬' }];
+      return [{ role: 'assistant', content: 'Hi there! I am Emo, your AI Research Mentor at ScholarHub AI. How can I assist with your literature review, paper audit, or platform questions today?' }];
     }
   });
   const [input, setInput] = useState('');
@@ -51,7 +51,7 @@ export default function SupportBot({ user }) {
       const detail = e?.detail;
       if (detail?.lessonTitle || detail?.paperTitle || detail?.contextPrompt) {
         const titleStr = detail.lessonTitle || detail.paperTitle || 'this research topic';
-        const greetingText = `Hi there! I am Emo ✨, your AI Guardian & Research Mentor for "${titleStr}"! How can I guide your research or explain concepts for you today? 🧬`;
+        const greetingText = `Hi there! I am Emo, your AI Research Mentor for "${titleStr}". How can I guide your research or explain key concepts for you today?`;
 
         setMessages(prev => {
           // Avoid duplicating identical recent mentor greetings
@@ -210,8 +210,21 @@ export default function SupportBot({ user }) {
       // Handle both [NAV:library] and NAV:library
       const navMatch = replyText.match(/\[?NAV:([a-zA-Z0-9_-]+)\]?/);
       if (navMatch) {
-        const path = navMatch[1];
-        navigate(`/${path}`);
+        const page = navMatch[1].toLowerCase();
+        const routeMap = {
+          research: '/research',
+          auditor: '/auditor',
+          library: '/library',
+          pricing: '/pricing',
+          academy: '/academy',
+          news: '/news',
+          opportunities: '/opportunities',
+          dna: '/dna',
+          settings: '/settings',
+          about: '/about'
+        };
+        const targetRoute = routeMap[page] || `/${page}`;
+        navigate(targetRoute);
         replyText = replyText.replace(navMatch[0], '').trim();
       }
 
@@ -224,10 +237,10 @@ export default function SupportBot({ user }) {
         setCooldownExpiry(expiry);
         sessionStorage.setItem('support_cooldown_expiry', expiry.toString());
         setMessages(prev => [...prev, { role: 'assistant', content: err.message }]);
-        speak("Oof! I feel heavy now! My neural circuits are sizzling from too much science! I need a 10-minute break. Need emergency help? Click the direct contact founder button below!");
+        speak("I am taking a brief 10-minute recharge break to refresh my research index. For immediate assistance, please use the direct email button below.");
       } else {
-        setMessages(prev => [...prev, { role: 'assistant', content: 'Oh no! My circuits got tangled. Please try again! 🐝🔧' }]);
-        speak("Oh no! My circuits got tangled. Please try again!");
+        setMessages(prev => [...prev, { role: 'assistant', content: 'I encountered a brief connection issue. Please feel free to try again.' }]);
+        speak("I encountered a brief connection issue. Please feel free to try again.");
       }
     } finally {
       setIsLoading(false);
@@ -236,7 +249,7 @@ export default function SupportBot({ user }) {
 
   const handleReset = () => {
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-    const initialMessage = [{ role: 'assistant', content: 'Hi there! I am Emo ✨, your AI guardian! How can I help you today? 🧬' }];
+    const initialMessage = [{ role: 'assistant', content: 'Hi there! I am Emo, your AI Research Mentor at ScholarHub AI. How can I assist with your literature review, paper audit, or platform questions today?' }];
     setMessages(initialMessage);
     sessionStorage.setItem('support_chat_history', JSON.stringify(initialMessage));
   };
@@ -263,9 +276,9 @@ export default function SupportBot({ user }) {
   };
 
   const waitingMessages = [
-    "Emo is asking the scientists...",
-    "Scanning the knowledge base... ✨",
-    "Gathering sweet knowledge... 🍯"
+    "Consulting academic literature index...",
+    "Scanning ScholarHub AI knowledge base...",
+    "Synthesizing response..."
   ];
   const [waitingMessage, setWaitingMessage] = useState(waitingMessages[0]);
 
@@ -282,7 +295,7 @@ export default function SupportBot({ user }) {
       window.speechSynthesis.cancel(); // Stop talking instantly
     } else if (enabled && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance("Yay! I can't wait to hear your voice! Click the mic and start talking.");
+      const utterance = new SpeechSynthesisUtterance("Voice mode enabled. You can click the microphone icon anytime to speak.");
       const voices = window.speechSynthesis.getVoices();
 
       const preferredVoices = ['Google US English', 'Google UK English Female', 'Zira', 'Hazel', 'Samantha', 'Victoria', 'Tessa', 'Veena'];
@@ -306,7 +319,7 @@ export default function SupportBot({ user }) {
   const handleMicClick = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      toast.error("Oops! Your browser doesn't support my ears (Speech Recognition).");
+      toast.error("Speech Recognition is not supported by this browser.");
       return;
     }
 
@@ -325,7 +338,7 @@ export default function SupportBot({ user }) {
 
     recognition.onerror = (event) => {
       if (event.error === 'no-speech' || event.error === 'not-allowed') {
-        const msg = "Oops! I'm still learning that language, or I couldn't hear you. Can we talk in English or Bangla?";
+        const msg = "I was unable to capture your audio. Please check microphone permissions or type your question.";
         setMessages(prev => [...prev, { role: 'assistant', content: msg }]);
         speak(msg);
       }
@@ -345,8 +358,6 @@ export default function SupportBot({ user }) {
 
   return (
     <>
-      {/* Bee Animation Removed for Performance */}
-
       {/* Floating Button and Tooltip */}
       <AnimatePresence>
         {!isOpen && (
@@ -359,9 +370,9 @@ export default function SupportBot({ user }) {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-xl border border-indigo-100 flex items-center gap-2 relative"
+                  className="hidden sm:flex bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-xl border border-indigo-100 items-center gap-2 relative"
                 >
-                  <p className="text-[13px] font-bold text-slate-700 tracking-wide whitespace-nowrap">Need help? 🤖</p>
+                  <p className="text-[13px] font-bold text-slate-700 tracking-wide whitespace-nowrap">Need research guidance?</p>
                   <button
                     onClick={(e) => { e.stopPropagation(); setShowTooltip(false); }}
                     className="p-1 rounded-full hover:bg-slate-100 text-slate-400 hover:text-rose-500 transition-colors ml-1"
@@ -414,7 +425,7 @@ export default function SupportBot({ user }) {
                 </div>
                 <div>
                   <h3 className="text-[15px] font-black tracking-wide leading-tight">EMO</h3>
-                  <p className="text-[10px] text-indigo-200 font-bold tracking-widest uppercase">AI Guardian</p>
+                  <p className="text-[10px] text-indigo-200 font-bold tracking-widest uppercase">AI Research Mentor</p>
                 </div>
               </div>
               <div className="flex items-center gap-1">
@@ -465,7 +476,7 @@ export default function SupportBot({ user }) {
                 ))}
               </AnimatePresence>
 
-              {/* Cute Loading Animation */}
+              {/* Loading Animation */}
               {isLoading && (
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -515,33 +526,11 @@ export default function SupportBot({ user }) {
                     <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/30 border border-orange-400/50">
                       <Sparkles size={28} className="text-white opacity-90" />
                     </div>
-                    {/* Zzz floating */}
-                    <motion.div
-                      animate={{ opacity: [0, 1, 0], y: [-15, 5, -15] }}
-                      transition={{ repeat: Infinity, duration: 2, ease: "easeOut", delay: 0 }}
-                      className="absolute -top-3 -right-2 text-orange-600 font-black text-sm drop-shadow-sm"
-                    >
-                      Z
-                    </motion.div>
-                    <motion.div
-                      animate={{ opacity: [0, 1, 0], y: [-20, 10, -20] }}
-                      transition={{ repeat: Infinity, duration: 2, ease: "easeOut", delay: 0.6 }}
-                      className="absolute -top-6 -right-5 text-orange-600 font-black text-lg drop-shadow-sm"
-                    >
-                      z
-                    </motion.div>
-                    <motion.div
-                      animate={{ opacity: [0, 1, 0], y: [-25, 15, -25] }}
-                      transition={{ repeat: Infinity, duration: 2, ease: "easeOut", delay: 1.2 }}
-                      className="absolute -top-10 -right-8 text-orange-600 font-black text-xl drop-shadow-sm"
-                    >
-                      z
-                    </motion.div>
                   </motion.div>
                 </div>
 
                 <p className="text-xs font-bold text-amber-900 text-center mb-5 leading-relaxed">
-                  Oof! My neural circuits are sizzling from too much science! 🧠🔥 Emo needs a quick 10-minute recharge break to keep up with your brilliant mind.
+                  Emo is taking a brief 10-minute recharge break to refresh the research index.
                 </p>
 
                 {/* Progress Bar */}
@@ -562,7 +551,7 @@ export default function SupportBot({ user }) {
 
                 {/* Emergency Button */}
                 <div className="text-center border-t border-amber-200/50 pt-3">
-                  <p className="text-[10px] font-bold text-amber-700/80 mb-2">Need help urgently? 🚨</p>
+                  <p className="text-[10px] font-bold text-amber-700/80 mb-2">Need urgent assistance?</p>
                   {showEmergency ? (
                     <motion.div
                       initial={{ opacity: 0 }}
@@ -573,7 +562,7 @@ export default function SupportBot({ user }) {
                         Please email our lead architect Arup Bhowmik Pritom directly at: <br />
                         <a href="mailto:arupbhowmikpritom@gmail.com" className="text-indigo-600 hover:text-indigo-700 underline mt-1.5 block">arupbhowmikpritom@gmail.com</a>
                       </p>
-                      <p className="text-[9px] font-semibold text-slate-500 mt-1.5">He will get back to you within 24 hours!</p>
+                      <p className="text-[9px] font-semibold text-slate-500 mt-1.5">Responses are typically provided within 24 hours.</p>
                     </motion.div>
                   ) : (
                     <button
@@ -588,20 +577,20 @@ export default function SupportBot({ user }) {
             ) : voiceMode === null ? (
               <div className="p-4 bg-indigo-50/90 backdrop-blur-xl border-t border-indigo-100 rounded-b-3xl shrink-0 flex flex-col gap-3 text-center">
                 <p className="text-sm font-bold text-indigo-900 leading-snug">
-                  Hi! I'm Emo. 🤖 Would you like to talk using your voice? It makes things faster!
+                  Hi, I am Emo — your AI Research Mentor. Would you like to enable voice assistance?
                 </p>
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleVoiceChoice(true)}
                     className="flex-1 py-2.5 bg-indigo-600 text-white text-xs font-black rounded-xl hover:bg-indigo-700 shadow-sm transition-colors"
                   >
-                    Yes, Enable Voice 🎤
+                    Enable Voice Assistance
                   </button>
                   <button
                     onClick={() => handleVoiceChoice(false)}
                     className="flex-1 py-2.5 bg-slate-200 text-slate-700 text-xs font-black rounded-xl hover:bg-slate-300 shadow-sm transition-colors"
                   >
-                    No, Text Only ⌨️
+                    Text Mode Only
                   </button>
                 </div>
               </div>
@@ -613,7 +602,7 @@ export default function SupportBot({ user }) {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     disabled={isLoading}
-                    placeholder="Ask Emo anything..."
+                    placeholder="Ask Emo anything about research or platform..."
                     className={`w-full pl-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 disabled:opacity-60 disabled:bg-slate-50 transition-all shadow-inner ${voiceMode ? 'pr-20' : 'pr-12'}`}
                   />
                   <div className="absolute right-1.5 flex items-center gap-1">

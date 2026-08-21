@@ -16,6 +16,7 @@ import Footer from './Footer';
 import AuthModal from './AuthModal';
 import WorkspaceLayout from './components/WorkspaceLayout';
 import { ProUpgradeModal, StarterUpgradeModal, ForceRefreshModal } from './components/UpgradeModals';
+import SEOHead from './components/SEOHead';
 import * as XLSX from 'xlsx';
 
 import AIChatWidget from './components/AIChatWidget';
@@ -1761,6 +1762,11 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
 
   return (
     <WorkspaceLayout user={user} profile={profile} onLogout={onLogout}>
+      <SEOHead
+        title="Universal Literature Discovery & Research Explorer | ScholarHub AI"
+        description="Search 250M+ scientific articles across PubMed, arXiv, Nature, Springer, Wiley, and OpenAlex with AI synthesis and real-time SJR quartile analytics."
+        canonicalPath="/research"
+      />
 
       {/* Force Refresh Modal */}
       <ForceRefreshModal

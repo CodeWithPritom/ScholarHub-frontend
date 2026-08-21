@@ -13,6 +13,7 @@ import { supabase } from '../supabaseClient';
 import { BASE_URL, notifyCreditsUpdated } from '../utils/api';
 import { getOrCreateDeviceId } from '../utils/deviceSync';
 import WorkspaceLayout from '../components/WorkspaceLayout';
+import SEOHead from '../components/SEOHead';
 import mermaid from 'mermaid';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import ReactMarkdown from 'react-markdown';
@@ -3125,6 +3126,11 @@ const Auditor = ({ user, onLogout }) => {
 
   return (
     <WorkspaceLayout user={user} onLogout={onLogout} lockScroll={chatInitiated}>
+      <SEOHead
+        title="The Auditor | AI Research IDE & Cochrane Risk of Bias Analyzer | ScholarHub AI"
+        description="Autonomous systematic reviews, Cochrane RoB 2.0 risk of bias auditing, multi-paper synthesis, and interactive UVE mindmaps on ScholarHub AI."
+        canonicalPath="/auditor"
+      />
       <div className={`bg-slate-50 text-slate-900 ${chatInitiated ? 'h-full w-full overflow-hidden' : 'min-h-full w-full'} flex flex-col relative z-10 font-sans`}>
 
         {/* Hairline progress bar */}

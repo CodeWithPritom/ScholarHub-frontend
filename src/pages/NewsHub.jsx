@@ -9,6 +9,7 @@ import WorkspaceLayout from '../components/WorkspaceLayout';
 import NewsCard from '../components/intelligence/NewsCard';
 import CategoryFilter from '../components/intelligence/CategoryFilter';
 import InterestSelector from '../components/intelligence/InterestSelector';
+import SEOHead from '../components/SEOHead';
 import { BASE_URL } from '../utils/api';
 import { supabase } from '../supabaseClient';
 
@@ -171,8 +172,49 @@ const NewsHub = ({ user, profile, onLogout, liveUsersCount }) => {
     }
   };
 
+  // Construct Dynamic Schema.org JSON-LD for Search Engines
+  const newsSchema = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": "Global Research Intelligence & Breakthrough Scientific News | ScholarHub AI",
+    "url": "https://scholarhub-ai.com/news",
+    "description": "Autonomously aggregated and AI-summarized scientific breakthroughs from Nature, Science, EurekAlert, and PubMed.",
+    "mainEntity": {
+      "@type": "ItemList",
+      "itemListElement": articles.slice(0, 15).map((art, idx) => ({
+        "@type": "ListItem",
+        "position": idx + 1,
+        "item": {
+          "@type": "NewsArticle",
+          "headline": art.title,
+          "description": art.ai_summary || art.description || art.title,
+          "url": `https://scholarhub-ai.com/news?id=${art.id}`,
+          "datePublished": art.published_at || new Date().toISOString(),
+          "author": {
+            "@type": "Organization",
+            "name": art.source_name || "Scientific Journal"
+          },
+          "publisher": {
+            "@type": "Organization",
+            "name": "ScholarHub AI",
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://scholarhub-ai.com/logo.png"
+            }
+          }
+        }
+      }))
+    }
+  };
+
   return (
     <WorkspaceLayout user={user} profile={profile} onLogout={onLogout} hideNav={true}>
+      <SEOHead
+        title="Scientific Discoveries & Research Intelligence Feed | ScholarHub AI"
+        description="Explore real-time autonomous AI summaries of scientific breakthroughs across medicine, engineering, chemistry, biology, and physics."
+        canonicalPath="/news"
+        schemaJson={newsSchema}
+      />
       <div className="w-full px-4 sm:px-6 md:px-8 2xl:px-12 space-y-8 pt-6 pb-12">
         
         {/* 1. Header Section */}

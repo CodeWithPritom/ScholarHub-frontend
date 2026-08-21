@@ -6,6 +6,7 @@ import {
 import WorkspaceLayout from '../components/WorkspaceLayout';
 import ModuleSidebar from '../components/intelligence/ModuleSidebar';
 import LessonCard from '../components/intelligence/LessonCard';
+import SEOHead from '../components/SEOHead';
 import { BASE_URL } from '../utils/api';
 import { supabase } from '../supabaseClient';
 
@@ -145,8 +146,33 @@ const AcademyHub = ({ user, profile, onLogout, liveUsersCount }) => {
     }
   };
 
+  // Construct Dynamic Schema.org JSON-LD for Academic Academy Courses & Lessons
+  const academySchema = {
+    "@context": "https://schema.org",
+    "@type": "Course",
+    "name": currentLesson?.title || "Academic Research Protocols & Literature Review Academy | ScholarHub AI",
+    "description": currentLesson?.description || "Structured courses on research methodology, literature reviews, thesis protocols, and scientific writing.",
+    "provider": {
+      "@type": "Organization",
+      "name": "ScholarHub AI Academy",
+      "url": "https://scholarhub-ai.com"
+    },
+    "educationalLevel": currentLesson?.difficulty || "Beginner to Advanced",
+    "hasCourseInstance": {
+      "@type": "CourseInstance",
+      "courseMode": "Online",
+      "url": `https://scholarhub-ai.com/academy?module=${currentModuleId}${currentLessonId ? `&lesson=${currentLessonId}` : ''}`
+    }
+  };
+
   return (
     <WorkspaceLayout user={user} profile={profile} onLogout={onLogout} hideNav={true}>
+      <SEOHead
+        title={`${currentLesson?.title ? `${currentLesson.title} | ` : ''}Academic Research Academy & Thesis Protocols | ScholarHub AI`}
+        description={currentLesson?.description || "Master academic literature synthesis, research protocols, and statistical design with ScholarHub AI Academy."}
+        canonicalPath={`/academy${currentLessonId ? `?module=${currentModuleId}&lesson=${currentLessonId}` : ''}`}
+        schemaJson={academySchema}
+      />
       <div className="w-full px-4 sm:px-6 md:px-8 2xl:px-12 space-y-8 py-4">
         
         {/* Header Section */}

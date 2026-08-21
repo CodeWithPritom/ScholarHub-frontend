@@ -9,6 +9,7 @@ import {
 import { supabase } from '../supabaseClient'
 import { motion, AnimatePresence } from 'framer-motion'
 import Footer from '../Footer'
+import SEOHead from '../components/SEOHead'
 import { BASE_URL } from '../utils/api'
 import logo from '../assets/images/logo.png'
 
@@ -351,8 +352,56 @@ const Pricing = ({ user, profile }) => {
   const totalRequiredZaps = (estimatedAudits * 25) + (estimatedPdfUploads * 15)
   const recommendedTier = totalRequiredZaps > 1500 ? 'PRO' : totalRequiredZaps > 500 ? 'STARTER' : 'FREE'
 
+  const pricingSchema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "name": "ScholarHub AI Research Plans & Compute Subscriptions",
+    "image": "https://scholarhub-ai.com/logo.png",
+    "description": "Flexible subscription tiers for individual researchers and university labs. FREE, STARTER, PRO, and CUSTOM plans with up to 37% multi-month savings.",
+    "brand": {
+      "@type": "Brand",
+      "name": "ScholarHub AI"
+    },
+    "offers": {
+      "@type": "AggregateOffer",
+      "priceCurrency": "BDT",
+      "lowPrice": "0",
+      "highPrice": "3999",
+      "offerCount": "4",
+      "offers": [
+        {
+          "@type": "Offer",
+          "name": "FREE Plan",
+          "price": "0",
+          "priceCurrency": "BDT",
+          "url": "https://scholarhub-ai.com/pricing"
+        },
+        {
+          "@type": "Offer",
+          "name": "STARTER Plan",
+          "price": "199",
+          "priceCurrency": "BDT",
+          "url": "https://scholarhub-ai.com/pricing"
+        },
+        {
+          "@type": "Offer",
+          "name": "PRO Plan",
+          "price": "499",
+          "priceCurrency": "BDT",
+          "url": "https://scholarhub-ai.com/pricing"
+        }
+      ]
+    }
+  };
+
   return (
     <div className="min-h-screen bg-sds-bg font-sans selection:bg-blue-500/20 text-sds-text">
+      <SEOHead
+        title="Pricing & Compute Plans | ScholarHub AI"
+        description="Choose the right AI research tier for your academic workflow. Flexible monthly and annual plans for students, PhD scholars, and university labs."
+        canonicalPath="/pricing"
+        schemaJson={pricingSchema}
+      />
       
       {/* Navbar Minimal */}
       <nav className="border-b border-sds-border bg-sds-bg/80 backdrop-blur-md sticky top-0 z-50">

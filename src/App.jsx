@@ -52,6 +52,7 @@ import PaperDetail from './components/PaperDetail'
 import AIReport from './components/AIReport'
 import SupportBot from './components/SupportBot'
 import MobileBottomNav from './components/MobileBottomNav'
+import { GoogleAnalyticsTracker } from './utils/analytics'
 
 function SessionExpiryRedirector({ sessionExpired, onRedirected }) {
   const navigate = useNavigate();
@@ -798,6 +799,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <GoogleAnalyticsTracker />
       <Toaster position="top-right" richColors />
       {needsOnboarding && user ? (
         <ProfileSetupModal 

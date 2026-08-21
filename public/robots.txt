@@ -1,18 +1,23 @@
 User-agent: *
 
-# Public Routes (Allowed)
-Allow: /$
+# High-Value Public Content Routes (Allowed for Indexing)
+Allow: /
 Allow: /research
-Allow: /about
+Allow: /auditor
 Allow: /pricing
-Allow: /resources
+Allow: /news
+Allow: /opportunities
+Allow: /academy
+Allow: /dna
+Allow: /about
 
-# Private & Sensitive Routes (Disallowed)
+# Private, Authenticated & Sensitive Internal Routes (Disallowed)
 Disallow: /admin
 Disallow: /auth
 Disallow: /verify-email
-Disallow: /profile
-Disallow: /library
 Disallow: /settings
+Disallow: /api/admin/
+Disallow: /api/internal/
 
+# Direct Google & Bingbot to dynamic XML Sitemap
 Sitemap: https://scholarhub-ai.com/sitemap.xml
