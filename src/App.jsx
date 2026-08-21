@@ -28,16 +28,18 @@ import AuditorFeature from './pages/features/AuditorFeature'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import TermsOfService from './pages/TermsOfService'
 import RefundPolicy from './pages/RefundPolicy'
-const ResearchPage = lazy(() => import('./ResearchPage'))
-const SuccessStories3D = lazy(() => import('./pages/SuccessStories3D'))
-const Auditor = lazy(() => import('./pages/Auditor'))
-const HistoryExplorer = lazy(() => import('./pages/HistoryExplorer'))
-const SharedAudit = lazy(() => import('./pages/SharedAudit'))
-const NewsHub = lazy(() => import('./pages/NewsHub'))
-const OpportunityHub = lazy(() => import('./pages/OpportunityHub'))
-const AcademyHub = lazy(() => import('./pages/AcademyHub'))
-const ResearchDNAPage = lazy(() => import('./pages/ResearchDNAPage'))
-const PublicResearchDNAPage = lazy(() => import('./pages/PublicResearchDNAPage'))
+import { lazyWithRetry } from './utils/lazyWithRetry'
+
+const ResearchPage = lazyWithRetry(() => import('./ResearchPage'))
+const SuccessStories3D = lazyWithRetry(() => import('./pages/SuccessStories3D'))
+const Auditor = lazyWithRetry(() => import('./pages/Auditor'))
+const HistoryExplorer = lazyWithRetry(() => import('./pages/HistoryExplorer'))
+const SharedAudit = lazyWithRetry(() => import('./pages/SharedAudit'))
+const NewsHub = lazyWithRetry(() => import('./pages/NewsHub'))
+const OpportunityHub = lazyWithRetry(() => import('./pages/OpportunityHub'))
+const AcademyHub = lazyWithRetry(() => import('./pages/AcademyHub'))
+const ResearchDNAPage = lazyWithRetry(() => import('./pages/ResearchDNAPage'))
+const PublicResearchDNAPage = lazyWithRetry(() => import('./pages/PublicResearchDNAPage'))
 import MyLibrary from './MyLibrary'
 import Settings from './Settings'
 import VerifyEmail from './VerifyEmail'
@@ -55,6 +57,44 @@ import AIReport from './components/AIReport'
 import SupportBot from './components/SupportBot'
 import MobileBottomNav from './components/MobileBottomNav'
 import { GoogleAnalyticsTracker } from './utils/analytics'
+
+class AppRootErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error("[AppRootErrorBoundary] Caught unhandled error:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-16 h-16 bg-indigo-600/20 text-indigo-400 rounded-2xl flex items-center justify-center mb-4 border border-indigo-500/30">
+            <Sparkles size={28} />
+          </div>
+          <h2 className="text-xl font-black mb-2">ScholarHub Workspace Refresh</h2>
+          <p className="text-xs text-slate-400 max-w-sm mb-6 leading-relaxed">
+            A new application version or update was deployed. Please reload to sync the latest modules.
+          </p>
+          <button
+            onClick={() => {
+              window.sessionStorage.clear();
+              window.location.reload();
+            }}
+            className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg cursor-pointer"
+          >
+            Reload Workspace
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function SessionExpiryRedirector({ sessionExpired, onRedirected }) {
   const navigate = useNavigate();
@@ -920,53 +960,55 @@ function App() {
             }} 
           />
 
-          <Routes>
-            <Route path="/" element={user && !user.email_confirmed_at ? <Navigate to="/verify-email" replace /> : <LandingPage liveUsersCount={liveUsersCount} totalMembersCount={totalMembersCount} user={user} profile={profile} onLogout={handleLogout} />} />
-            <Route path="/features/agent" element={<AgentFeature user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
-            <Route path="/features/vision-rag" element={<VisionRagFeature user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
-            <Route path="/features/discovery" element={<DiscoveryFeature user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
-            <Route path="/features/hub" element={<HubFeature user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
-            <Route path="/features/academy" element={<AcademyFeature user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
-            <Route path="/features/auditor" element={<AuditorFeature user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
-            <Route path="/privacy" element={<PrivacyPolicy user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
-            <Route path="/terms" element={<TermsOfService user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
-            <Route path="/verify-email" element={user && !user.email_confirmed_at ? <VerifyEmail user={user} /> : <Navigate to="/" replace />} />
-            <Route path="/research" element={<ProtectedRoute user={user}><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#f8fafc]"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}><ResearchPage user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense></ProtectedRoute>} />
-            <Route path="/auth" element={<AuthRouteHandler user={user} />} />
-            <Route path="/library" element={<ProtectedRoute user={user}><MyLibrary user={user} onLogout={handleLogout} /></ProtectedRoute>} />
-            <Route path="/auditor" element={<ProtectedRoute user={user}><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}><Auditor user={user} profile={profile} onLogout={handleLogout} /></Suspense></ProtectedRoute>} />
-            <Route path="/history" element={<ProtectedRoute user={user}><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}><HistoryExplorer user={user} onLogout={handleLogout} /></Suspense></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute user={user}><Settings user={user} /></ProtectedRoute>} />
-            <Route path="/archive" element={<Archive />} />
-            <Route path="/resources" element={<Resources />} />
-            <Route path="/news" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}><NewsHub user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense>} />
-            <Route path="/opportunities" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div></div>}><OpportunityHub user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense>} />
-            <Route path="/academy" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div></div>}><AcademyHub user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense>} />
-            <Route path="/dna" element={<Navigate to="/research-dna" replace />} />
-            <Route path="/research-dna" element={<ProtectedRoute user={user}><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-violet-600 border-t-transparent rounded-full animate-spin"></div></div>}><ResearchDNAPage user={user} profile={profile} onLogout={handleLogout} /></Suspense></ProtectedRoute>} />
-            <Route path="/dna/:shareToken" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-950 text-white"><div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div></div>}><PublicResearchDNAPage /></Suspense>} />
-            <Route path="/pricing" element={<Pricing user={user} profile={profile} />} />
-            <Route path="/cart" element={<Cart user={user} profile={profile} />} />
-            <Route path="/checkout" element={<Navigate to="/cart" replace />} />
-            <Route 
-              path="/admin" 
-              element={
-                <ProtectedRoute user={user}>
-                  {isAdmin ? <AdminPanel user={user} profile={profile} liveUsersCount={liveUsersCount} /> : <Navigate to="/" replace />}
-                </ProtectedRoute>
-              } 
-            />
-            <Route path="/success-stories" element={<Suspense fallback={<div className="h-screen w-screen bg-[#020617] text-white flex items-center justify-center font-bold tracking-widest uppercase text-sm">Loading 3D Engine...</div>}><SuccessStories3D /></Suspense>} />
-            <Route path="/profile" element={<ProtectedRoute user={user}><Profile user={user} /></ProtectedRoute>} />
-            <Route path="/paper/*" element={<PaperDetail user={user} profile={profile} />} />
-            <Route path="/ai-report" element={<AIReport />} />
-            <Route path="/privacy" element={<PrivacyPolicy />} />
-            <Route path="/terms" element={<TermsOfService />} />
-            <Route path="/refund" element={<RefundPolicy user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} />} />
-            <Route path="/refund-policy" element={<RefundPolicy user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/shared/:shareToken" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-950 text-white"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>}><SharedAudit user={user} /></Suspense>} />
-          </Routes>
+          <AppRootErrorBoundary>
+            <Routes>
+              <Route path="/" element={user && !user.email_confirmed_at ? <Navigate to="/verify-email" replace /> : <LandingPage liveUsersCount={liveUsersCount} totalMembersCount={totalMembersCount} user={user} profile={profile} onLogout={handleLogout} />} />
+              <Route path="/features/agent" element={<AgentFeature user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
+              <Route path="/features/vision-rag" element={<VisionRagFeature user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
+              <Route path="/features/discovery" element={<DiscoveryFeature user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
+              <Route path="/features/hub" element={<HubFeature user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
+              <Route path="/features/academy" element={<AcademyFeature user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
+              <Route path="/features/auditor" element={<AuditorFeature user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
+              <Route path="/privacy" element={<PrivacyPolicy user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
+              <Route path="/terms" element={<TermsOfService user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} />} />
+              <Route path="/verify-email" element={user && !user.email_confirmed_at ? <VerifyEmail user={user} /> : <Navigate to="/" replace />} />
+              <Route path="/research" element={<ProtectedRoute user={user}><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#f8fafc]"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}><ResearchPage user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense></ProtectedRoute>} />
+              <Route path="/auth" element={<AuthRouteHandler user={user} />} />
+              <Route path="/library" element={<ProtectedRoute user={user}><MyLibrary user={user} onLogout={handleLogout} /></ProtectedRoute>} />
+              <Route path="/auditor" element={<ProtectedRoute user={user}><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}><Auditor user={user} profile={profile} onLogout={handleLogout} /></Suspense></ProtectedRoute>} />
+              <Route path="/history" element={<ProtectedRoute user={user}><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}><HistoryExplorer user={user} onLogout={handleLogout} /></Suspense></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute user={user}><Settings user={user} /></ProtectedRoute>} />
+              <Route path="/archive" element={<Archive />} />
+              <Route path="/resources" element={<Resources />} />
+              <Route path="/news" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>}><NewsHub user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense>} />
+              <Route path="/opportunities" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div></div>}><OpportunityHub user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense>} />
+              <Route path="/academy" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div></div>}><AcademyHub user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense>} />
+              <Route path="/dna" element={<Navigate to="/research-dna" replace />} />
+              <Route path="/research-dna" element={<ProtectedRoute user={user}><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-violet-600 border-t-transparent rounded-full animate-spin"></div></div>}><ResearchDNAPage user={user} profile={profile} onLogout={handleLogout} /></Suspense></ProtectedRoute>} />
+              <Route path="/dna/:shareToken" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-950 text-white"><div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div></div>}><PublicResearchDNAPage /></Suspense>} />
+              <Route path="/pricing" element={<Pricing user={user} profile={profile} />} />
+              <Route path="/cart" element={<Cart user={user} profile={profile} />} />
+              <Route path="/checkout" element={<Navigate to="/cart" replace />} />
+              <Route 
+                path="/admin" 
+                element={
+                  <ProtectedRoute user={user}>
+                    {isAdmin ? <AdminPanel user={user} profile={profile} liveUsersCount={liveUsersCount} /> : <Navigate to="/" replace />}
+                  </ProtectedRoute>
+                } 
+              />
+              <Route path="/success-stories" element={<Suspense fallback={<div className="h-screen w-screen bg-[#020617] text-white flex items-center justify-center font-bold tracking-widest uppercase text-sm">Loading 3D Engine...</div>}><SuccessStories3D /></Suspense>} />
+              <Route path="/profile" element={<ProtectedRoute user={user}><Profile user={user} /></ProtectedRoute>} />
+              <Route path="/paper/*" element={<PaperDetail user={user} profile={profile} />} />
+              <Route path="/ai-report" element={<AIReport />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsOfService />} />
+              <Route path="/refund" element={<RefundPolicy user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} />} />
+              <Route path="/refund-policy" element={<RefundPolicy user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/shared/:shareToken" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-950 text-white"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>}><SharedAudit user={user} /></Suspense>} />
+            </Routes>
+          </AppRootErrorBoundary>
           {/* Mobile Native Bottom Navigation Bar */}
           <MobileBottomNav user={user} />
         </>
