@@ -7,7 +7,7 @@ import {
   Radio, Bell, Megaphone, X, Key, Activity, Clock, FileText, RefreshCcw, RefreshCw,
   Server, Database, Cpu, ArrowUp, DollarSign, Layers, ChevronLeft, ChevronRight, Sliders, Terminal,
   Percent, CheckCircle2, XCircle, HardDrive, Flame, TrendingUp,
-  Eye, EyeOff, Plus, Copy, MessageSquare, Lock, LayoutGrid
+  Eye, EyeOff, Plus, Copy, MessageSquare, Lock, LayoutGrid, Building2
 } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 import { BASE_URL, fireSessionExpired } from '../utils/api'
@@ -705,6 +705,561 @@ const AIGatewaySettings = ({ apiFetch }) => {
   )
 }
 
+const TierManagementSection = ({ apiFetch }) => {
+  const [tiers, setTiers] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [savingTierId, setSavingTierId] = useState(null)
+  const [formStates, setFormStates] = useState({})
+
+  const fetchTiers = async () => {
+    try {
+      setLoading(true)
+      const res = await apiFetch('/api/admin/tiers/config')
+      if (res && res.tiers) {
+        setTiers(res.tiers)
+        const fs = {}
+        res.tiers.forEach(t => {
+          fs[t.tier_id] = { ...t }
+        })
+        setFormStates(fs)
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to load tier configurations')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchTiers()
+  }, [])
+
+  const handleChange = (tierId, field, val) => {
+    setFormStates(prev => ({
+      ...prev,
+      [tierId]: {
+        ...prev[tierId],
+        [field]: val
+      }
+    }))
+  }
+
+  const handleSaveTier = async (tierId) => {
+    try {
+      setSavingTierId(tierId)
+      const payload = formStates[tierId]
+      const res = await apiFetch(`/api/admin/tiers/config/${tierId}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      })
+      toast.success(res.message || `Saved ${tierId.toUpperCase()} tier`)
+      fetchTiers()
+    } catch (err) {
+      toast.error(err.message || 'Failed to save tier')
+    } finally {
+      setSavingTierId(null)
+    }
+  }
+
+  const handleAddFeature = (tierId) => {
+    setFormStates(prev => {
+      const currentFeatures = prev[tierId]?.features_json || []
+      return {
+        ...prev,
+        [tierId]: {
+          ...prev[tierId],
+          features_json: [...currentFeatures, { name: 'New Custom Feature', included: true }]
+        }
+      }
+    })
+  }
+
+  const handleFeatureChange = (tierId, idx, field, val) => {
+    setFormStates(prev => {
+      const features = [...(prev[tierId]?.features_json || [])]
+      features[idx] = { ...features[idx], [field]: val }
+      return {
+        ...prev,
+        [tierId]: { ...prev[tierId], features_json: features }
+      }
+    })
+  }
+
+  const handleRemoveFeature = (tierId, idx) => {
+    setFormStates(prev => {
+      const features = (prev[tierId]?.features_json || []).filter((_, i) => i !== idx)
+      return {
+        ...prev,
+        [tierId]: { ...prev[tierId], features_json: features }
+      }
+    })
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <Layers className="text-indigo-600" size={22} /> Dynamic Tier & Quota Control Center
+          </h2>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
+            Configure live pricing, compute zaps, PDF limits, search cooldowns, and feature flags without touching code.
+          </p>
+        </div>
+        <button 
+          onClick={fetchTiers} 
+          className="flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-xl font-bold hover:bg-slate-200 transition-colors text-slate-700 text-xs cursor-pointer"
+        >
+          <RefreshCcw size={14} className={loading ? "animate-spin" : ""} /> Refresh Tiers
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="py-12 flex justify-center"><Loader2 size={24} className="animate-spin text-indigo-600" /></div>
+      ) : (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          {tiers.map(t => {
+            const fs = formStates[t.tier_id] || t
+            return (
+              <div key={t.tier_id} className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-5">
+                <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                  <div>
+                    <h3 className="text-base font-black text-slate-900 uppercase tracking-wide flex items-center gap-2">
+                      <span className={`w-3 h-3 rounded-full ${
+                        t.tier_id === 'pro' ? 'bg-amber-500' : t.tier_id === 'starter' ? 'bg-blue-600' : t.tier_id === 'custom' ? 'bg-indigo-600' : 'bg-slate-400'
+                      }`} />
+                      {fs.name || t.tier_id.toUpperCase()}
+                    </h3>
+                    <span className="text-[10px] text-slate-400 font-mono">tier_id: {t.tier_id}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                      fs.is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'
+                    }`}>
+                      {fs.is_active ? 'Active' : 'Disabled'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Monthly Price (BDT ৳)</label>
+                    <input 
+                      type="number" 
+                      value={fs.monthly_price_bdt ?? 0} 
+                      onChange={e => handleChange(t.tier_id, 'monthly_price_bdt', parseFloat(e.target.value) || 0)}
+                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Monthly Price (USD $)</label>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      value={fs.monthly_price_usd ?? 0} 
+                      onChange={e => handleChange(t.tier_id, 'monthly_price_usd', parseFloat(e.target.value) || 0)}
+                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Monthly Zaps Quota</label>
+                    <input 
+                      type="number" 
+                      value={fs.monthly_credits ?? 500} 
+                      onChange={e => handleChange(t.tier_id, 'monthly_credits', parseInt(e.target.value) || 0)}
+                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Compute Access</label>
+                    <select
+                      value={fs.max_compute_access || 'standard'}
+                      onChange={e => handleChange(t.tier_id, 'max_compute_access', e.target.value)}
+                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none"
+                    >
+                      <option value="standard">Standard</option>
+                      <option value="fast">Fast</option>
+                      <option value="deep_reasoning">Deep Reasoning 🧠</option>
+                      <option value="dedicated">Dedicated SLA</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Exports / mo</label>
+                    <input 
+                      type="number" 
+                      value={fs.export_limit_monthly ?? 10} 
+                      onChange={e => handleChange(t.tier_id, 'export_limit_monthly', parseInt(e.target.value) || 0)}
+                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">PDFs / day</label>
+                    <input 
+                      type="number" 
+                      value={fs.daily_pdf_upload_limit ?? 3} 
+                      onChange={e => handleChange(t.tier_id, 'daily_pdf_upload_limit', parseInt(e.target.value) || 0)}
+                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Queue Cooldown (s)</label>
+                    <input 
+                      type="number" 
+                      value={fs.search_cooldown_seconds ?? 0} 
+                      onChange={e => handleChange(t.tier_id, 'search_cooldown_seconds', parseInt(e.target.value) || 0)}
+                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Features List */}
+                <div className="space-y-2 pt-3 border-t border-slate-100">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-slate-700">Feature Checklist & Permissions</span>
+                    <button 
+                      type="button" 
+                      onClick={() => handleAddFeature(t.tier_id)}
+                      className="text-[10px] bg-slate-100 hover:bg-slate-200 font-bold text-indigo-600 px-2 py-1 rounded-lg flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus size={10} /> Add Feature
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {(fs.features_json || []).map((feat, idx) => (
+                      <div key={idx} className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200/70 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => handleFeatureChange(t.tier_id, idx, 'included', !feat.included)}
+                          className={`w-5 h-5 rounded-md flex items-center justify-center cursor-pointer shrink-0 ${
+                            feat.included ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-400'
+                          }`}
+                        >
+                          {feat.included ? <Check size={12} strokeWidth={3} /> : <X size={12} />}
+                        </button>
+                        <input 
+                          type="text" 
+                          value={feat.name || ''} 
+                          onChange={e => handleFeatureChange(t.tier_id, idx, 'name', e.target.value)}
+                          className="flex-1 bg-transparent border-none outline-none font-medium text-slate-800 text-xs"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFeature(t.tier_id, idx)}
+                          className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-100 flex justify-end">
+                  <button
+                    onClick={() => handleSaveTier(t.tier_id)}
+                    disabled={savingTierId === t.tier_id}
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {savingTierId === t.tier_id ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                    Save {fs.name || t.tier_id.toUpperCase()} Config
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const OrganizationsManagementSection = ({ apiFetch }) => {
+  const [organizations, setOrganizations] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [creatingOrg, setCreatingOrg] = useState(false)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [selectedOrg, setSelectedOrg] = useState(null)
+  const [newMemberEmail, setNewMemberEmail] = useState('')
+  const [addingMember, setAddingMember] = useState(false)
+
+  const [newOrg, setNewOrg] = useState({
+    name: '',
+    contact_email: '',
+    allocated_monthly_credits: 10000,
+    dedicated_ai_rpm_limit: 60,
+    max_seats: 10,
+    plan_duration: '1_year'
+  })
+
+  const fetchOrgs = async () => {
+    try {
+      setLoading(true)
+      const res = await apiFetch('/api/admin/organizations')
+      if (res && res.organizations) {
+        setOrganizations(res.organizations)
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to load institutional labs')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchOrgs()
+  }, [])
+
+  const handleCreateOrg = async (e) => {
+    e.preventDefault()
+    if (!newOrg.name || !newOrg.contact_email) return
+    setCreatingOrg(true)
+    try {
+      const res = await apiFetch('/api/admin/organizations', {
+        method: 'POST',
+        body: JSON.stringify(newOrg)
+      })
+      toast.success(res.message || 'Institutional Lab created')
+      setShowCreateModal(false)
+      setNewOrg({ name: '', contact_email: '', allocated_monthly_credits: 10000, dedicated_ai_rpm_limit: 60, max_seats: 10, plan_duration: '1_year' })
+      fetchOrgs()
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setCreatingOrg(false)
+    }
+  }
+
+  const handleAddMember = async (orgId) => {
+    if (!newMemberEmail.trim()) return
+    setAddingMember(true)
+    try {
+      const res = await apiFetch(`/api/admin/organizations/${orgId}/members`, {
+        method: 'POST',
+        body: JSON.stringify({ user_email: newMemberEmail.trim(), role: 'member' })
+      })
+      toast.success(res.message || 'Member added')
+      setNewMemberEmail('')
+      fetchOrgs()
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setAddingMember(false)
+    }
+  }
+
+  const handleRemoveMember = async (orgId, userId) => {
+    try {
+      await apiFetch(`/api/admin/organizations/${orgId}/members/${userId}`, { method: 'DELETE' })
+      toast.success('Member removed')
+      fetchOrgs()
+    } catch (err) {
+      toast.error(err.message)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <Building2 className="text-indigo-600" size={22} /> Institutional Labs & Custom Multi-Seat Licenses
+          </h2>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
+            Isolate department workloads with dedicated compute pools, custom RPM limits, and multi-seat membership.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setShowCreateModal(true)} 
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs cursor-pointer shadow-xs"
+          >
+            <Plus size={14} /> New Institutional Lab
+          </button>
+          <button 
+            onClick={fetchOrgs} 
+            className="flex items-center gap-2 px-3 py-2 bg-slate-100 rounded-xl font-bold hover:bg-slate-200 text-slate-700 text-xs cursor-pointer"
+          >
+            <RefreshCcw size={14} className={loading ? "animate-spin" : ""} />
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="py-12 flex justify-center"><Loader2 size={24} className="animate-spin text-indigo-600" /></div>
+      ) : organizations.length === 0 ? (
+        <div className="p-12 text-center bg-white border border-slate-200 rounded-3xl">
+          <Building2 size={36} className="mx-auto text-slate-300 mb-3" />
+          <h3 className="text-sm font-bold text-slate-700">No Institutional Labs Found</h3>
+          <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">Create an institutional lab to allocate dedicated capacity and manage lab member seats.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-6">
+          {organizations.map(org => {
+            const members = org.organization_members || []
+            return (
+              <div key={org.id} className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                  <div>
+                    <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                      <Building2 className="text-indigo-600" size={18} /> {org.name}
+                    </h3>
+                    <div className="text-xs text-slate-500 font-medium mt-0.5">
+                      Contact: <strong className="text-slate-800">{org.contact_email}</strong> • Plan: <strong className="text-indigo-600 uppercase">{org.plan_duration}</strong>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="px-3 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-black">
+                      {members.length} / {org.max_seats} Seats Used
+                    </span>
+                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase ${
+                      org.status === 'active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'
+                    }`}>
+                      {org.status}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Monthly Credit Pool</span>
+                    <div className="text-sm font-black text-slate-900 mt-0.5">{org.allocated_monthly_credits?.toLocaleString()} Zaps</div>
+                  </div>
+                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Dedicated AI Rate Limit</span>
+                    <div className="text-sm font-black text-indigo-600 mt-0.5">{org.dedicated_ai_rpm_limit} RPM (Isolated)</div>
+                  </div>
+                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Expires At</span>
+                    <div className="text-xs font-bold text-slate-800 mt-1">{org.expires_at ? new Date(org.expires_at).toLocaleDateString() : 'Never'}</div>
+                  </div>
+                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Lab ID</span>
+                    <div className="text-[10px] font-mono text-slate-500 mt-1 truncate">{org.id}</div>
+                  </div>
+                </div>
+
+                {/* Lab Members Management */}
+                <div className="space-y-3 pt-3 border-t border-slate-100">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <span className="text-xs font-bold text-slate-700">Lab Member Seats ({members.length})</span>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="email" 
+                        placeholder="researcher@university.edu"
+                        value={selectedOrg === org.id ? newMemberEmail : ''}
+                        onChange={e => { setSelectedOrg(org.id); setNewMemberEmail(e.target.value); }}
+                        className="text-xs px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 w-56"
+                      />
+                      <button
+                        onClick={() => handleAddMember(org.id)}
+                        disabled={addingMember || !newMemberEmail.trim()}
+                        className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold cursor-pointer disabled:opacity-50"
+                      >
+                        {addingMember && selectedOrg === org.id ? <Loader2 size={12} className="animate-spin" /> : 'Add Seat'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 pt-2">
+                    {members.map(m => (
+                      <div key={m.id} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between text-xs">
+                        <div className="truncate pr-2">
+                          <div className="font-bold text-slate-800 truncate">{m.user_email}</div>
+                          <span className="text-[9px] text-slate-400 uppercase font-semibold">{m.role}</span>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveMember(org.id, m.user_id)}
+                          className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer shrink-0"
+                          title="Remove Seat"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Create Org Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm p-4 flex items-center justify-center">
+          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-md p-6 shadow-2xl relative">
+            <button onClick={() => setShowCreateModal(false)} className="absolute top-4 right-4 text-slate-400 p-2"><X size={18} /></button>
+            <h3 className="text-lg font-black text-slate-900 mb-1">Create Institutional Lab</h3>
+            <p className="text-xs text-slate-500 font-medium mb-5">Provision dedicated multi-seat capacity for university research groups.</p>
+
+            <form onSubmit={handleCreateOrg} className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Lab / Institution Name</label>
+                <input 
+                  type="text" 
+                  required
+                  value={newOrg.name} 
+                  onChange={e => setNewOrg({...newOrg, name: e.target.value})}
+                  placeholder="e.g. AI & Bioinformatics Lab"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-medium"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Contact Email</label>
+                <input 
+                  type="email" 
+                  required
+                  value={newOrg.contact_email} 
+                  onChange={e => setNewOrg({...newOrg, contact_email: e.target.value})}
+                  placeholder="lead@university.edu"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 font-medium"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Max Seats</label>
+                  <input 
+                    type="number" 
+                    min="1"
+                    value={newOrg.max_seats} 
+                    onChange={e => setNewOrg({...newOrg, max_seats: parseInt(e.target.value) || 10})}
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Monthly Zaps</label>
+                  <input 
+                    type="number" 
+                    value={newOrg.allocated_monthly_credits} 
+                    onChange={e => setNewOrg({...newOrg, allocated_monthly_credits: parseInt(e.target.value) || 10000})}
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={creatingOrg}
+                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {creatingOrg ? <Loader2 size={14} className="animate-spin mx-auto" /> : 'Provision Institutional Lab'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
   const navigate = useNavigate()
   const [isAdmin, setIsAdmin] = useState(false)
@@ -1312,6 +1867,8 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
       <div className="md:hidden bg-white border-b border-slate-200 px-3 py-2 flex items-center gap-1.5 overflow-x-auto scrollbar-none whitespace-nowrap z-20 shrink-0">
         {[
           { id: 'overview', label: 'Overview', icon: LayoutDashboardIcon },
+          { id: 'tiers', label: 'Tiers', icon: Layers },
+          { id: 'organizations', label: 'Labs', icon: Building2 },
           { id: 'api_monitoring', label: 'API & Costs', icon: DollarSign },
           { id: 'ai_routing', label: 'AI Engine', icon: Cpu },
           { id: 'ai_gateway', label: 'AI Gateway', icon: Sliders },
@@ -1357,6 +1914,8 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
             
             {[
               { id: 'overview', label: 'Overview & Health', icon: LayoutDashboardIcon },
+              { id: 'tiers', label: 'Tiers & Quotas', icon: Layers },
+              { id: 'organizations', label: 'Institutional Labs', icon: Building2 },
               { id: 'api_monitoring', label: 'API & Cost Center', icon: DollarSign },
               { id: 'ai_routing', label: 'AI Resolver Engine', icon: Cpu },
               { id: 'ai_gateway', label: 'Universal AI Gateway', icon: Sliders },
@@ -2031,6 +2590,16 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
             </div>
           )}
 
+          {/* TAB: TIERS & QUOTA CONFIGURATION */}
+          {activeTab === 'tiers' && (
+            <TierManagementSection apiFetch={apiFetch} />
+          )}
+
+          {/* TAB: INSTITUTIONAL LABS */}
+          {activeTab === 'organizations' && (
+            <OrganizationsManagementSection apiFetch={apiFetch} />
+          )}
+
           {/* TAB 3: USER DIRECTORY */}
           {activeTab === 'users' && (
             <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs space-y-6">
@@ -2673,16 +3242,17 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
                   </label>
 
                   {/* Tier Selector Buttons */}
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
-                      { id: 'free', label: 'FREE (500 Zaps)' },
-                      { id: 'starter', label: 'STARTER (1.5k Zaps)' },
-                      { id: 'pro', label: 'PRO (3k Zaps)' }
+                      { id: 'free', label: 'FREE (500)' },
+                      { id: 'starter', label: 'STARTER (1.5k)' },
+                      { id: 'pro', label: 'PRO (3k)' },
+                      { id: 'custom', label: 'CUSTOM (Lab)' }
                     ].map(t => (
                       <button
                         key={t.id}
                         onClick={() => setSelectedTier(t.id)}
-                        className={`flex-1 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider border transition-all cursor-pointer ${
+                        className={`py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all cursor-pointer ${
                           selectedTier === t.id 
                             ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' 
                             : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
