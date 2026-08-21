@@ -249,6 +249,38 @@ const repairIncompleteJson = (jsonStr) => {
   return null;
 };
 
+const getHeaderInfo = (engine) => {
+  switch (engine) {
+    case 'mermaid':
+      return { icon: '📊', shortLabel: 'Flow Diagram', engineName: 'Mermaid' };
+    case 'echarts':
+    case 'chart':
+      return { icon: '📈', shortLabel: 'Data Chart', engineName: 'ECharts' };
+    case 'react-flow':
+    case 'mindmap':
+      return { icon: '🧠', shortLabel: 'Mind-Map', engineName: 'React Flow' };
+    case 'd3':
+    case 'graph':
+    case 'network':
+      return { icon: '🕸️', shortLabel: 'Network Graph', engineName: 'D3.js' };
+    case 'markdown':
+    case 'table':
+      return { icon: '📋', shortLabel: 'Summary Table', engineName: 'Table' };
+    case 'circuit':
+      return { icon: '⚡', shortLabel: 'Circuit Schematic', engineName: 'Circuit Engine' };
+    case 'chemistry':
+      return { icon: '🧪', shortLabel: 'Molecular Structure', engineName: 'Chemistry Engine' };
+    case 'math-plot':
+      return { icon: '📐', shortLabel: 'Math Plot', engineName: 'Math Engine' };
+    case 'geo':
+      return { icon: '🌍', shortLabel: 'Research Map', engineName: 'Geo Engine' };
+    case '3d':
+      return { icon: '🧊', shortLabel: '3D Model', engineName: '3D Engine' };
+    default:
+      return { icon: '🔍', shortLabel: 'Visual Analysis', engineName: engine || 'Visual' };
+  }
+};
+
 /**
  * Universal Visualization Engine (UVE) — Visual Dispatcher
  * Inspects incoming structured JSON or raw text, aggressively parses Mermaid diagrams,
@@ -350,9 +382,28 @@ export const VisualDispatcher = React.memo(({ payload, rawJson, onSourceClick })
   }, [payloadStr]);
 
   const viz = parsedPayload?.visualization || parsedPayload;
-  const engine = (viz?.engine || '').toLowerCase();
+  let engine = (viz?.engine || '').toLowerCase();
   const type = (viz?.type || '').toLowerCase();
   const config = viz?.config || viz;
+
+  // Auto-infer engine if omitted by LLM
+  if (!engine) {
+    if (config?.components || config?.wires) {
+      engine = 'circuit';
+    } else if (config?.equation_latex || config?.data_points) {
+      engine = 'math-plot';
+    } else if (config?.markers || config?.center) {
+      engine = 'geo';
+    } else if (config?.atoms && config?.atoms.some(a => a?.z !== undefined || (Array.isArray(a?.position) && a?.position.length >= 3) || (Array.isArray(a?.coords) && a?.coords.length >= 3))) {
+      engine = '3d';
+    } else if (config?.reactants || config?.products || (config?.atoms && Array.isArray(config.atoms))) {
+      engine = 'chemistry';
+    } else if (config?.series || config?.xAxis) {
+      engine = 'echarts';
+    } else if (config?.nodes || config?.edges) {
+      engine = 'react-flow';
+    }
+  }
 
   // Filter out invalid phantom blocks (e.g. JSON with only theme/style and no nodes/edges/engine)
   const isPhantomThemeBlock = !engine && !type && !viz?.nodes && !viz?.edges && !config?.nodes && !config?.edges && (viz?.theme || viz?.style || typeof viz !== 'object');
@@ -361,38 +412,7 @@ export const VisualDispatcher = React.memo(({ payload, rawJson, onSourceClick })
   }
 
   const isTable = engine === 'markdown' || engine === 'table';
-
-  const headerInfo = useMemo(() => {
-    switch (engine) {
-      case 'mermaid':
-        return { icon: '📊', shortLabel: 'Flow Diagram', engineName: 'Mermaid' };
-      case 'echarts':
-      case 'chart':
-        return { icon: '📈', shortLabel: 'Data Chart', engineName: 'ECharts' };
-      case 'react-flow':
-      case 'mindmap':
-        return { icon: '🧠', shortLabel: 'Mind-Map', engineName: 'React Flow' };
-      case 'd3':
-      case 'graph':
-      case 'network':
-        return { icon: '🕸️', shortLabel: 'Network Graph', engineName: 'D3.js' };
-      case 'markdown':
-      case 'table':
-        return { icon: '📋', shortLabel: 'Summary Table', engineName: 'Table' };
-      case 'circuit':
-        return { icon: '⚡', shortLabel: 'Circuit Schematic', engineName: 'Circuit Engine' };
-      case 'chemistry':
-        return { icon: '🧪', shortLabel: 'Molecular Structure', engineName: 'Chemistry Engine' };
-      case 'math-plot':
-        return { icon: '📐', shortLabel: 'Math Plot', engineName: 'Math Engine' };
-      case 'geo':
-        return { icon: '🌍', shortLabel: 'Research Map', engineName: 'Geo Engine' };
-      case '3d':
-        return { icon: '🧊', shortLabel: '3D Model', engineName: '3D Engine' };
-      default:
-        return { icon: '🔍', shortLabel: 'Visual Analysis', engineName: engine || 'Visual' };
-    }
-  }, [engine]);
+  const headerInfo = getHeaderInfo(engine);
 
   const handleCopyData = () => {
     try {

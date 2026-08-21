@@ -45,6 +45,24 @@ const BondCylinder = ({ fromPos, toPos, color = '#94a3b8' }) => {
   );
 };
 
+const getCPKColor = (element, idx) => {
+  const el = (element || '').toUpperCase().trim();
+  switch (el) {
+    case 'H': return '#f8fafc';
+    case 'C': return '#334155';
+    case 'N': return '#3b82f6';
+    case 'O': return '#ef4444';
+    case 'F': case 'CL': return '#22c55e';
+    case 'BR': return '#991b1b';
+    case 'I': return '#581c87';
+    case 'P': return '#f97316';
+    case 'S': return '#eab308';
+    case 'FE': case 'ZN': case 'CU': return '#64748b';
+    default:
+      return SLATE_THEME.palette[idx % SLATE_THEME.palette.length];
+  }
+};
+
 /**
  * 3D Molecular / Spatial Model Renderer for UVE Ecosystem
  */
@@ -60,10 +78,30 @@ export const ThreeDAdapter = React.memo(({ type, config }) => {
       let pos = [0, 0, 0];
       if (Array.isArray(a.position) && a.position.length >= 3) {
         pos = [parseFloat(a.position[0]) || 0, parseFloat(a.position[1]) || 0, parseFloat(a.position[2]) || 0];
+      } else if (Array.isArray(a.coords) && a.coords.length >= 3) {
+        pos = [parseFloat(a.coords[0]) || 0, parseFloat(a.coords[1]) || 0, parseFloat(a.coords[2]) || 0];
+      } else if (a.x !== undefined || a.y !== undefined || a.z !== undefined) {
+        pos = [parseFloat(a.x) || 0, parseFloat(a.y) || 0, parseFloat(a.z) || 0];
+      } else {
+        // Auto spherical distribution fallback if position missing
+        const phi = Math.acos(-1 + (2 * idx) / Math.max(1, rawAtoms.length));
+        const theta = Math.sqrt(Math.max(1, rawAtoms.length) * Math.PI) * phi;
+        pos = [parseFloat((1.5 * Math.cos(theta) * Math.sin(phi)).toFixed(2)), parseFloat((1.5 * Math.sin(theta) * Math.sin(phi)).toFixed(2)), parseFloat((1.5 * Math.cos(phi)).toFixed(2))];
       }
-      return { ...a, position: pos };
+      const radius = a.radius || (a.element === 'H' ? 0.28 : 0.42);
+      const color = a.color || getCPKColor(a.element, idx);
+      return { ...a, position: pos, radius, color, id: a.id || idx };
     });
   }, [rawAtoms]);
+
+  const atomMap = useMemo(() => {
+    const map = {};
+    atoms.forEach((a, idx) => {
+      map[a.id] = a.position;
+      map[idx] = a.position;
+    });
+    return map;
+  }, [atoms]);
 
   return (
     <div className="w-full h-full flex flex-col justify-between bg-white p-4 relative overflow-hidden rounded-xl">
@@ -99,7 +137,7 @@ export const ThreeDAdapter = React.memo(({ type, config }) => {
               <mesh key={`atom-${idx}`} position={atom.position}>
                 <sphereGeometry args={[atom.radius || 0.35, 32, 32]} />
                 <meshStandardMaterial
-                  color={atom.color || SLATE_THEME.palette[idx % SLATE_THEME.palette.length]}
+                  color={atom.color}
                   roughness={0.2}
                   metalness={0.1}
                 />
@@ -108,17 +146,10 @@ export const ThreeDAdapter = React.memo(({ type, config }) => {
 
             {/* Render 3D Bond Cylinders */}
             {rawBonds.map((bond, idx) => {
-              const a1 = atoms[bond.from];
-              const a2 = atoms[bond.to];
-              if (!a1 || !a2) return null;
-              return (
-                <BondCylinder
-                  key={`bond-${idx}`}
-                  fromPos={a1.position}
-                  toPos={a2.position}
-                  color={bond.color || '#64748b'}
-                />
-              );
+              const fromPos = atomMap[bond.from] || (atoms[bond.from] ? atoms[bond.from].position : null);
+              const toPos = atomMap[bond.to] || (atoms[bond.to] ? atoms[bond.to].position : null);
+              if (!fromPos || !toPos) return null;
+              return <BondCylinder key={`bond-${idx}`} fromPos={fromPos} toPos={toPos} color={bond.color || '#64748b'} />;
             })}
           </Canvas>
         )}

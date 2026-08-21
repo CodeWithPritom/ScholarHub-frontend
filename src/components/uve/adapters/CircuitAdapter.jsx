@@ -144,7 +144,7 @@ const RenderComponentSymbol = ({ type, x, y, label, id, isHighlight }) => {
 export const CircuitAdapter = React.memo(({ config }) => {
   const title = config?.title || 'Electronic Circuit Schematic';
   const rawComponents = config?.components || [];
-  const rawConnections = config?.connections || [];
+  const rawConnections = config?.connections || config?.wires || [];
   const annotations = config?.annotations || [];
 
   // Auto-assign positions if missing
@@ -193,14 +193,21 @@ export const CircuitAdapter = React.memo(({ config }) => {
         <svg viewBox="0 0 700 400" className="w-full h-full max-h-[360px]" preserveAspectRatio="xMidYMid meet">
           {/* Wire Connections */}
           {rawConnections.map((conn, idx) => {
-            const fromComp = compMap[conn.from];
-            const toComp = compMap[conn.to];
-            if (!fromComp || !toComp) return null;
-
-            const x1 = typeof fromComp.x === 'number' && !isNaN(fromComp.x) ? fromComp.x : 100;
-            const y1 = typeof fromComp.y === 'number' && !isNaN(fromComp.y) ? fromComp.y : 100;
-            const x2 = typeof toComp.x === 'number' && !isNaN(toComp.x) ? toComp.x : 300;
-            const y2 = typeof toComp.y === 'number' && !isNaN(toComp.y) ? toComp.y : 200;
+            let x1 = 100, y1 = 100, x2 = 300, y2 = 200;
+            if (Array.isArray(conn?.from) && Array.isArray(conn?.to)) {
+              x1 = parseFloat(conn.from[0]) || 100;
+              y1 = parseFloat(conn.from[1]) || 100;
+              x2 = parseFloat(conn.to[0]) || 300;
+              y2 = parseFloat(conn.to[1]) || 200;
+            } else {
+              const fromComp = compMap[conn?.from];
+              const toComp = compMap[conn?.to];
+              if (!fromComp || !toComp) return null;
+              x1 = typeof fromComp.x === 'number' && !isNaN(fromComp.x) ? fromComp.x : 100;
+              y1 = typeof fromComp.y === 'number' && !isNaN(fromComp.y) ? fromComp.y : 100;
+              x2 = typeof toComp.x === 'number' && !isNaN(toComp.x) ? toComp.x : 300;
+              y2 = typeof toComp.y === 'number' && !isNaN(toComp.y) ? toComp.y : 200;
+            }
             const midX = (x1 + x2) / 2;
 
             return (
@@ -213,7 +220,7 @@ export const CircuitAdapter = React.memo(({ config }) => {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
-                {conn.label && (
+                {conn?.label && (
                   <text x={midX + 4} y={(y1 + y2) / 2 - 4} fill={SLATE_THEME.circuit.highlight} fontSize="10" fontFamily={SLATE_THEME.fontFamily.mono} fontWeight="bold">
                     {formatNote(conn.label)}
                   </text>

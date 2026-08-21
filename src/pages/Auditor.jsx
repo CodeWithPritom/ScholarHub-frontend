@@ -155,11 +155,11 @@ const cleanProps = ({ style, node, ...rest }) => {
 const MessageEditBox = React.memo(({ initialText, onCancel, onSave }) => {
   const [text, setText] = useState(initialText);
   return (
-    <div className="w-full flex flex-col gap-2 min-w-[280px] sm:min-w-[400px]">
+    <div className="w-full flex flex-col gap-2 min-w-0 max-w-full">
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        className="w-full p-3 bg-white border border-slate-300 rounded-xl text-sm outline-none focus:border-indigo-500 font-sans shadow-xs text-slate-800"
+        className="w-full p-3 bg-white border border-slate-300 rounded-xl text-sm outline-none focus:border-indigo-500 font-sans shadow-xs text-slate-800 resize-none break-words whitespace-pre-wrap [overflow-wrap:anywhere] [word-break:break-word] min-w-0"
         rows={3}
         autoFocus
       />
@@ -313,13 +313,29 @@ const AuditorChatMessage = React.memo(({
       return p;
     }).join('');
 
-    // Ensure any open unclosed code block is closed so ReactMarkdown always triggers the code renderer
-    const fenceCount = (result.match(/```/g) || []).length;
-    if (fenceCount % 2 !== 0) {
-      result += '\n```';
-    }
+    // 3. Normalize LaTeX math delimiters & protect table cell pipes inside math
+    // Step A: Protect internal pipes in table math segments
+    const lines = result.split(/\r?\n/);
+    const mathNormalizedLines = lines.map(line => {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('|') && trimmed.includes('|', 1)) {
+        // Protect pipes inside \( ... \), \[ ... \], $$ ... $$, or $ ... $
+        return line.replace(/(\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$|\$[^\$\n]+?\$)/g, (mathBlock) => {
+          return mathBlock.replace(/\|/g, '\\vert ');
+        });
+      }
+      return line;
+    });
 
-    return result;
+    let mathText = mathNormalizedLines.join('\n');
+
+    // Step B: Convert LaTeX block math \[ ... \] to $$ ... $$
+    mathText = mathText.replace(/\\\[([\s\S]*?)\\\]/g, (match, eq) => `\n\n$$\n${eq.trim()}\n$$\n\n`);
+
+    // Step C: Convert LaTeX inline math \( ... \) to $ ... $
+    mathText = mathText.replace(/\\\(([\s\S]*?)\\\)/g, (match, eq) => `$${eq.trim()}$`);
+
+    return mathText;
   }, [currentText]);
 
   return (
@@ -347,7 +363,7 @@ const AuditorChatMessage = React.memo(({
           </span>
         )}
 
-        <div className={`p-4 rounded-2xl text-sm leading-relaxed border ${msg.role === 'user'
+        <div className={`p-4 rounded-2xl text-sm leading-relaxed border min-w-0 max-w-full break-words [overflow-wrap:anywhere] [word-break:break-word] ${msg.role === 'user'
           ? 'bg-slate-50 border-slate-200/60 text-slate-800 rounded-tr-none max-w-[85%] ml-auto'
           : 'bg-white border-slate-200/60 text-slate-855 rounded-tl-none font-normal shadow-xs w-full'
         }`}>
@@ -358,7 +374,7 @@ const AuditorChatMessage = React.memo(({
               onSave={onSaveEdit}
             />
           ) : (
-            <div className={`prose prose-slate max-w-none text-sm leading-relaxed space-y-4 prose-headings:font-bold prose-headings:text-slate-800 prose-a:text-indigo-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-indigo-900 prose-code:bg-slate-100 prose-code:text-slate-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none ${msg.role === 'user' ? 'text-slate-800' : 'text-slate-700'}`}>
+            <div className={`prose prose-slate max-w-none text-sm leading-relaxed space-y-4 prose-headings:font-bold prose-headings:text-slate-800 prose-a:text-indigo-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-indigo-900 prose-code:bg-slate-100 prose-code:text-slate-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none min-w-0 max-w-full break-words [overflow-wrap:anywhere] [word-break:break-word] ${msg.role === 'user' ? 'text-slate-800' : 'text-slate-700'}`}>
               <style>{`
                 .prose table {
                   table-layout: auto !important;
@@ -496,7 +512,44 @@ const AuditorChatMessage = React.memo(({
                     ),
                     thead: (props) => <thead className="bg-slate-100/90 text-slate-800 font-extrabold uppercase tracking-wider text-[11px] border-b border-slate-200" {...cleanProps(props)} />,
                     th: (props) => <th className="px-4 py-3 border-b border-slate-200 text-slate-800 font-black text-[11px] tracking-wider uppercase text-left bg-slate-50" {...cleanProps(props)} />,
-                    td: (props) => <td className="px-4 py-3.5 border-b border-slate-200/60 text-slate-700 leading-relaxed align-middle whitespace-normal text-xs" {...cleanProps(props)} />
+                    td: (props) => {
+                      const renderCellWithBreaks = (children) => {
+                        if (!children) return children;
+                        if (typeof children === 'string' && /<br\s*\/?>/i.test(children)) {
+                          const parts = children.split(/<br\s*\/?>/gi);
+                          return parts.map((part, i) => (
+                            <React.Fragment key={i}>
+                              {i > 0 && <br className="my-0.5" />}
+                              {part}
+                            </React.Fragment>
+                          ));
+                        }
+                        if (Array.isArray(children)) {
+                          return children.map((child, i) => {
+                            if (typeof child === 'string' && /<br\s*\/?>/i.test(child)) {
+                              const parts = child.split(/<br\s*\/?>/gi);
+                              return (
+                                <React.Fragment key={i}>
+                                  {parts.map((part, pIdx) => (
+                                    <React.Fragment key={pIdx}>
+                                      {pIdx > 0 && <br className="my-0.5" />}
+                                      {part}
+                                    </React.Fragment>
+                                  ))}
+                                </React.Fragment>
+                              );
+                            }
+                            return child;
+                          });
+                        }
+                        return children;
+                      };
+                      return (
+                        <td className="px-4 py-3.5 border-b border-slate-200/60 text-slate-700 leading-relaxed align-middle whitespace-normal text-xs" {...cleanProps(props)}>
+                          {renderCellWithBreaks(props.children)}
+                        </td>
+                      );
+                    }
                   }}
                 >
                   {processedContent}
@@ -2178,9 +2231,13 @@ const Auditor = ({ user, onLogout }) => {
 
     const currentWorkflow = targetWorkflow || activeWorkflow;
 
-    // 1. If in Research Agent mode and this is the initial submit, or explicitly told to 'search again'
+    // 1. If in Research Agent mode and this is the initial submit, or no papers are loaded in workspace, or explicitly told to 'search again'
     const shouldSearchAgain = finalQuery.toLowerCase().includes('search again');
-    if ((currentWorkflow === 'research' && conversation.length === 0) || shouldSearchAgain) {
+    const hasNoPriorUserMessages = !conversation.some(m => m.role === 'user');
+    const isResearchInitial = (currentWorkflow === 'research' && hasNoPriorUserMessages);
+    const hasZeroPapers = !papersToUse || papersToUse.length === 0;
+
+    if (isResearchInitial || hasZeroPapers || shouldSearchAgain) {
       setSearchStatus('searching');
       setCognitiveStep('Analyzing Research Intent & Primary Entity...');
 
@@ -3304,8 +3361,8 @@ const Auditor = ({ user, onLogout }) => {
                             </div>
 
                             {/* Card Body — Textarea */}
-                            <div className="bg-white p-4 flex flex-col gap-2 rounded-b-xl">
-                              <div className="flex items-start">
+                            <div className="bg-white p-4 flex flex-col gap-2 rounded-b-xl min-w-0 max-w-full relative">
+                              <div className="flex items-start min-w-0 max-w-full">
                                 <textarea
                                   value={query}
                                   onChange={(e) => setQuery(e.target.value)}
@@ -3316,7 +3373,7 @@ const Auditor = ({ user, onLogout }) => {
                                     }
                                   }}
                                   placeholder="Enter your research query (e.g. Compare the efficacy of digital restorations vs traditional techniques...)"
-                                  className="flex-1 bg-transparent text-slate-800 text-sm placeholder-slate-400 focus:outline-none resize-none min-h-[80px] leading-relaxed w-full"
+                                  className="flex-1 bg-transparent text-slate-800 text-sm placeholder-slate-400 focus:outline-none resize-none min-h-[80px] leading-relaxed w-full min-w-0 break-words whitespace-pre-wrap [overflow-wrap:anywhere] [word-break:break-word]"
                                 />
                               </div>
 
@@ -3979,7 +4036,7 @@ const Auditor = ({ user, onLogout }) => {
                       onScroll={handleChatLaneScroll}
                       onWheel={handleChatLaneWheel}
                       onTouchMove={handleChatLaneTouchMove}
-                      className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-6 custom-scrollbar relative"
+                      className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 flex flex-col gap-6 custom-scrollbar relative min-w-0 max-w-full"
                     >
                       {messages.map((msg, index) => {
                         const originalIndex = index;

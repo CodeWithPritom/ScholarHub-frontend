@@ -136,7 +136,24 @@ const SharedMessageContent = ({ content, activePapers, onSelectPaper }) => {
       );
     }
     return text;
-  }).join('');
+    // 3. Normalize LaTeX math delimiters & protect table cell pipes inside math
+    const lines = result.split(/\r?\n/);
+    const mathNormalizedLines = lines.map(line => {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('|') && trimmed.includes('|', 1)) {
+        return line.replace(/(\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$|\$[^\$\n]+?\$)/g, (mathBlock) => {
+          return mathBlock.replace(/\|/g, '\\vert ');
+        });
+      }
+      return line;
+    });
+
+    let mathText = mathNormalizedLines.join('\n');
+    mathText = mathText.replace(/\\\[([\s\S]*?)\\\]/g, (match, eq) => `\n\n$$\n${eq.trim()}\n$$\n\n`);
+    mathText = mathText.replace(/\\\(([\s\S]*?)\\\)/g, (match, eq) => `$${eq.trim()}$`);
+
+    return mathText;
+  }, [content]);
 
   return (
     <div className="prose prose-slate max-w-none text-sm leading-relaxed space-y-4 prose-headings:font-bold prose-headings:text-slate-800 prose-a:text-indigo-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-indigo-900 prose-code:bg-slate-100 prose-code:text-slate-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded">
@@ -244,7 +261,44 @@ const SharedMessageContent = ({ content, activePapers, onSelectPaper }) => {
             ),
             thead: (props) => <thead className="bg-slate-100/90 text-slate-800 font-extrabold uppercase tracking-wider text-[11px] border-b border-slate-200" {...cleanProps(props)} />,
             th: (props) => <th className="px-4 py-3 border-b border-slate-200 text-slate-800 font-black text-[11px] tracking-wider uppercase text-left bg-slate-50" {...cleanProps(props)} />,
-            td: (props) => <td className="px-4 py-3.5 border-b border-slate-200/60 text-slate-700 leading-relaxed align-middle whitespace-normal text-xs" {...cleanProps(props)} />
+            td: (props) => {
+              const renderCellWithBreaks = (children) => {
+                if (!children) return children;
+                if (typeof children === 'string' && /<br\s*\/?>/i.test(children)) {
+                  const parts = children.split(/<br\s*\/?>/gi);
+                  return parts.map((part, i) => (
+                    <React.Fragment key={i}>
+                      {i > 0 && <br className="my-0.5" />}
+                      {part}
+                    </React.Fragment>
+                  ));
+                }
+                if (Array.isArray(children)) {
+                  return children.map((child, i) => {
+                    if (typeof child === 'string' && /<br\s*\/?>/i.test(child)) {
+                      const parts = child.split(/<br\s*\/?>/gi);
+                      return (
+                        <React.Fragment key={i}>
+                          {parts.map((part, pIdx) => (
+                            <React.Fragment key={pIdx}>
+                              {pIdx > 0 && <br className="my-0.5" />}
+                              {part}
+                            </React.Fragment>
+                          ))}
+                        </React.Fragment>
+                      );
+                    }
+                    return child;
+                  });
+                }
+                return children;
+              };
+              return (
+                <td className="px-4 py-3.5 border-b border-slate-200/60 text-slate-700 leading-relaxed align-middle whitespace-normal text-xs" {...cleanProps(props)}>
+                  {renderCellWithBreaks(props.children)}
+                </td>
+              );
+            }
           }}
         >
           {processedContent}

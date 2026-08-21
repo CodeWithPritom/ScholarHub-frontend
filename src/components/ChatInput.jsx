@@ -222,7 +222,7 @@ export const ChatInput = React.memo(({
           )}
         </AnimatePresence>
 
-        <form onSubmit={handleSubmit} className="bg-white border border-slate-200/90 rounded-2xl p-2.5 md:p-3 flex flex-col gap-2 shadow-sm hover:border-slate-300 transition-all w-full relative">
+        <form onSubmit={handleSubmit} className="bg-white border border-slate-200/90 rounded-2xl p-2.5 md:p-3 flex flex-col gap-2 shadow-sm hover:border-slate-300 transition-all w-full min-w-0 max-w-full relative">
           
           {/* Autocomplete Skill Popup (@ / / command trigger) */}
           <AnimatePresence>
@@ -267,7 +267,7 @@ export const ChatInput = React.memo(({
             )}
           </AnimatePresence>
 
-          <div className="relative w-full flex items-start">
+          <div className="relative w-full flex items-start min-w-0 max-w-full">
             <textarea
               ref={textareaRef}
               value={localQuery}
@@ -276,7 +276,7 @@ export const ChatInput = React.memo(({
               rows={1}
               placeholder={uploadingPdf ? "Uploading document... please wait" : isAnalyzing ? "Research Agent is analyzing & synthesizing..." : "Type @ or / to invoke Scientific Skills (e.g. @circuit, @chem, @math)..."}
               disabled={isInputDisabled}
-              className="w-full bg-transparent text-slate-800 text-sm md:text-base placeholder-slate-400 focus:outline-none py-1 resize-none overflow-y-auto max-h-44 min-h-[40px] disabled:opacity-50 font-sans leading-relaxed"
+              className="w-full bg-transparent text-slate-800 text-sm md:text-base placeholder-slate-400 focus:outline-none py-1 resize-none overflow-y-auto max-h-44 min-h-[40px] disabled:opacity-50 font-sans leading-relaxed break-words whitespace-pre-wrap [overflow-wrap:anywhere] [word-break:break-word] min-w-0"
             />
           </div>
 

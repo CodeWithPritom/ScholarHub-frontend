@@ -12,6 +12,54 @@ const formatNote = (note) => {
   return String(note);
 };
 
+const evaluateLatexOrMathExpr = (latexOrMathStr) => {
+  if (!latexOrMathStr || typeof latexOrMathStr !== 'string') return null;
+
+  try {
+    let expr = latexOrMathStr
+      .replace(/f\s*\(\s*x\s*\)\s*=\s*/gi, '')
+      .replace(/y\s*=\s*/gi, '')
+      .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '(($1)/($2))')
+      .replace(/\\sqrt\{([^}]+)\}/g, 'Math.sqrt($1)')
+      .replace(/\\sin\b/g, 'Math.sin')
+      .replace(/\\cos\b/g, 'Math.cos')
+      .replace(/\\tan\b/g, 'Math.tan')
+      .replace(/\\tanh\b/g, 'Math.tanh')
+      .replace(/\\sinh\b/g, 'Math.sinh')
+      .replace(/\\cosh\b/g, 'Math.cosh')
+      .replace(/\\exp\b/g, 'Math.exp')
+      .replace(/\\ln\b/g, 'Math.log')
+      .replace(/\\log\b/g, 'Math.log10')
+      .replace(/\\pi\b/g, 'Math.PI')
+      .replace(/\\cdot/g, '*')
+      .replace(/\\times/g, '*')
+      .replace(/\\left\(/g, '(')
+      .replace(/\\right\)/g, ')')
+      .replace(/\{/g, '(')
+      .replace(/\}/g, ')')
+      .replace(/\^\{([^}]+)\}/g, '**($1)')
+      .replace(/\^([0-9a-zA-Z])/g, '**$1')
+      .replace(/(\d)([a-zA-Z(])/g, '$1*$2')
+      .replace(/([xX])\s*([a-zA-Z])/g, '$1*$2')
+      .replace(/\bsin\b/gi, 'Math.sin')
+      .replace(/\bcos\b/gi, 'Math.cos')
+      .replace(/\btan\b/gi, 'Math.tan')
+      .replace(/\bexp\b/gi, 'Math.exp')
+      .replace(/\bln\b/gi, 'Math.log')
+      .replace(/\bsqrt\b/gi, 'Math.sqrt')
+      .replace(/\bpi\b/gi, 'Math.PI')
+      .replace(/e\^\(([^)]+)\)/gi, 'Math.exp($1)')
+      .replace(/e\^([0-9a-zA-Z.-]+)/gi, 'Math.exp($1)');
+
+    const compiled = new Function('x', 'Math', `try { return ${expr}; } catch(e) { return NaN; }`);
+    const testVal = compiled(1, Math);
+    if (!isNaN(testVal) && typeof testVal === 'number') {
+      return (x) => compiled(x, Math);
+    }
+  } catch (e) {}
+  return null;
+};
+
 /**
  * Mathematical Function Plotter & Equation Renderer for UVE Ecosystem
  */
@@ -24,19 +72,65 @@ export const MathPlotAdapter = React.memo(({ type, config }) => {
   const rawPoints = config?.data_points || [];
   const annotations = config?.annotations || [];
 
-  // Filter and sanitize data points
+  // Filter and sanitize data points, with dynamic mathematical evaluator
   const dataPoints = useMemo(() => {
-    if (!Array.isArray(rawPoints)) return [];
-    return rawPoints
-      .map((pt) => {
-        if (!Array.isArray(pt) || pt.length < 2) return null;
-        const px = parseFloat(pt[0]);
-        const py = parseFloat(pt[1]);
-        if (isNaN(px) || isNaN(py)) return null;
-        return [px, py];
-      })
-      .filter(Boolean);
-  }, [rawPoints]);
+    let pts = [];
+    if (Array.isArray(rawPoints) && rawPoints.length >= 2) {
+      pts = rawPoints
+        .map((pt) => {
+          if (!Array.isArray(pt) || pt.length < 2) return null;
+          const px = parseFloat(pt[0]);
+          const py = parseFloat(pt[1]);
+          if (isNaN(px) || isNaN(py)) return null;
+          return [px, py];
+        })
+        .filter(Boolean);
+    }
+
+    // Dynamic curve computation from equation string if data_points missing
+    if (pts.length < 2 && (latexEq || title)) {
+      const dynamicFn = evaluateLatexOrMathExpr(latexEq || title);
+      const eqStr = (latexEq || title || '').toLowerCase();
+      let fn = dynamicFn || ((x) => Math.sin(x) / (x === 0 ? 1e-6 : x));
+      let domain = config?.domain || [-10, 10];
+
+      if (!dynamicFn) {
+        if (eqStr.includes('cos')) {
+          fn = (x) => Math.cos(x);
+          domain = config?.domain || [-6.28, 6.28];
+        } else if (eqStr.includes('exp') || eqStr.includes('e^') || eqStr.includes('gaussian')) {
+          fn = (x) => Math.exp(-x * x);
+          domain = config?.domain || [-3, 3];
+        } else if (eqStr.includes('x^2') || eqStr.includes('x²') || eqStr.includes('quadratic')) {
+          fn = (x) => x * x - 4;
+          domain = config?.domain || [-5, 5];
+        } else if (eqStr.includes('sigmoid') || eqStr.includes('1/(1+e')) {
+          fn = (x) => 1 / (1 + Math.exp(-x));
+          domain = config?.domain || [-6, 6];
+        } else if (eqStr.includes('log') || eqStr.includes('ln')) {
+          fn = (x) => (x > 0 ? Math.log(x) : 0);
+          domain = config?.domain || [0.1, 10];
+        } else if (eqStr.includes('sin')) {
+          fn = (x) => Math.sin(x);
+          domain = config?.domain || [-6.28, 6.28];
+        }
+      }
+
+      const start = Array.isArray(domain) ? domain[0] : -10;
+      const end = Array.isArray(domain) ? domain[1] : 10;
+      const step = (end - start) / 80;
+      pts = [];
+      for (let x = start; x <= end; x += step) {
+        try {
+          const y = fn(x);
+          if (!isNaN(y) && isFinite(y)) {
+            pts.push([parseFloat(x.toFixed(2)), parseFloat(y.toFixed(4))]);
+          }
+        } catch (e) {}
+      }
+    }
+    return pts;
+  }, [rawPoints, latexEq, title, config?.domain]);
 
   // Render LaTeX equation to HTML via KaTeX
   const latexHtml = useMemo(() => {
