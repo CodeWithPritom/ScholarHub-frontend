@@ -47,9 +47,13 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
 
       if (subData) {
         if (subData.expires_at && new Date() > new Date(subData.expires_at)) {
-          resolvedTier = 'free';
+          if (resolvedTier !== 'pro' && resolvedTier !== 'starter') {
+            resolvedTier = 'free';
+          }
         } else if (subData.tier && subData.tier !== 'free') {
-          resolvedTier = subData.tier.toLowerCase();
+          if (resolvedTier !== 'pro') {
+            resolvedTier = subData.tier.toLowerCase();
+          }
         }
       }
 

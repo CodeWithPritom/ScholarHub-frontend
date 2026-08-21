@@ -163,10 +163,14 @@ const Profile = ({ user }) => {
         if (sub) {
           validUntil = sub.expires_at
           if (validUntil && new Date() > new Date(validUntil)) {
-            currentTier = 'free'
-            isExpired = true
+            if (currentTier !== 'pro' && currentTier !== 'starter') {
+              currentTier = 'free'
+              isExpired = true
+            }
           } else if (sub.tier && sub.tier !== 'free') {
-            currentTier = sub.tier.toLowerCase()
+            if (currentTier !== 'pro') {
+              currentTier = sub.tier.toLowerCase()
+            }
           }
         }
       } catch (e) { 
@@ -211,12 +215,13 @@ const Profile = ({ user }) => {
 
     fetchProfileAndSubscription()
 
-    // Listen to global credit updates
+    // Listen to global credit and profile updates
     const handleCreditsUpdate = () => {
       fetchProfileAndSubscription()
     }
     window.addEventListener('credits_updated', handleCreditsUpdate)
     window.addEventListener('credits_sync', handleCreditsUpdate)
+    window.addEventListener('profileUpdated', handleCreditsUpdate)
 
     // Realtime Supabase Channels
     const devicesChannel = supabase.channel('realtime_profile_devices')
@@ -244,6 +249,7 @@ const Profile = ({ user }) => {
     return () => {
       window.removeEventListener('credits_updated', handleCreditsUpdate)
       window.removeEventListener('credits_sync', handleCreditsUpdate)
+      window.removeEventListener('profileUpdated', handleCreditsUpdate)
       supabase.removeChannel(devicesChannel)
       supabase.removeChannel(bookmarksChannel)
     }
