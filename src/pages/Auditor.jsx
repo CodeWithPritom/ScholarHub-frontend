@@ -983,47 +983,93 @@ const Auditor = ({ user, onLogout }) => {
     }
   }, [messages.length]);
 
+  const baseQueryBeforeSpeechRef = useRef('');
+
   const toggleVoiceRecognition = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      toast.error('Voice recognition is not supported in this browser. Please try Chrome or Safari.');
+      toast.error('Voice recognition is not supported in this browser. Please try Google Chrome, Microsoft Edge, or Safari.');
       return;
     }
 
     if (isListening) {
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {}
       }
       setIsListening(false);
+      toast.info('Voice dictation paused. You can edit your text or click Send.');
       return;
     }
 
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = navigator.language || 'en-US';
 
-    recognition.onstart = () => {
-      setIsListening(true);
-    };
+      // Capture existing query so spoken words append seamlessly
+      baseQueryBeforeSpeechRef.current = query ? query.trim() + ' ' : '';
 
-    recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error);
+      recognition.onstart = () => {
+        setIsListening(true);
+        toast.success('🎙️ Listening... Speak your research question!');
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+        if (event.error === 'not-allowed' || event.error === 'permission-denied') {
+          toast.error('Microphone permission was denied. Please allow microphone access in your browser.');
+        } else if (event.error === 'network') {
+          toast.error('Network connectivity issue during voice dictation.');
+        } else if (event.error !== 'no-speech') {
+          toast.error(`Voice dictation notice: ${event.error}`);
+        }
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.onresult = (event) => {
+        let interimText = '';
+        let finalText = '';
+
+        for (let i = 0; i < event.results.length; i++) {
+          const res = event.results[i];
+          if (res.isFinal) {
+            finalText += res[0].transcript + ' ';
+          } else {
+            interimText += res[0].transcript;
+          }
+        }
+
+        const spokenContent = (finalText + interimText).trim();
+        if (spokenContent) {
+          setQuery(baseQueryBeforeSpeechRef.current + spokenContent);
+        }
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.error('Failed to initialize speech recognition:', err);
       setIsListening(false);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      setQuery(prev => prev ? prev + ' ' + transcript : transcript);
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
+      toast.error('Could not activate microphone. Please check browser permissions.');
+    }
   };
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {}
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
