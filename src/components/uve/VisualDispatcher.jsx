@@ -482,6 +482,15 @@ export const VisualDispatcher = React.memo(({ payload, rawJson, onSourceClick })
     return false;
   }, [payload, parsedPayload]);
 
+  const isInteractive = useMemo(() => {
+    const interactiveEngines = [
+      'react-flow', 'reactflow', 'mindmap', 'mind-map', 'knowledge_graph', 
+      'circuit', 'chemistry', 'math-plot', 'mathplot', 'geo', '3d', 'threed', 
+      'd3', 'echarts', 'chart', 'bar', 'line', 'pie', 'scatter'
+    ];
+    return interactiveEngines.includes(engine) || interactiveEngines.includes(type) || Boolean(viz?.nodes || config?.nodes || config?.series || config?.atoms || config?.components);
+  }, [engine, type, viz, config]);
+
   if (isStreamingPartialJson || isLoading) {
     return (
       <div className="w-full h-full min-h-[400px] aspect-video max-h-[550px] bg-slate-50/80 rounded-2xl border border-slate-200/60 flex flex-col items-center justify-center gap-3 p-6 text-center my-3 shadow-2xs">
@@ -518,24 +527,6 @@ export const VisualDispatcher = React.memo(({ payload, rawJson, onSourceClick })
       </div>
     );
   }
-
-  if (isLoading) {
-    return (
-      <div className="w-full h-full min-h-[450px] bg-slate-50/80 animate-pulse rounded-2xl border border-slate-200/60 flex flex-col items-center justify-center gap-3">
-        <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-slate-500 animate-spin" />
-        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest animate-pulse">Initializing Visualization...</span>
-      </div>
-    );
-  }
-
-  const isInteractive = useMemo(() => {
-    const interactiveEngines = [
-      'react-flow', 'reactflow', 'mindmap', 'mind-map', 'knowledge_graph', 
-      'circuit', 'chemistry', 'math-plot', 'mathplot', 'geo', '3d', 'threed', 
-      'd3', 'echarts', 'chart', 'bar', 'line', 'pie', 'scatter'
-    ];
-    return interactiveEngines.includes(engine) || interactiveEngines.includes(type) || Boolean(viz?.nodes || config?.nodes || config?.series || config?.atoms || config?.components);
-  }, [engine, type, viz, config]);
 
   return (
     <>

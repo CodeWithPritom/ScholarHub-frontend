@@ -137,11 +137,14 @@ export const EChartsAdapter = React.memo(({ type, config, onSourceClick }) => {
       }
     }
 
-    // Ensure xAxis & yAxis types and bounds are set properly ONLY for cartesian charts
-    const isCartesian = defaultSeriesType === 'line' || defaultSeriesType === 'bar' || defaultSeriesType === 'scatter';
+    // Ensure xAxis & yAxis types and bounds are set properly for ANY cartesian series
+    const seriesList = Array.isArray(sanitizedOption.series) ? sanitizedOption.series : [];
+    const seriesTypes = seriesList.map(s => (s?.type || defaultSeriesType).toLowerCase());
+    const isCartesian = seriesTypes.some(t => t === 'line' || t === 'bar' || t === 'scatter' || t === 'candlestick' || t === 'heatmap' || t === 'boxplot') || (seriesTypes.length === 0 && defaultSeriesType !== 'pie' && defaultSeriesType !== 'radar');
+
     if (isCartesian) {
       if (!sanitizedOption.xAxis) {
-        const categories = config?.categories || ['Category 1', 'Category 2', 'Category 3', 'Category 4'];
+        const categories = config?.categories || config?.xAxis?.data || ['Metric A', 'Metric B', 'Metric C', 'Metric D'];
         sanitizedOption.xAxis = { type: 'category', data: categories };
       } else if (Array.isArray(sanitizedOption.xAxis)) {
         sanitizedOption.xAxis = sanitizedOption.xAxis.map(x => ({ type: 'category', ...x }));
@@ -157,7 +160,7 @@ export const EChartsAdapter = React.memo(({ type, config, onSourceClick }) => {
         sanitizedOption.yAxis = { type: 'value', ...sanitizedOption.yAxis };
       }
     } else {
-      // Remove axes if present to prevent crashes on Pie/Radar
+      // Remove axes if purely non-cartesian (Pie/Radar)
       delete sanitizedOption.xAxis;
       delete sanitizedOption.yAxis;
     }
@@ -226,7 +229,7 @@ export const EChartsAdapter = React.memo(({ type, config, onSourceClick }) => {
     }
 
     // Determine if the chart uses Cartesian coordinates
-    const hasAxis = chartType === 'line' || chartType === 'bar' || chartType === 'scatter';
+    const hasAxis = isCartesian;
 
     sanitizedOption.tooltip = {
       trigger: sanitizedOption.tooltip?.trigger || (hasAxis ? 'axis' : 'item'),
