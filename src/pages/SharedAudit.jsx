@@ -119,7 +119,7 @@ const SharedMessageContent = ({ content, activePapers, onSelectPaper }) => {
 
   // Auto-wrap ONLY unwrapped visual blocks that exist OUTSIDE existing ``` code fences
   const parts = processedContent.split(/(```[\s\S]*?```)/g);
-  processedContent = parts.map((part, pIdx) => {
+  let result = parts.map((part, pIdx) => {
     if (pIdx % 2 === 1) return part;
     let text = part;
     if (!text.includes('```mermaid') && !text.includes('```uve-json') && !text.includes('```json')) {
@@ -136,24 +136,25 @@ const SharedMessageContent = ({ content, activePapers, onSelectPaper }) => {
       );
     }
     return text;
-    // 3. Normalize LaTeX math delimiters & protect table cell pipes inside math
-    const lines = result.split(/\r?\n/);
-    const mathNormalizedLines = lines.map(line => {
-      const trimmed = line.trim();
-      if (trimmed.startsWith('|') && trimmed.includes('|', 1)) {
-        return line.replace(/(\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$|\$[^\$\n]+?\$)/g, (mathBlock) => {
-          return mathBlock.replace(/\|/g, '\\vert ');
-        });
-      }
-      return line;
-    });
+  }).join('');
 
-    let mathText = mathNormalizedLines.join('\n');
-    mathText = mathText.replace(/\\\[([\s\S]*?)\\\]/g, (match, eq) => `\n\n$$\n${eq.trim()}\n$$\n\n`);
-    mathText = mathText.replace(/\\\(([\s\S]*?)\\\)/g, (match, eq) => `$${eq.trim()}$`);
+  // 3. Normalize LaTeX math delimiters & protect table cell pipes inside math
+  const lines = result.split(/\r?\n/);
+  const mathNormalizedLines = lines.map(line => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('|') && trimmed.includes('|', 1)) {
+      return line.replace(/(\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$|\$[^\$\n]+?\$)/g, (mathBlock) => {
+        return mathBlock.replace(/\|/g, '\\vert ');
+      });
+    }
+    return line;
+  });
 
-    return mathText;
-  }, [content]);
+  let mathText = mathNormalizedLines.join('\n');
+  mathText = mathText.replace(/\\\[([\s\S]*?)\\\]/g, (match, eq) => `\n\n$$\n${eq.trim()}\n$$\n\n`);
+  mathText = mathText.replace(/\\\(([\s\S]*?)\\\)/g, (match, eq) => `$${eq.trim()}$`);
+
+  processedContent = mathText;
 
   return (
     <div className="prose prose-slate max-w-none text-sm leading-relaxed space-y-4 prose-headings:font-bold prose-headings:text-slate-800 prose-a:text-indigo-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-indigo-900 prose-code:bg-slate-100 prose-code:text-slate-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded">
@@ -363,20 +364,33 @@ const SharedMessageContent = ({ content, activePapers, onSelectPaper }) => {
 };
 
 
-export const SharedAudit = ({ user, onLogout }) => {
+export const SharedAudit = ({ user: propUser, onLogout }) => {
   const { shareToken } = useParams();
   const navigate = useNavigate();
 
+  const [currentUser, setCurrentUser] = useState(propUser || null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [auditData, setAuditData] = useState(null);
   const [isForking, setIsForking] = useState(false);
 
+  const user = currentUser;
+
+  useEffect(() => {
+    if (propUser) {
+      setCurrentUser(propUser);
+    } else {
+      supabase.auth.getUser().then(({ data }) => {
+        if (data?.user) setCurrentUser(data.user);
+      });
+    }
+  }, [propUser]);
+
   useEffect(() => {
     if (shareToken) {
       fetchSharedAudit();
     }
-  }, [shareToken]);
+  }, [shareToken, currentUser]);
 
   const fetchSharedAudit = async () => {
     setLoading(true);
@@ -676,13 +690,24 @@ export const SharedAudit = ({ user, onLogout }) => {
                     </div>
 
                     <div className="pt-2 flex items-center justify-center gap-3">
-                      <Link
-                        to={`/auth?redirect=/shared/${shareToken}`}
-                        className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center gap-2"
-                      >
-                        <LogIn size={14} />
-                        <span>Login or Register to Continue</span>
-                      </Link>
+                      {user ? (
+                        <button
+                          onClick={handleForkAudit}
+                          disabled={isForking}
+                          className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                        >
+                          {isForking ? <Loader2 size={14} className="animate-spin" /> : <GitFork size={14} />}
+                          <span>Save to Workspace & Unlock</span>
+                        </button>
+                      ) : (
+                        <Link
+                          to={`/auth?redirect=/shared/${shareToken}`}
+                          className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md flex items-center gap-2"
+                        >
+                          <LogIn size={14} />
+                          <span>Login or Register to Continue</span>
+                        </Link>
+                      )}
                     </div>
                   </div>
                 </div>

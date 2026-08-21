@@ -1547,8 +1547,9 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
         console.log(`[RESEARCHPAGE FRONTEND] Job '${jobId}' queued. Initiating real-time polling...`);
         setIsSyncing(true);
 
-        while (!jobCompleted && pollCount < 180) { // Max 3 minutes
-          await new Promise(r => setTimeout(r, 1000));
+        while (!jobCompleted && pollCount < 120) { // Max 2 minutes
+          const delay = pollCount < 3 ? 400 : (pollCount < 8 ? 700 : 1000);
+          await new Promise(r => setTimeout(r, delay));
           pollCount++;
 
           try {

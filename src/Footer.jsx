@@ -96,6 +96,7 @@ const Footer = ({ user, onAuthRequired }) => {
             <ul className="space-y-3 md:space-y-4">
               <li><Link to="/privacy" className="text-sm font-semibold hover:text-blue-400 transition-colors">Privacy Policy</Link></li>
               <li><Link to="/terms" className="text-sm font-semibold hover:text-blue-400 transition-colors">Terms of Service</Link></li>
+              <li><Link to="/refund" className="text-sm font-semibold hover:text-blue-400 transition-colors">Refund Policy</Link></li>
             </ul>
           </div>
         </div>

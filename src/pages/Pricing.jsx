@@ -2,43 +2,28 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { 
-  Check, X, Shield, Sparkles, Loader2, ArrowRight, Tag, Zap, 
+  Check, X, Shield, Sparkles, ArrowRight, Zap, 
   AlertCircle, GraduationCap, Building2, HelpCircle, ChevronDown, 
-  ChevronUp, Cpu, Flame, Search, FileText, Share2, Award, Sliders
+  ChevronUp, Cpu, Flame, Search, FileText, Share2, Award, Sliders,
+  Ticket, ShieldCheck, Lock, ArrowUpRight
 } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 import { motion, AnimatePresence } from 'framer-motion'
 import Footer from '../Footer'
 import SEOHead from '../components/SEOHead'
 import { BASE_URL } from '../utils/api'
-import logo from '../assets/images/logo.png'
 
 const Pricing = ({ user, profile }) => {
   const navigate = useNavigate()
-  const [couponCode, setCouponCode] = useState(() => sessionStorage.getItem('active_coupon_code') || '')
-  const [couponStatus, setCouponStatus] = useState(() => {
-    try {
-      const saved = sessionStorage.getItem('active_coupon_status')
-      return saved ? JSON.parse(saved) : null
-    } catch { return null }
-  })
-  const [isRedeeming, setIsRedeeming] = useState(false)
   const [dynamicTiers, setDynamicTiers] = useState([])
   const [loadingTiers, setLoadingTiers] = useState(true)
   
-  const [localTier, setLocalTier] = useState(null)
-  const userTier = localTier || profile?.tier || 'free'
-  const [duration, setDuration] = useState('1_month') // '1_month', '3_months', '6_months', '1_year', 'custom'
+  const userTier = profile?.tier || 'free'
+  const [duration, setDuration] = useState('1_month') // '1_month', '3_months', '6_months', '1_year'
   
   // Modals
   const [isStudentModalOpen, setStudentModalOpen] = useState(false)
   const [isCustomModalOpen, setCustomModalOpen] = useState(false)
-  const [isConfirmModalOpen, setConfirmModalOpen] = useState(false)
-  const [isCelebrationModalOpen, setCelebrationModalOpen] = useState(false)
-  const [upgradedTierText, setUpgradedTierText] = useState('')
-  const [pendingCoupon, setPendingCoupon] = useState('')
-  const [showExitWarning, setShowExitWarning] = useState(false)
-  const [pendingPath, setPendingPath] = useState('')
 
   // Credit Estimator Slider State
   const [estimatedAudits, setEstimatedAudits] = useState(30)
@@ -56,15 +41,6 @@ const Pricing = ({ user, profile }) => {
 
   // Comparison Table Expansion
   const [showFullComparison, setShowFullComparison] = useState(true)
-
-  const handleNavigate = (path) => {
-    if (couponStatus?.success) {
-      setPendingPath(path)
-      setShowExitWarning(true)
-    } else {
-      navigate(path)
-    }
-  }
 
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -88,179 +64,26 @@ const Pricing = ({ user, profile }) => {
     }
   }
 
-  useEffect(() => {
-    const handleBeforeUnload = (e) => {
-      if (couponStatus?.success) {
-        e.preventDefault()
-        e.returnValue = "You have an active coupon. If you refresh or leave this page, you will lose this discount permanently. Are you sure?"
-      }
-    }
-    window.addEventListener("beforeunload", handleBeforeUnload)
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
-  }, [couponStatus?.success])
-
-  const handleApplyCoupon = () => {
-    if (!couponCode.trim()) return
-    setPendingCoupon(couponCode.trim().toUpperCase())
-    setConfirmModalOpen(true)
-  }
-
-  const confirmRedemption = async () => {
-    setCouponStatus({ loading: true, error: null, success: null, discount: 0 })
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) throw new Error('Please sign in to redeem a coupon.')
-
-      const response = await fetch(`${BASE_URL}/api/coupons/redeem`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({ code: pendingCoupon })
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.detail || 'Failed to redeem coupon.')
-      }
-
-      const data = await response.json()
-      const newStatus = { 
-        loading: false, 
-        error: null, 
-        success: data.message || 'Coupon applied & locked successfully!', 
-        discount: data.discount_percent || 100,
-        applicable_tier: data.applicable_tier || 'both',
-        applicable_packages: data.applicable_packages || ['both']
-      }
-      setCouponStatus(newStatus)
-      setCouponCode(pendingCoupon)
-      sessionStorage.setItem('active_coupon_status', JSON.stringify(newStatus))
-      sessionStorage.setItem('active_coupon_code', pendingCoupon)
-      
-      if (data.already_redeemed) {
-        toast.info(data.message)
-      } else {
-        toast.success(data.message)
-      }
-    } catch (err) {
-      setCouponStatus({ loading: false, error: err.message, success: null, discount: 0 })
-      toast.error(err.message)
-    } finally {
-      setConfirmModalOpen(false)
-    }
-  }
-
-  const isCouponApplicableFor = (tierName) => {
-    if (!couponStatus?.success) return false
-    const applicableStr = (couponStatus.applicable_tier || 'both').toLowerCase()
-    const rawPkgs = couponStatus.applicable_packages || [applicableStr]
-    const pkgs = Array.isArray(rawPkgs) ? rawPkgs.map(p => String(p).toLowerCase().trim()) : [applicableStr]
-    const tier = tierName.toLowerCase()
-    const cleanDuration = duration.toLowerCase().replace(/\s+/g, '_')
-    const currentPkg = `${tier}_${cleanDuration}`
-    
-    if (pkgs.includes('both') || pkgs.includes('all') || applicableStr === 'both' || applicableStr === 'all') return true
-    if (pkgs.includes(tier) || applicableStr === tier) return true
-    if (pkgs.includes(currentPkg) || pkgs.includes(cleanDuration)) return true
-    
-    return false
-  }
-
-  const handleAction = async (tierName) => {
+  const handlePlanSelect = (tierId) => {
     if (!user) {
-      handleNavigate('/auth')
+      navigate(`/auth?redirect=/cart?plan=${tierId}&duration=${duration}`)
       return
     }
 
-    if (tierName.toLowerCase() === 'free') {
-      handleNavigate('/research')
+    if (tierId === 'free') {
+      navigate('/research')
       return
     }
 
-    if (tierName.toLowerCase() === 'custom') {
+    if (tierId === 'custom') {
       setCustomModalOpen(true)
       return
     }
 
-    // 100% discount auto-redeem
-    if (couponStatus?.discount === 100 && isCouponApplicableFor(tierName)) {
-      setIsRedeeming(true)
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        const response = await fetch(`${BASE_URL}/api/subscriptions/auto-upgrade`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify({
-            code: couponCode,
-            target_tier: tierName.toLowerCase(),
-            duration: duration.replace('_', ' ')
-          })
-        })
-        
-        if (!response.ok) {
-          const errData = await response.json()
-          throw new Error(errData.detail || 'Failed to auto-upgrade.')
-        }
-
-        const resData = await response.json()
-        setLocalTier(tierName.toLowerCase())
-        setUpgradedTierText(tierName.toUpperCase())
-
-        // Clear coupon session state after successful upgrade
-        sessionStorage.removeItem('active_coupon_status')
-        sessionStorage.removeItem('active_coupon_code')
-        setCouponStatus(null)
-        setCouponCode('')
-
-        // Dispatch instant profile sync across all application components
-        window.dispatchEvent(new Event('profileUpdated'))
-
-        toast.success(resData.message || `Upgraded to ${tierName.toUpperCase()} successfully!`)
-        setCelebrationModalOpen(true)
-      } catch (err) {
-        toast.error(err.message)
-      } finally {
-        setIsRedeeming(false)
-      }
-      return
-    }
-
-    // WhatsApp / Direct Upgrade Checkout
-    const email = user.email || 'unknown'
-    let baseNum = 0
-    let planPriceNum = 0
-    const isCouponApplicable = isCouponApplicableFor(tierName)
-
-    if (tierName.toLowerCase() === 'starter') {
-      baseNum = duration === '1_month' ? 199 : duration === '3_months' ? 499 : duration === '6_months' ? 899 : 1499
-      planPriceNum = isCouponApplicable ? Math.floor(baseNum * (1 - couponStatus.discount / 100)) : baseNum
-    } else if (tierName.toLowerCase() === 'pro') {
-      baseNum = duration === '1_month' ? 499 : duration === '3_months' ? 1299 : duration === '6_months' ? 2399 : 3999
-      planPriceNum = isCouponApplicable ? Math.floor(baseNum * (1 - couponStatus.discount / 100)) : baseNum
-    }
-    
-    const durationLabel = duration === '1_month' ? '1 MONTH' : duration === '3_months' ? '3 MONTHS (16% Off)' : duration === '6_months' ? '6 MONTHS (25% Off)' : '1 YEAR (37% Off)'
-    let text = `Hi Pritom, I want to activate [${tierName.toUpperCase()}] [${durationLabel}] on ScholarHub AI.\n`
-    text += `Standard Price: ৳${baseNum}\n`
-    
-    if (isCouponApplicable) {
-      text += `Applied Coupon: [${couponCode.toUpperCase().trim()}] (${couponStatus.discount}% off)\n`
-      text += `Discounted Payable: ৳${planPriceNum}\n`
-    } else {
-      text += `Payable Amount: ৳${baseNum}\n`
-    }
-    text += `Account Email: [${email}]`
-    
-    const whatsappUrl = `https://wa.me/8801853343176?text=${encodeURIComponent(text)}`
-    window.open(whatsappUrl, '_blank')
+    navigate(`/cart?plan=${tierId}&duration=${duration}`)
   }
 
-  // Fallback plans if dynamic config is loading
+  // Core 3 Individual Academic Plans
   const plans = [
     {
       id: 'free',
@@ -289,11 +112,11 @@ const Pricing = ({ user, profile }) => {
     {
       id: 'starter',
       name: 'STARTER',
-      price: duration === '1_month' ? '৳199' : duration === '3_months' ? '৳499' : duration === '6_months' ? '৳899' : duration === '1_year' ? '৳1,499' : 'Custom',
-      basePriceNum: duration === '1_month' ? 199 : duration === '3_months' ? 499 : duration === '6_months' ? 899 : duration === '1_year' ? 1499 : 0,
-      period: duration === '1_month' ? '/mo' : duration === '3_months' ? '/3 mo' : duration === '6_months' ? '/6 mo' : duration === '1_year' ? '/yr' : '',
-      originalPrice: duration === '1_month' ? null : duration === '3_months' ? '৳597' : duration === '6_months' ? '৳1,194' : duration === '1_year' ? '৳2,388' : null,
-      savings: duration === '1_month' ? null : duration === '3_months' ? '98' : duration === '6_months' ? '295' : duration === '1_year' ? '889' : null,
+      price: duration === '1_month' ? '৳199' : duration === '3_months' ? '৳499' : duration === '6_months' ? '৳899' : '৳1,499',
+      basePriceNum: duration === '1_month' ? 199 : duration === '3_months' ? 499 : duration === '6_months' ? 899 : 1499,
+      period: duration === '1_month' ? '/mo' : duration === '3_months' ? '/3 mo' : duration === '6_months' ? '/6 mo' : '/yr',
+      originalPrice: duration === '1_month' ? null : duration === '3_months' ? '৳597' : duration === '6_months' ? '৳1,194' : '৳2,388',
+      savings: duration === '1_month' ? null : duration === '3_months' ? 'Save 16%' : duration === '6_months' ? 'Save 25%' : 'Save 37%',
       description: 'High-speed synthesis & analytical tools for active university & graduate researchers.',
       monthlyZaps: 1500,
       features: [
@@ -310,7 +133,7 @@ const Pricing = ({ user, profile }) => {
         { name: 'Vision-RAG Multimodal Paper OCR', included: false },
         { name: 'Zero-Queue Dedicated AI Gateway Routing', included: false }
       ],
-      buttonText: user ? (userTier === 'starter' ? 'Current Plan' : 'Upgrade to Starter') : 'Login to Upgrade',
+      buttonText: user ? (userTier === 'starter' ? 'Current Plan' : 'Choose Starter') : 'Choose Starter Plan',
       isCurrent: userTier === 'starter',
       isUpgrade: true,
       popular: true
@@ -318,11 +141,11 @@ const Pricing = ({ user, profile }) => {
     {
       id: 'pro',
       name: 'PRO',
-      price: duration === '1_month' ? '৳499' : duration === '3_months' ? '৳1,299' : duration === '6_months' ? '৳2,399' : duration === '1_year' ? '৳3,999' : 'Custom',
-      basePriceNum: duration === '1_month' ? 499 : duration === '3_months' ? 1299 : duration === '6_months' ? 2399 : duration === '1_year' ? 3999 : 0,
-      originalPrice: duration === '1_month' ? null : duration === '3_months' ? '৳1,497' : duration === '6_months' ? '৳2,994' : duration === '1_year' ? '৳5,988' : null,
-      savings: duration === '1_month' ? null : duration === '3_months' ? '198' : duration === '6_months' ? '595' : duration === '1_year' ? '1,989' : null,
-      period: duration === '1_month' ? '/mo' : duration === '3_months' ? '/3 mo' : duration === '6_months' ? '/6 mo' : duration === '1_year' ? '/yr' : '',
+      price: duration === '1_month' ? '৳499' : duration === '3_months' ? '৳1,299' : duration === '6_months' ? '৳2,399' : '৳3,999',
+      basePriceNum: duration === '1_month' ? 499 : duration === '3_months' ? 1299 : duration === '6_months' ? 2399 : 3999,
+      originalPrice: duration === '1_month' ? null : duration === '3_months' ? '৳1,497' : duration === '6_months' ? '৳2,994' : '৳5,988',
+      savings: duration === '1_month' ? null : duration === '3_months' ? 'Save 16%' : duration === '6_months' ? 'Save 25%' : 'Save 37%',
+      period: duration === '1_month' ? '/mo' : duration === '3_months' ? '/3 mo' : duration === '6_months' ? '/6 mo' : '/yr',
       description: 'The ultimate AI Research IDE for PhD candidates, principal investigators & heavy compute.',
       monthlyZaps: 3000,
       features: [
@@ -339,105 +162,24 @@ const Pricing = ({ user, profile }) => {
         { name: 'Direct Faculty ORCID & Outreach Drafter', included: true },
         { name: 'Priority 24/7 VIP Admin Support', included: true }
       ],
-      buttonText: user ? (userTier === 'pro' ? 'Current Plan' : 'Upgrade to Pro') : 'Login to Upgrade',
+      buttonText: user ? (userTier === 'pro' ? 'Current Plan' : 'Upgrade to Pro ✨') : 'Choose Pro Plan',
       isCurrent: userTier === 'pro',
       isUpgrade: true,
       premium: true
-    },
-    {
-      id: 'custom',
-      name: 'CUSTOM / LAB',
-      price: 'Custom',
-      description: 'Tailored multi-seat license and dedicated AI infrastructure for university labs & departments.',
-      monthlyZaps: 10000,
-      features: [
-        { name: 'Custom Dedicated Zap Credit Quotas', included: true },
-        { name: 'Multi-Seat Lab Member Management', included: true },
-        { name: 'Isolated Organizational AI Budget & RPM Limit', included: true },
-        { name: 'Unlimited PDF Uploads & Batch OCR', included: true },
-        { name: 'Institutional Invoicing & Department Billing', included: true },
-        { name: 'Dedicated AI Gateway Instance with 99.9% SLA', included: true }
-      ],
-      buttonText: 'Request Lab Quote',
-      isCurrent: userTier === 'custom',
-      isUpgrade: true,
-      institutional: true
     }
   ]
-
-  // Filter plans based on duration (if custom tab selected, focus custom)
-  const displayPlans = duration === 'custom' ? plans.filter(p => p.id === 'custom' || p.id === 'pro') : plans.filter(p => p.id !== 'custom')
 
   // Recommended Tier based on Estimator
   const totalRequiredZaps = (estimatedAudits * 25) + (estimatedPdfUploads * 15)
   const recommendedTier = totalRequiredZaps > 1500 ? 'PRO' : totalRequiredZaps > 500 ? 'STARTER' : 'FREE'
 
-  const pricingSchema = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    "name": "ScholarHub AI Research Plans & Compute Subscriptions",
-    "image": "https://scholarhub-ai.com/logo.png",
-    "description": "Flexible subscription tiers for individual researchers and university labs. FREE, STARTER, PRO, and CUSTOM plans with up to 37% multi-month savings.",
-    "brand": {
-      "@type": "Brand",
-      "name": "ScholarHub AI"
-    },
-    "offers": {
-      "@type": "AggregateOffer",
-      "priceCurrency": "BDT",
-      "lowPrice": "0",
-      "highPrice": "3999",
-      "offerCount": "4",
-      "offers": [
-        {
-          "@type": "Offer",
-          "name": "FREE Plan",
-          "price": "0",
-          "priceCurrency": "BDT",
-          "url": "https://scholarhub-ai.com/pricing"
-        },
-        {
-          "@type": "Offer",
-          "name": "STARTER Plan",
-          "price": "199",
-          "priceCurrency": "BDT",
-          "url": "https://scholarhub-ai.com/pricing"
-        },
-        {
-          "@type": "Offer",
-          "name": "PRO Plan",
-          "price": "499",
-          "priceCurrency": "BDT",
-          "url": "https://scholarhub-ai.com/pricing"
-        }
-      ]
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-sds-bg font-sans selection:bg-blue-500/20 text-sds-text">
+    <div className="min-h-screen bg-slate-50 font-sans selection:bg-blue-500/20 text-slate-900">
       <SEOHead
         title="Pricing & Compute Plans | ScholarHub AI"
         description="Choose the right AI research tier for your academic workflow. Flexible monthly and annual plans for students, PhD scholars, and university labs."
         canonicalPath="/pricing"
-        schemaJson={pricingSchema}
       />
-      
-      {/* Navbar Minimal */}
-      <nav className="border-b border-sds-border bg-sds-bg/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="w-full 2xl:px-12 mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleNavigate('/')}>
-            <img src={logo} alt="ScholarHub AI" className="h-10 w-auto object-contain" />
-            <span className="text-xl font-black tracking-tighter text-sds-text">ScholarHub<span className="text-blue-500">AI</span></span>
-          </div>
-          <button 
-            onClick={() => handleNavigate(user ? '/research' : '/auth')}
-            className="text-sm font-bold text-slate-700 hover:text-blue-600 transition-colors cursor-pointer"
-          >
-            {user ? 'Back to Dashboard' : 'Sign In'}
-          </button>
-        </div>
-      </nav>
 
       {/* Main Container */}
       <main className="w-full 2xl:px-12 mx-auto px-4 sm:px-6 pt-10 sm:pt-16 pb-36">
@@ -454,7 +196,7 @@ const Pricing = ({ user, profile }) => {
               <p className="text-sm font-bold text-blue-900">Create a free researcher account to activate, manage and sync subscription plans seamlessly.</p>
             </div>
             <button 
-              onClick={() => handleNavigate('/auth')}
+              onClick={() => navigate('/auth')}
               className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-sm cursor-pointer"
             >
               Sign Up Free
@@ -475,45 +217,19 @@ const Pricing = ({ user, profile }) => {
             Predictable academic plans with guaranteed compute quotas, deep reasoning synthesis, and zero-queue AI gateway routing.
           </p>
 
-          {/* Coupon Input Box */}
-          {user && (
-            <div className="max-w-md mx-auto mt-8 bg-white p-2 rounded-2xl border border-slate-200 flex items-center shadow-xs focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all">
-              <div className="pl-4 text-slate-400">
-                <Tag size={18} />
-              </div>
-              <input 
-                type="text" 
-                placeholder="Enter discount coupon code" 
-                value={couponCode}
-                onChange={(e) => setCouponCode(e.target.value)}
-                className="flex-1 bg-transparent border-none outline-none px-3 py-2.5 text-xs font-bold text-slate-900 placeholder:text-slate-400 uppercase"
-              />
-              <button 
-                onClick={handleApplyCoupon}
-                disabled={!couponCode.trim() || couponStatus?.loading}
-                className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
-              >
-                {couponStatus?.loading ? <Loader2 size={14} className="animate-spin" /> : 'Apply'}
-              </button>
-            </div>
-          )}
+          {/* Promo Code Notification Banner */}
+          <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-amber-500/10 via-indigo-500/10 to-emerald-500/10 border border-amber-300/80 rounded-2xl text-xs font-bold text-slate-800 mt-6 shadow-xs">
+            <Ticket size={16} className="text-amber-600 shrink-0" />
+            <span>Have a promo code? Apply it directly at checkout for instant discounts or 100% free access.</span>
+          </div>
 
-          {/* Active Coupon Banner */}
-          {couponStatus?.success && (
-            <div className="max-w-md mx-auto mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-bold flex items-center justify-between">
-              <span className="flex items-center gap-1.5"><Sparkles size={14} className="text-emerald-600" /> {couponStatus.discount}% Discount Locked ({couponCode.toUpperCase()})</span>
-              <span className="text-[10px] uppercase font-black bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded">Active</span>
-            </div>
-          )}
-
-          {/* Duration Selector Tabs */}
-          <div className="mt-10 inline-flex p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/80 flex-wrap justify-center gap-1 shadow-inner">
+          {/* 4 Clean Duration Tabs (1M, 3M, 6M, 1Y) */}
+          <div className="mt-8 inline-flex p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/80 flex-wrap justify-center gap-1 shadow-inner">
             {[
               { id: '1_month', label: '1 Month', badge: null },
               { id: '3_months', label: '3 Months', badge: 'Save 16%' },
               { id: '6_months', label: '6 Months', badge: 'Save 25%' },
-              { id: '1_year', label: '1 Year', badge: 'Save 37%' },
-              { id: 'custom', label: 'Institutional / Lab', badge: 'Multi-Seat' }
+              { id: '1_year', label: '1 Year', badge: 'Save 37%' }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -537,134 +253,136 @@ const Pricing = ({ user, profile }) => {
           </div>
         </div>
 
-        {/* Pricing Cards Grid */}
-        <div className={`grid grid-cols-1 ${duration === 'custom' ? 'md:grid-cols-2 max-w-4xl' : 'md:grid-cols-3'} gap-6 lg:gap-8 items-stretch w-full mx-auto`}>
-          {displayPlans.map((plan) => {
-            const isCouponApplicable = isCouponApplicableFor(plan.name)
-            return (
-              <div 
-                key={plan.id}
-                className={`relative bg-white rounded-3xl p-6 lg:p-8 border flex flex-col justify-between transition-all duration-300 hover:-translate-y-1.5 shadow-sm ${
-                  plan.premium 
-                    ? 'border-2 border-amber-500 ring-4 ring-amber-500/10' 
-                    : plan.popular 
-                    ? 'border-2 border-blue-600 ring-4 ring-blue-600/10'
-                    : plan.institutional
-                    ? 'border-2 border-indigo-600 ring-4 ring-indigo-600/10'
-                    : 'border-slate-200'
-                }`}
-              >
-                {/* Floating Badges */}
-                {plan.premium && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-[10px] font-black uppercase tracking-widest px-4 py-1 rounded-full shadow-md flex items-center gap-1.5 whitespace-nowrap">
-                    <Flame size={12} /> THESIS & PHD SUITE
-                  </div>
-                )}
-                {plan.popular && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[10px] font-black uppercase tracking-widest px-4 py-1 rounded-full shadow-md flex items-center gap-1.5 whitespace-nowrap">
-                    <Sparkles size={12} /> MOST POPULAR
-                  </div>
-                )}
-                {plan.institutional && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-[10px] font-black uppercase tracking-widest px-4 py-1 rounded-full shadow-md flex items-center gap-1.5 whitespace-nowrap">
-                    <Building2 size={12} /> DEDICATED CAPACITY
-                  </div>
-                )}
+        {/* Pricing Cards Grid (3 Columns on Desktop) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-stretch w-full max-w-6xl mx-auto">
+          {plans.map((plan) => (
+            <div 
+              key={plan.id}
+              className={`relative bg-white rounded-3xl p-6 lg:p-8 border flex flex-col justify-between transition-all duration-300 hover:-translate-y-1.5 shadow-sm ${
+                plan.premium 
+                  ? 'border-2 border-amber-500 ring-4 ring-amber-500/10' 
+                  : plan.popular 
+                  ? 'border-2 border-blue-600 ring-4 ring-blue-600/10'
+                  : 'border-slate-200'
+              }`}
+            >
+              {/* Floating Badges */}
+              {plan.premium && (
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-[10px] font-black uppercase tracking-widest px-4 py-1 rounded-full shadow-md flex items-center gap-1.5 whitespace-nowrap">
+                  <Flame size={12} /> THESIS & PHD SUITE
+                </div>
+              )}
+              {plan.popular && (
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[10px] font-black uppercase tracking-widest px-4 py-1 rounded-full shadow-md flex items-center gap-1.5 whitespace-nowrap">
+                  <Sparkles size={12} /> MOST POPULAR
+                </div>
+              )}
 
-                <div>
-                  <div className="mb-6">
-                    <h3 className={`text-xs font-black uppercase tracking-widest mb-3 ${
-                      plan.premium ? 'text-amber-600' : plan.popular ? 'text-blue-600' : plan.institutional ? 'text-indigo-600' : 'text-slate-500'
-                    }`}>
-                      {plan.name}
-                    </h3>
-                    
-                    {/* Price Display */}
-                    <div className="flex flex-col mb-3">
-                      <div className="flex items-baseline gap-1.5 flex-wrap">
-                        {isCouponApplicable && plan.isUpgrade ? (
-                          <>
-                            <span className="text-2xl font-bold text-slate-400 line-through mr-1">{plan.price}</span>
-                            <span className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight">
-                              {couponStatus.discount === 100 ? '৳ 0' : `৳ ${Math.floor(plan.basePriceNum * (1 - couponStatus.discount / 100))}`}
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            {plan.originalPrice && (
-                              <span className="text-2xl font-bold text-slate-400 line-through mr-1">{plan.originalPrice}</span>
-                            )}
-                            <span className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight">{plan.price}</span>
-                          </>
-                        )}
-                        {plan.period && <span className="text-slate-500 font-bold text-xs">{plan.period}</span>}
-                      </div>
-
-                      {/* Savings Pill */}
-                      {plan.savings && !isCouponApplicable && (
-                        <div className="mt-2 text-xs font-black text-emerald-800 bg-emerald-50 self-start px-3 py-1 rounded-full border border-emerald-200">
-                          Save ৳{plan.savings} ({duration === '3_months' ? '16%' : duration === '6_months' ? '25%' : '37%'} off)
-                        </div>
+              <div>
+                <div className="mb-6">
+                  <h3 className={`text-xs font-black uppercase tracking-widest mb-3 ${
+                    plan.premium ? 'text-amber-600' : plan.popular ? 'text-blue-600' : 'text-slate-500'
+                  }`}>
+                    {plan.name}
+                  </h3>
+                  
+                  {/* Price Display */}
+                  <div className="flex flex-col mb-3">
+                    <div className="flex items-baseline gap-1.5 flex-wrap">
+                      {plan.originalPrice && (
+                        <span className="text-2xl font-bold text-slate-400 line-through mr-1">{plan.originalPrice}</span>
                       )}
+                      <span className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight">{plan.price}</span>
+                      {plan.period && <span className="text-slate-500 font-bold text-xs">{plan.period}</span>}
                     </div>
 
-                    <p className="text-xs sm:text-sm font-medium text-slate-600 leading-relaxed min-h-[40px]">
-                      {plan.description}
-                    </p>
+                    {plan.savings && (
+                      <span className="text-[11px] font-bold text-emerald-600 mt-1">
+                        {plan.savings} with multi-month billing
+                      </span>
+                    )}
                   </div>
 
-                  {/* Feature Checklist */}
-                  <div className="space-y-3 mb-8 pt-4 border-t border-slate-100">
-                    {plan.features.map((feature, i) => (
-                      <div key={i} className="flex items-start gap-2.5">
-                        <div className={`shrink-0 w-4.5 h-4.5 rounded-full flex items-center justify-center mt-0.5 ${
-                          feature.included ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
-                        }`}>
-                          {feature.included ? <Check size={11} strokeWidth={3} /> : <X size={11} strokeWidth={3} />}
-                        </div>
-                        <span className={`text-xs font-semibold leading-snug ${feature.included ? 'text-slate-800' : 'text-slate-400'}`}>
-                          {feature.name}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                  <p className="text-xs sm:text-sm font-medium text-slate-600 leading-relaxed min-h-[40px]">
+                    {plan.description}
+                  </p>
                 </div>
 
-                {/* Card CTA Action */}
-                <div>
-                  <button
-                    onClick={() => handleAction(plan.name)}
-                    disabled={isRedeeming || plan.isCurrent}
-                    className={`w-full py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm ${
-                      plan.isCurrent 
-                        ? 'bg-slate-100 text-slate-500 border border-slate-200 cursor-default' 
-                        : couponStatus?.discount === 100 && plan.isUpgrade && isCouponApplicable
-                        ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20'
-                        : plan.premium
-                        ? 'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white shadow-amber-600/20'
-                        : plan.institutional
-                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-indigo-600/20'
-                        : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20'
-                    }`}
-                  >
-                    {isRedeeming && plan.isUpgrade ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : couponStatus?.discount === 100 && plan.isUpgrade && isCouponApplicable ? (
-                      <>CLAIM 100% FREE ACCESS ✨ <ArrowRight size={14} /></>
-                    ) : (
-                      <>{plan.buttonText} {!plan.isCurrent && <ArrowRight size={14} />}</>
-                    )}
-                  </button>
-
-                  {plan.isUpgrade && !plan.institutional && !(couponStatus?.discount === 100 && isCouponApplicable) && user && (
-                    <p className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-3">
-                      Instant WhatsApp Activation (Bkash / Nagad)
-                    </p>
-                  )}
+                {/* Feature Checklist */}
+                <div className="space-y-3 mb-8 pt-4 border-t border-slate-100">
+                  {plan.features.map((feature, i) => (
+                    <div key={i} className="flex items-start gap-2.5">
+                      <div className={`shrink-0 w-4.5 h-4.5 rounded-full flex items-center justify-center mt-0.5 ${
+                        feature.included ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
+                      }`}>
+                        {feature.included ? <Check size={11} strokeWidth={3} /> : <X size={11} strokeWidth={3} />}
+                      </div>
+                      <span className={`text-xs font-semibold leading-snug ${feature.included ? 'text-slate-800' : 'text-slate-400'}`}>
+                        {feature.name}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
-            )
-          })}
+
+              {/* Card CTA Action */}
+              <div>
+                <button
+                  onClick={() => handlePlanSelect(plan.id)}
+                  disabled={plan.isCurrent}
+                  className={`w-full py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm ${
+                    plan.isCurrent 
+                      ? 'bg-slate-100 text-slate-500 border border-slate-200 cursor-default' 
+                      : plan.premium
+                      ? 'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white shadow-amber-600/20'
+                      : plan.popular
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-blue-600/20'
+                      : 'bg-slate-900 hover:bg-slate-800 text-white shadow-slate-900/20'
+                  }`}
+                >
+                  <>{plan.buttonText} {!plan.isCurrent && <ArrowRight size={14} />}</>
+                </button>
+
+                {plan.isUpgrade && (
+                  <p className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-3">
+                    Fast Checkout with Promo Code Support
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ─── Institutional / Lab Dedicated License Card (Enterprise Tier) ─── */}
+        <div className="mt-12 max-w-6xl mx-auto bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-8 sm:p-12 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest mb-3 border border-indigo-400/20">
+                <Building2 size={14} /> University Labs & Institutional Licenses
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-black tracking-tight mb-2 text-white">
+                Custom Multi-Seat Department & Lab Infrastructure
+              </h3>
+              <p className="text-slate-300 text-xs sm:text-sm font-medium leading-relaxed mb-4">
+                Tailored organizational compute quotas, centralized member administration, dedicated RPM limits, and institutional department invoicing.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-slate-200">
+                <div className="flex items-center gap-2">✓ Dedicated Organizational AI Budget</div>
+                <div className="flex items-center gap-2">✓ Multi-Seat Lab Member Management</div>
+                <div className="flex items-center gap-2">✓ Institutional VAT & Bank Invoicing</div>
+                <div className="flex items-center gap-2">✓ 99.9% SLA Dedicated AI Gateway Instance</div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setCustomModalOpen(true)}
+              className="shrink-0 px-8 py-4 bg-white hover:bg-slate-100 text-slate-900 rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md cursor-pointer flex items-center gap-2"
+            >
+              Contact Admin & Request Lab Quote <ArrowUpRight size={15} />
+            </button>
+          </div>
         </div>
 
         {/* ─── Interactive Compute & Zap Estimator ─── */}
@@ -726,7 +444,7 @@ const Pricing = ({ user, profile }) => {
           </div>
         </div>
 
-        {/* ─── Deep Feature Comparison Table (Supabase/Vercel style) ─── */}
+        {/* ─── Deep Feature Comparison Table ─── */}
         <div className="mt-16 max-w-5xl mx-auto">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -825,12 +543,12 @@ const Pricing = ({ user, profile }) => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white border border-slate-200 rounded-3xl w-full max-w-lg p-6 sm:p-8 shadow-2xl relative my-auto"
+              className="bg-white border border-slate-200 rounded-3xl w-full max-w-lg p-6 sm:p-8 shadow-2xl relative my-auto max-h-[92vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <button 
                 onClick={() => setCustomModalOpen(false)}
-                className="absolute top-4 right-4 text-slate-400 hover:text-slate-800 p-2 rounded-xl"
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-800 p-2 rounded-xl cursor-pointer"
               >
                 <X size={18} />
               </button>
@@ -841,7 +559,7 @@ const Pricing = ({ user, profile }) => {
 
               <h3 className="text-xl font-black text-slate-900 mb-1">Institutional & Lab Plan Setup</h3>
               <p className="text-xs text-slate-500 font-medium mb-5">
-                Configure dedicated organizational compute quotas, isolated AI budgets, and multi-seat licensing.
+                Configure dedicated organizational compute quotas, isolated AI budgets, and multi-seat licensing with Admin.
               </p>
 
               <div className="space-y-3 mb-6">
@@ -852,10 +570,10 @@ const Pricing = ({ user, profile }) => {
                     value={labInquiry.institutionName} 
                     onChange={e => setLabInquiry({...labInquiry, institutionName: e.target.value})}
                     placeholder="e.g. University of Dhaka Bioinformatics Lab"
-                    className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500"
+                    className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-slate-900"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-[11px] font-bold text-slate-700 block mb-1">Researcher Seats</label>
                     <input 
@@ -864,7 +582,7 @@ const Pricing = ({ user, profile }) => {
                       max="100" 
                       value={labInquiry.seats} 
                       onChange={e => setLabInquiry({...labInquiry, seats: parseInt(e.target.value) || 5})}
-                      className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500"
+                      className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-slate-900"
                     />
                   </div>
                   <div>
@@ -873,7 +591,7 @@ const Pricing = ({ user, profile }) => {
                       type="email" 
                       value={labInquiry.email} 
                       onChange={e => setLabInquiry({...labInquiry, email: e.target.value})}
-                      className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500"
+                      className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 text-slate-900"
                     />
                   </div>
                 </div>
@@ -905,12 +623,12 @@ const Pricing = ({ user, profile }) => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white border border-slate-200 rounded-3xl w-full max-w-md p-6 sm:p-8 shadow-2xl relative my-auto"
+              className="bg-white border border-slate-200 rounded-3xl w-full max-w-md p-6 sm:p-8 shadow-2xl relative my-auto max-h-[92vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <button 
                 onClick={() => setStudentModalOpen(false)}
-                className="absolute top-4 right-4 text-slate-400 hover:text-slate-800 p-2 rounded-xl"
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-800 p-2 rounded-xl cursor-pointer"
               >
                 <X size={18} />
               </button>
@@ -950,137 +668,7 @@ const Pricing = ({ user, profile }) => {
         )}
       </AnimatePresence>
 
-      {/* Coupon Confirmation Modal */}
-      <AnimatePresence>
-        {isConfirmModalOpen && (
-          <div 
-            className="fixed inset-0 z-[100] overflow-y-auto bg-slate-900/60 backdrop-blur-sm p-4 flex min-h-full items-center justify-center"
-            onClick={() => setConfirmModalOpen(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white border border-slate-200 rounded-3xl w-full max-w-md p-6 sm:p-8 shadow-2xl relative my-auto text-slate-900"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button 
-                onClick={() => setConfirmModalOpen(false)}
-                className="absolute top-4 right-4 text-slate-400 hover:text-slate-800 p-2 rounded-xl"
-              >
-                <X size={18} />
-              </button>
-              
-              <div className="w-12 h-12 bg-amber-100 text-amber-700 rounded-2xl flex items-center justify-center mb-4">
-                <Tag size={24} />
-              </div>
-              
-              <h3 className="text-xl font-black mb-1">Confirm Coupon Redemption</h3>
-              <p className="text-xs text-slate-500 font-medium mb-6">
-                Are you sure you want to apply <strong className="text-slate-900">[{pendingCoupon}]</strong>? Once applied, it will be locked to your account.
-              </p>
-
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={confirmRedemption}
-                  className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
-                >
-                  Proceed & Apply
-                </button>
-                <button
-                  onClick={() => setConfirmModalOpen(false)}
-                  className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
-                >
-                  Cancel
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Auto-Upgrade Celebration Modal */}
-      <AnimatePresence>
-        {isCelebrationModalOpen && (
-          <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-900/60 backdrop-blur-sm p-4 flex min-h-full items-center justify-center">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white border border-slate-200 rounded-3xl w-full max-w-md p-8 shadow-2xl text-center my-auto"
-            >
-              <div className="w-16 h-16 bg-amber-500 text-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-md shadow-amber-500/20">
-                <Sparkles size={30} />
-              </div>
-              
-              <h3 className="text-2xl font-black text-slate-900 mb-2">Congratulations! 🎉</h3>
-              <p className="text-xs sm:text-sm font-semibold text-slate-600 mb-6">
-                Your account is now upgraded to <span className="text-amber-600 font-black">{upgradedTierText}</span>.
-              </p>
-
-              <button
-                onClick={() => {
-                  sessionStorage.removeItem('active_coupon_status')
-                  sessionStorage.removeItem('active_coupon_code')
-                  navigate('/research')
-                }}
-                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
-              >
-                Go to Workspace <ArrowRight size={15} />
-              </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Exit Warning Modal */}
-      <AnimatePresence>
-        {showExitWarning && (
-          <div 
-            className="fixed inset-0 z-[100] overflow-y-auto bg-slate-900/60 backdrop-blur-sm p-4 flex min-h-full items-center justify-center"
-            onClick={() => setShowExitWarning(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white border border-slate-200 rounded-3xl w-full max-w-md p-6 shadow-2xl my-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mb-4">
-                <AlertCircle size={24} />
-              </div>
-              
-              <h3 className="text-xl font-black text-slate-900 mb-1">Forfeit Active Discount?</h3>
-              <p className="text-xs text-slate-500 font-medium mb-6">
-                You have an active one-time discount coupon locked. If you leave this page, it cannot be reused.
-              </p>
-
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={() => setShowExitWarning(false)}
-                  className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-all cursor-pointer"
-                >
-                  Stay on Pricing
-                </button>
-                <button
-                  onClick={() => {
-                    sessionStorage.removeItem('active_coupon_status')
-                    sessionStorage.removeItem('active_coupon_code')
-                    setShowExitWarning(false)
-                    navigate(pendingPath)
-                  }}
-                  className="w-full py-3 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-bold transition-all cursor-pointer"
-                >
-                  Leave & Forfeit
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      <Footer user={user} onAuthRequired={() => handleNavigate('/auth')} />
+      <Footer user={user} onAuthRequired={() => navigate('/auth')} />
     </div>
   )
 }

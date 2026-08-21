@@ -24,18 +24,11 @@ const TermsOfService = ({ user, profile, onLogout, liveUsersCount }) => {
       <section className="bg-white border-b border-[#E5E5DF] pt-28 pb-12 px-4 sm:px-8 lg:px-12">
         <div className="max-w-5xl mx-auto space-y-6">
           <div className="flex items-center justify-between">
-            <button
-              onClick={() => navigate('/')}
-              className="group inline-flex items-center gap-2 rounded-full bg-[#F3F3EF] hover:bg-[#E5E5DF] px-4 py-2 text-xs font-bold text-slate-700 transition-all cursor-pointer"
-            >
-              <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
-              Back to Home
-            </button>
-
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold">
               <Scale size={13} />
-              <span>Official Terms</span>
+              <span>Official Academic Terms</span>
             </div>
+            <span className="text-xs font-bold text-slate-400">Updated: August 2026</span>
           </div>
 
           <div className="space-y-3">

@@ -33,12 +33,12 @@ const About = () => {
             </div>
             <span className="text-xl font-black tracking-tighter text-[#171717]">ScholarHub<span className="text-blue-600">AI</span></span>
           </div>
-          <button 
-            onClick={() => navigate('/')}
-            className="text-sm font-bold text-slate-600 hover:text-blue-600 transition-colors flex items-center gap-2"
+          <Link
+            to="/pricing"
+            className="text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-xl transition-colors"
           >
-            <ArrowLeft size={16} /> Back to Home
-          </button>
+            Explore Plans
+          </Link>
         </div>
       </nav>
 

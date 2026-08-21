@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, Paperclip, Folder, Search, Mic, Lock, Square, X, 
@@ -130,6 +130,84 @@ export const ChatInput = React.memo(({
       textareaRef.current.focus();
     }
   };
+
+  const [internalListening, setInternalListening] = useState(false);
+  const recognitionRef = useRef(null);
+
+  const isActuallyListening = isListening || internalListening;
+
+  const handleToggleVoice = useCallback(() => {
+    if (toggleVoiceRecognition) {
+      toggleVoiceRecognition();
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error('Voice dictation is not supported by your current browser.');
+      return;
+    }
+
+    if (internalListening) {
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch {}
+      }
+      setInternalListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setInternalListening(true);
+        toast.info('🎙️ Listening... Speak your research prompt.');
+      };
+
+      recognition.onresult = (event) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          transcript += event.results[i][0].transcript;
+        }
+
+        const textToAdd = transcript.trim();
+        if (textToAdd) {
+          setLocalQuery(prev => {
+            const trimmed = prev.trim();
+            if (!trimmed) return textToAdd;
+            if (trimmed.endsWith(textToAdd)) return prev;
+            return `${trimmed} ${textToAdd}`;
+          });
+        }
+      };
+
+      recognition.onerror = (err) => {
+        console.warn('[SpeechRecognition] Error:', err);
+        setInternalListening(false);
+      };
+
+      recognition.onend = () => {
+        setInternalListening(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (e) {
+      console.error('[SpeechRecognition] Launch error:', e);
+      setInternalListening(false);
+    }
+  }, [internalListening, toggleVoiceRecognition]);
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch {}
+      }
+    };
+  }, []);
 
   const handleSubmit = (e) => {
     if (e) e.preventDefault();
@@ -463,9 +541,9 @@ export const ChatInput = React.memo(({
               <button
                 type="button"
                 disabled={isInputDisabled}
-                onClick={toggleVoiceRecognition}
-                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all border ${isInputDisabled ? 'opacity-40 cursor-not-allowed' : isListening ? 'text-red-500 border-red-200 bg-red-50 animate-pulse shadow-xs shadow-red-500/20' : 'text-slate-500 border-slate-200/60 hover:text-slate-800 hover:bg-slate-100 cursor-pointer'}`}
-                title="Voice Dictation"
+                onClick={handleToggleVoice}
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all border ${isInputDisabled ? 'opacity-40 cursor-not-allowed' : isActuallyListening ? 'text-red-500 border-red-200 bg-red-50 animate-pulse shadow-xs shadow-red-500/20' : 'text-slate-500 border-slate-200/60 hover:text-slate-800 hover:bg-slate-100 cursor-pointer'}`}
+                title={isActuallyListening ? "Listening... click to stop" : "Voice Dictation"}
               >
                 <Mic size={16} />
               </button>

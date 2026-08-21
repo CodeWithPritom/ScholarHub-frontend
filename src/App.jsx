@@ -27,6 +27,7 @@ import AcademyFeature from './pages/features/AcademyFeature'
 import AuditorFeature from './pages/features/AuditorFeature'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import TermsOfService from './pages/TermsOfService'
+import RefundPolicy from './pages/RefundPolicy'
 const ResearchPage = lazy(() => import('./ResearchPage'))
 const SuccessStories3D = lazy(() => import('./pages/SuccessStories3D'))
 const Auditor = lazy(() => import('./pages/Auditor'))
@@ -43,6 +44,7 @@ import VerifyEmail from './VerifyEmail'
 import Archive from './pages/Archive'
 import Resources from './pages/Resources'
 import Pricing from './pages/Pricing'
+import Cart from './pages/Cart'
 import AdminPanel from './pages/AdminPanel'
 import Profile from './pages/Profile'
 import About from './pages/About'
@@ -944,6 +946,8 @@ function App() {
             <Route path="/research-dna" element={<ProtectedRoute user={user}><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-violet-600 border-t-transparent rounded-full animate-spin"></div></div>}><ResearchDNAPage user={user} profile={profile} onLogout={handleLogout} /></Suspense></ProtectedRoute>} />
             <Route path="/dna/:shareToken" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-950 text-white"><div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div></div>}><PublicResearchDNAPage /></Suspense>} />
             <Route path="/pricing" element={<Pricing user={user} profile={profile} />} />
+            <Route path="/cart" element={<Cart user={user} profile={profile} />} />
+            <Route path="/checkout" element={<Navigate to="/cart" replace />} />
             <Route 
               path="/admin" 
               element={
@@ -958,6 +962,8 @@ function App() {
             <Route path="/ai-report" element={<AIReport />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/refund" element={<RefundPolicy user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} />} />
+            <Route path="/refund-policy" element={<RefundPolicy user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} />} />
             <Route path="/about" element={<About />} />
             <Route path="/shared/:shareToken" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-950 text-white"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>}><SharedAudit user={user} /></Suspense>} />
           </Routes>
