@@ -646,7 +646,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
   const [guestCooldown, setGuestCooldown] = useState(() => calculateRemaining('guestCooldownExpiry'));
 
   const [userTier, setUserTier] = useState('free');
-  const [academicField, setAcademicField] = useState('Genetic Eng. & Biotech (GEB)');
+  const [academicField, setAcademicField] = useState('');
   const [bookmarkCount, setBookmarkCount] = useState(0);
   const [usageStats, setUsageStats] = useState({ aiSummaries: 0 });
 
@@ -1114,7 +1114,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       }
 
       const cleanQuery = userField.replace(/\(.*?\)/g, '').trim();
-      const url = `${BASE_URL}/api/search?keyword=${encodeURIComponent(cleanQuery || userField)}&limit=1`;
+      const url = `${BASE_URL}/api/search?keyword=${encodeURIComponent(cleanQuery || userField)}&limit=1&preview=true`;
       const response = await fetch(url, { method: 'GET', headers: fetchHeaders, mode: 'cors' });
       
       if (response.ok) {

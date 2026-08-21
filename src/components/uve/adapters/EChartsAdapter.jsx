@@ -190,18 +190,40 @@ export const EChartsAdapter = React.memo(({ type, config, onSourceClick }) => {
       };
     }
 
-    // Calculate grid padding dynamically (guaranteeing 65px left for Y-axis labels)
-    const gridTop = hasTitle && hasLegend ? 75 : (hasTitle || hasLegend ? 55 : 35);
-    const gridBottom = 45;
+    // Calculate grid padding dynamically with mobile-friendly spacing
+    const gridTop = hasTitle && hasLegend ? 70 : (hasTitle || hasLegend ? 50 : 30);
+    const gridBottom = 35;
 
     sanitizedOption.grid = {
       top: gridTop,
-      left: 65,
-      right: 35,
+      left: 10,
+      right: 15,
       bottom: gridBottom,
       containLabel: true,
       ...(sanitizedOption.grid || {})
     };
+
+    // Responsive X-axis formatting for mobile
+    if (sanitizedOption.xAxis) {
+      const formatAxis = (ax) => ({
+        ...ax,
+        axisLabel: {
+          fontSize: 10,
+          color: '#64748b',
+          interval: 0,
+          hideOverlap: true,
+          overflow: 'truncate',
+          width: 70,
+          ...(ax?.axisLabel || {})
+        }
+      });
+
+      if (Array.isArray(sanitizedOption.xAxis)) {
+        sanitizedOption.xAxis = sanitizedOption.xAxis.map(formatAxis);
+      } else {
+        sanitizedOption.xAxis = formatAxis(sanitizedOption.xAxis);
+      }
+    }
 
     // Determine if the chart uses Cartesian coordinates
     const hasAxis = chartType === 'line' || chartType === 'bar' || chartType === 'scatter';
@@ -213,7 +235,8 @@ export const EChartsAdapter = React.memo(({ type, config, onSourceClick }) => {
       borderColor: '#334155',
       borderWidth: 1,
       textStyle: { color: '#f8fafc', fontSize: 11 },
-      extraCssText: 'border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.18); z-index: 50;',
+      extraCssText: 'border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.18); z-index: 50; max-width: 280px;',
+      confine: true,
       ...(sanitizedOption.tooltip || {})
     };
 
@@ -239,12 +262,12 @@ export const EChartsAdapter = React.memo(({ type, config, onSourceClick }) => {
   };
 
   return (
-    <div className="w-full h-[380px] min-h-[380px] min-w-[300px] relative p-2 bg-white flex flex-col justify-center items-center overflow-hidden">
+    <div className="w-full h-full min-h-[260px] sm:min-h-[320px] md:min-h-[380px] relative p-1 sm:p-2 bg-white flex flex-col justify-center items-center overflow-hidden">
       <ReactECharts 
         echarts={echarts}
         option={option} 
-        style={{ height: '380px', width: '100%', minHeight: '380px' }} 
-        opts={{ width: 'auto', height: 380 }}
+        style={{ height: '100%', width: '100%', minHeight: '260px' }} 
+        opts={{ renderer: 'svg' }}
         onEvents={onEvents}
         notMerge={true}
         lazyUpdate={true}

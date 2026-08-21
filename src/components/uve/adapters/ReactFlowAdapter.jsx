@@ -1,26 +1,6 @@
 import React, { useMemo, useCallback } from 'react';
-import { ReactFlow, Background, applyNodeChanges, applyEdgeChanges, useReactFlow } from '@xyflow/react';
-import { ZoomIn, ZoomOut, Layout } from 'lucide-react';
+import { ReactFlow, Background, applyNodeChanges, applyEdgeChanges } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-
-const CustomControls = () => {
-  const { zoomIn, zoomOut, fitView } = useReactFlow();
-
-  return (
-    <div className="absolute bottom-3 right-3 z-50 flex items-center gap-1 bg-white border border-slate-200/90 p-1 rounded-full shadow-md">
-      <button onClick={() => zoomIn()} className="p-1.5 hover:bg-slate-100 rounded-full text-slate-500 hover:text-slate-800 transition-colors cursor-pointer" title="Zoom In">
-        <ZoomIn size={14} />
-      </button>
-      <button onClick={() => zoomOut()} className="p-1.5 hover:bg-slate-100 rounded-full text-slate-500 hover:text-slate-800 transition-colors cursor-pointer" title="Zoom Out">
-        <ZoomOut size={14} />
-      </button>
-      <div className="h-4 w-px bg-slate-200 mx-0.5" />
-      <button onClick={() => fitView({ padding: 0.2 })} className="p-1.5 hover:bg-slate-100 rounded-full text-slate-500 hover:text-slate-800 transition-colors cursor-pointer" title="Reset Zoom">
-        <Layout size={14} />
-      </button>
-    </div>
-  );
-};
 
 /**
  * React Flow / Mind Map Adapter for UVE Ecosystem
@@ -147,7 +127,6 @@ export const ReactFlowAdapter = React.memo(({ type, config, onSourceClick }) => 
         style={{ width: '100%', height: '100%', minHeight: 380 }}
       >
         <Background color="#cbd5e1" gap={16} />
-        <CustomControls />
       </ReactFlow>
     </div>
   );

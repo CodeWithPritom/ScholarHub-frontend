@@ -56,7 +56,7 @@ mermaid.initialize({
 
 const MemoizedVisualDispatcher = React.memo(({ payload, sessionKey, onSourceClick }) => {
   return (
-    <div className="min-h-[450px] w-full not-prose my-4 rounded-xl flex items-center justify-center">
+    <div className="min-h-[280px] sm:min-h-[360px] md:min-h-[420px] w-full not-prose my-3 sm:my-4 rounded-2xl flex items-center justify-center overflow-hidden">
       <VisualDispatcher key={sessionKey} payload={payload} onSourceClick={onSourceClick} />
     </div>
   );
@@ -293,7 +293,7 @@ const AuditorChatMessage = React.memo(({
 
     // Auto-wrap visual blocks that exist outside existing code fences
     const parts = text.split(/(```[\s\S]*?```)/g);
-    return parts.map((part, pIdx) => {
+    let result = parts.map((part, pIdx) => {
       if (pIdx % 2 === 1) return part;
       let p = part;
       if (!p.includes('```mermaid') && !p.includes('```uve-json') && !p.includes('```json')) {
@@ -311,6 +311,14 @@ const AuditorChatMessage = React.memo(({
       }
       return p;
     }).join('');
+
+    // Ensure any open unclosed code block is closed so ReactMarkdown always triggers the code renderer
+    const fenceCount = (result.match(/```/g) || []).length;
+    if (fenceCount % 2 !== 0) {
+      result += '\n```';
+    }
+
+    return result;
   }, [currentText]);
 
   return (

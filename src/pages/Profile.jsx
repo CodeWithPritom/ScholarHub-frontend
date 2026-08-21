@@ -175,8 +175,8 @@ const Profile = ({ user }) => {
 
       setProfileData({ 
         full_name: fullName, 
-        academic_field: academicField || 'General Research',
-        academic_status: academicStatus || 'Researcher',
+        academic_field: academicField || '',
+        academic_status: academicStatus || '',
         compute_credits: computeCredits,
         total_credits: totalCredits,
         export_count: exportCount,

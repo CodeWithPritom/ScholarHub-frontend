@@ -60,8 +60,8 @@ const Settings = ({ user }) => {
   
   // Tab 1: Profile & Academic Identity
   const [fullName, setFullName] = useState('')
-  const [academicStatus, setAcademicStatus] = useState('Researcher')
-  const [academicField, setAcademicField] = useState('Genetic Eng. & Biotech (GEB)')
+  const [academicStatus, setAcademicStatus] = useState('')
+  const [academicField, setAcademicField] = useState('')
   const [institution, setInstitution] = useState('')
   const [orcidId, setOrcidId] = useState('')
   const [googleScholarUrl, setGoogleScholarUrl] = useState('')
@@ -107,12 +107,12 @@ const Settings = ({ user }) => {
 
       if (profile) {
         setFullName(profile.full_name || user.user_metadata?.full_name || user.user_metadata?.name || '')
-        setAcademicField(profile.academic_field || user.user_metadata?.academic_field || 'Genetic Eng. & Biotech (GEB)')
-        setAcademicStatus(profile.academic_status || user.user_metadata?.academic_status || 'Researcher')
+        setAcademicField(profile.academic_field || user.user_metadata?.academic_field || '')
+        setAcademicStatus(profile.academic_status || user.user_metadata?.academic_status || '')
       } else {
         setFullName(user.user_metadata?.full_name || user.user_metadata?.name || '')
-        setAcademicField(user.user_metadata?.academic_field || 'Genetic Eng. & Biotech (GEB)')
-        setAcademicStatus(user.user_metadata?.academic_status || 'Researcher')
+        setAcademicField(user.user_metadata?.academic_field || '')
+        setAcademicStatus(user.user_metadata?.academic_status || '')
       }
 
       setInstitution(user.user_metadata?.institution || '')
@@ -462,35 +462,57 @@ const Settings = ({ user }) => {
                   {/* Academic Status & Field */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div className="space-y-2">
-                      <label className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                        <GraduationCap size={13} className="text-indigo-500" />
-                        Academic Status / Level
-                      </label>
-                      <select
-                        value={academicStatus}
-                        onChange={(e) => setAcademicStatus(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 outline-none focus:border-blue-500 focus:bg-white transition-all cursor-pointer"
-                      >
-                        {ACADEMIC_STATUS_OPTIONS.map((opt) => (
-                          <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                      </select>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                          <GraduationCap size={13} className="text-indigo-500" />
+                          Academic Status / Role
+                        </label>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-600">
+                          <Lock size={10} className="text-slate-500" />
+                          Permanent Status
+                        </span>
+                      </div>
+                      <div className="w-full px-4 py-3 bg-slate-100/90 border border-slate-200/90 rounded-xl flex items-center justify-between shadow-xs">
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse shrink-0"></span>
+                          <span className="text-sm font-bold text-slate-900 tracking-tight">
+                            {academicStatus || 'Not Specified'}
+                          </span>
+                        </div>
+                        <span className="text-[11px] font-semibold text-slate-500 hidden sm:inline">
+                          Configured at Onboarding
+                        </span>
+                      </div>
+                      <p className="text-[11px] font-medium text-slate-500 leading-normal">
+                        Fixed academic level for grant eligibility, lab role matching, and supervisor outreach.
+                      </p>
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                        <Compass size={13} className="text-blue-500" />
-                        Primary Academic Field
-                      </label>
-                      <select
-                        value={academicField}
-                        onChange={(e) => setAcademicField(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 outline-none focus:border-blue-500 focus:bg-white transition-all cursor-pointer"
-                      >
-                        {ACADEMIC_FIELDS.map((fld) => (
-                          <option key={fld} value={fld}>{fld}</option>
-                        ))}
-                      </select>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                          <Compass size={13} className="text-blue-500" />
+                          Primary Academic Field
+                        </label>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-600">
+                          <Lock size={10} className="text-slate-500" />
+                          Permanent Core Field
+                        </span>
+                      </div>
+                      <div className="w-full px-4 py-3 bg-slate-100/90 border border-slate-200/90 rounded-xl flex items-center justify-between shadow-xs">
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse shrink-0"></span>
+                          <span className="text-sm font-bold text-slate-900 tracking-tight">
+                            {academicField || 'Not Specified'}
+                          </span>
+                        </div>
+                        <span className="text-[11px] font-semibold text-slate-500 hidden sm:inline">
+                          Configured at Onboarding
+                        </span>
+                      </div>
+                      <p className="text-[11px] font-medium text-slate-500 leading-normal">
+                        Bound to your AI research models, live discovery feeds, and journal metrics.
+                      </p>
                     </div>
                   </div>
 

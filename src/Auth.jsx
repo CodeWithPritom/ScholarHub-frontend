@@ -40,8 +40,14 @@ const Auth = () => {
   const [success, setSuccess] = useState(null)
   const [captchaToken, setCaptchaToken] = useState('')
   const [isForgotPassword, setIsForgotPassword] = useState(autoForgot)
+  const [forgotStep, setForgotStep] = useState(1) // 1: Email, 2: OTP & New Password
+  const [forgotOtp, setForgotOtp] = useState(['', '', '', '', '', ''])
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [forgotResendTimer, setForgotResendTimer] = useState(0)
+  const [dailyRemaining, setDailyRemaining] = useState(3)
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
-  const [resendTimer, setResendTimer] = useState(300)
+  const [resendTimer, setResendTimer] = useState(60)
   const turnstileRef = useRef(null)
 
   useEffect(() => {
@@ -75,9 +81,21 @@ const Auth = () => {
     return () => clearInterval(interval);
   }, [step, resendTimer]);
 
-  const formatTimer = () => {
-    const minutes = Math.floor(resendTimer / 60);
-    const seconds = resendTimer % 60;
+  useEffect(() => {
+    let interval = null;
+    if (forgotResendTimer > 0) {
+      interval = setInterval(() => {
+        setForgotResendTimer(prev => prev - 1);
+      }, 1000);
+    } else if (forgotResendTimer === 0) {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [forgotResendTimer]);
+
+  const formatTimer = (timerVal = resendTimer) => {
+    const minutes = Math.floor(timerVal / 60);
+    const seconds = timerVal % 60;
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
@@ -93,7 +111,7 @@ const Auth = () => {
       });
       if (error) throw error;
       setSuccess('A new verification code has been sent to your email.');
-      setResendTimer(300);
+      setResendTimer(60);
       setOtp(['', '', '', '', '', '']);
     } catch (err) {
       setError(err.message || 'Failed to resend code.');
@@ -102,52 +120,97 @@ const Auth = () => {
     }
   };
 
-  const handleForgotPassword = async (e) => {
-    e.preventDefault()
+  const handleRequestForgotOtp = async (e) => {
+    if (e) e.preventDefault();
     if (!email) {
-      setError('Please enter your email address first.')
-      return
+      setError('Please enter your email address first.');
+      return;
     }
-    if (!captchaToken) {
-      setError("Please complete the security challenge verification.")
-      return
+    if (forgotStep === 1 && !captchaToken) {
+      setError("Please complete the security challenge verification.");
+      return;
     }
-    setLoading(true)
-    setError(null)
-    setSuccess(null)
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
     try {
-      // Supabase Auth Reset (Supabase internally calls Cloudflare siteverify with the captchaToken)
-
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        captchaToken: captchaToken,
-        redirectTo: `${window.location.origin}/settings`
-      })
-      if (error) throw error
-
-      // 3. Also call backend to clear all device sessions and invalidate JWTs
-      try {
-        await fetch(`${BASE_URL}/api/auth/password-reset-with-session-clear`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email.trim().toLowerCase(), token: captchaToken })
+      const res = await fetch(`${BASE_URL}/api/auth/request-password-reset-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          token: captchaToken || null
         })
-      } catch (backendErr) {
-        console.warn('[Auth] Backend session clear notice:', backendErr)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || 'Failed to send verification code.');
+      }
+      setSuccess(data.message || 'Verification code sent to your email.');
+      setForgotStep(2);
+      setForgotResendTimer(data.cooldown_seconds || 60);
+      if (data.daily_remaining !== undefined) {
+        setDailyRemaining(data.daily_remaining);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+      turnstileRef.current?.reset();
+      setCaptchaToken('');
+    }
+  };
+
+  const handleVerifyForgotOtp = async (e) => {
+    if (e) e.preventDefault();
+    const token = forgotOtp.join('');
+    if (token.length !== 6) {
+      setError('Please enter the complete 6-digit verification code.');
+      return;
+    }
+    if (!newPassword || newPassword.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match. Please re-enter.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await fetch(`${BASE_URL}/api/auth/verify-password-reset-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          otp: token,
+          new_password: newPassword
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || 'Failed to verify code.');
       }
 
-      setSuccess(
-        <>
-          Password reset link sent! Please check your inbox or <span className="font-black text-emerald-900 bg-emerald-200/60 px-1.5 py-0.5 rounded-md mx-0.5">Spam</span> folder to proceed. All your previous device sessions have been cleared — after resetting your password, this device will be registered automatically.
-        </>
-      )
+      setSuccess(data.message || 'Password reset successfully! You can now log in.');
+      setTimeout(() => {
+        setIsForgotPassword(false);
+        setForgotStep(1);
+        setForgotOtp(['', '', '', '', '', '']);
+        setNewPassword('');
+        setConfirmPassword('');
+        setIsLogin(true);
+        setPassword('');
+      }, 2000);
     } catch (err) {
-      setError(err.message)
+      setError(err.message);
     } finally {
-      setLoading(false)
-      turnstileRef.current?.reset()
-      setCaptchaToken('')
+      setLoading(false);
     }
-  }
+  };
 
 
   const handleVerifyOtp = async (e) => {
@@ -171,8 +234,28 @@ const Auth = () => {
       localStorage.removeItem('sh_verifying_email');
       localStorage.removeItem('sh_verifying_time');
 
+      // Initialize profile row in Supabase so user profile exists in database
+      if (data?.user) {
+        try {
+          await supabase.from('profiles').upsert({
+            id: data.user.id,
+            email: data.user.email || email,
+            full_name: data.user.user_metadata?.full_name || null,
+            academic_field: data.user.user_metadata?.academic_field || null,
+            academic_status: data.user.user_metadata?.academic_status || null,
+            status: 'active',
+            user_tier: 'free',
+            role: 'user',
+            compute_credits: 500,
+            total_credits: 500
+          }, { onConflict: 'id' });
+        } catch (initErr) {
+          console.warn('[Auth] Background profile init error:', initErr);
+        }
+      }
+
       setSuccess('Account verified successfully! Redirecting...')
-      setTimeout(() => navigate(redirectPath || '/research'), 1500)
+      setTimeout(() => navigate(redirectPath || '/research'), 1000)
     } catch (err) {
       setError(err.message || 'Invalid or expired code.')
     } finally {
@@ -535,33 +618,188 @@ const Auth = () => {
                   </>
                 )}
 
-                {/* FORGOT PASSWORD */}
+                {/* FORGOT PASSWORD: 2-STEP OTP VERIFICATION FLOW */}
                 {isForgotPassword && (
                   <div className="space-y-4">
-                    <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
-                      <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email Address" disabled={loading}
-                        className="w-full bg-slate-50 border-none rounded-2xl p-4 pl-12 text-sm font-semibold text-[#171717] focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none placeholder:text-slate-600"
-                      />
-                    </div>
-                    <div className="flex justify-center py-2">
-                      <Turnstile 
-                        ref={turnstileRef} 
-                        siteKey={CLOUDFLARE_SITE_KEY} 
-                        onSuccess={(token) => setCaptchaToken(token)} 
-                        options={{ 
-                          theme: 'light',
-                          action: 'forgot_password'
-                        }} 
-                      />
-                    </div>
+                    {forgotStep === 1 ? (
+                      /* STEP 1: Enter Email & Solve Captcha */
+                      <>
+                        <div className="text-center mb-2">
+                          <h4 className="text-base font-extrabold text-[#0f172a]">Reset Password</h4>
+                          <p className="text-xs text-slate-500 mt-1">Enter your registered email address to receive a secure 6-digit verification code.</p>
+                        </div>
 
-                    <button type="button" onClick={handleForgotPassword} disabled={loading || !captchaToken}
-                      className="w-full p-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[14px] font-bold tracking-wide transition-all hover:-translate-y-0.5 shadow-lg shadow-indigo-200 disabled:opacity-50 flex justify-center items-center gap-2"
-                    >
-                      {loading ? <Loader2 size={18} className="animate-spin" /> : 'Send Reset Link'}
-                    </button>
-                    <button type="button" onClick={() => setIsForgotPassword(false)} className="w-full text-[12px] font-bold text-slate-700 hover:text-slate-700 transition-colors mt-2">Back to Login</button>
+                        <div className="relative">
+                          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
+                          <input 
+                            type="email" 
+                            required 
+                            value={email} 
+                            onChange={(e) => setEmail(e.target.value)} 
+                            placeholder="Email Address" 
+                            disabled={loading}
+                            className="w-full bg-slate-50 border-none rounded-2xl p-4 pl-12 text-sm font-semibold text-[#171717] focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none placeholder:text-slate-600"
+                          />
+                        </div>
+
+                        <div className="flex justify-center py-2">
+                          <Turnstile 
+                            ref={turnstileRef} 
+                            siteKey={CLOUDFLARE_SITE_KEY} 
+                            onSuccess={(token) => setCaptchaToken(token)} 
+                            options={{ 
+                              theme: 'light',
+                              action: 'forgot_password'
+                            }} 
+                          />
+                        </div>
+
+                        <div className="p-3 bg-indigo-50/60 border border-indigo-100/80 rounded-xl">
+                          <p className="text-[11px] font-semibold text-indigo-900 text-center leading-relaxed">
+                            🔒 A 6-digit one-time code will be dispatched to your inbox. <span className="font-extrabold">(Max 3 requests / day)</span>
+                          </p>
+                        </div>
+
+                        <button 
+                          type="button" 
+                          onClick={handleRequestForgotOtp} 
+                          disabled={loading || !captchaToken || !email}
+                          className="w-full p-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[14px] font-bold tracking-wide transition-all hover:-translate-y-0.5 shadow-lg shadow-indigo-200 disabled:opacity-50 flex justify-center items-center gap-2 cursor-pointer"
+                        >
+                          {loading ? <Loader2 size={18} className="animate-spin" /> : 'Send 6-Digit Code (OTP)'}
+                        </button>
+
+                        <button 
+                          type="button" 
+                          onClick={() => { setIsForgotPassword(false); setForgotStep(1); }} 
+                          className="w-full text-[12px] font-bold text-slate-600 hover:text-slate-900 transition-colors mt-2 cursor-pointer"
+                        >
+                          Back to Login
+                        </button>
+                      </>
+                    ) : (
+                      /* STEP 2: Enter OTP & Set New Password */
+                      <>
+                        <div className="text-center mb-1">
+                          <h4 className="text-base font-extrabold text-[#0f172a]">Enter Verification Code</h4>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            We sent a 6-digit code to <strong className="text-slate-800">{email}</strong>
+                          </p>
+                        </div>
+
+                        {/* 6-Digit OTP Inputs */}
+                        <div className="flex gap-2 justify-center py-2 w-full">
+                          {forgotOtp.map((digit, index) => (
+                            <input
+                              key={index}
+                              id={`forgot-otp-${index}`}
+                              type="text"
+                              inputMode="numeric"
+                              maxLength={1}
+                              value={digit}
+                              disabled={loading}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/[^0-9]/g, '');
+                                const newOtp = [...forgotOtp];
+                                newOtp[index] = val;
+                                setForgotOtp(newOtp);
+                                if (val && index < 5) {
+                                  document.getElementById(`forgot-otp-${index + 1}`)?.focus();
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Backspace' && !digit && index > 0) {
+                                  document.getElementById(`forgot-otp-${index - 1}`)?.focus();
+                                }
+                              }}
+                              onPaste={(e) => {
+                                e.preventDefault();
+                                const pastedData = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, 6);
+                                if (pastedData) {
+                                  const newOtp = [...forgotOtp];
+                                  for (let i = 0; i < pastedData.length; i++) {
+                                    newOtp[i] = pastedData[i];
+                                  }
+                                  setForgotOtp(newOtp);
+                                  const focusIndex = pastedData.length < 6 ? pastedData.length : 5;
+                                  document.getElementById(`forgot-otp-${focusIndex}`)?.focus();
+                                }
+                              }}
+                              className="w-10 h-12 sm:w-11 sm:h-12 text-center text-xl font-black text-[#0f172a] bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none"
+                            />
+                          ))}
+                        </div>
+
+                        {/* New Password & Confirm Password */}
+                        <div className="space-y-3 pt-2">
+                          <div className="relative">
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                            <input 
+                              type="password" 
+                              required 
+                              value={newPassword} 
+                              onChange={(e) => setNewPassword(e.target.value)} 
+                              placeholder="New Password (min. 6 chars)" 
+                              minLength={6} 
+                              disabled={loading}
+                              className="w-full bg-slate-50 border-none rounded-2xl p-3.5 pl-12 text-sm font-semibold text-[#171717] focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none placeholder:text-slate-500"
+                            />
+                          </div>
+
+                          <div className="relative">
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                            <input 
+                              type="password" 
+                              required 
+                              value={confirmPassword} 
+                              onChange={(e) => setConfirmPassword(e.target.value)} 
+                              placeholder="Confirm New Password" 
+                              minLength={6} 
+                              disabled={loading}
+                              className="w-full bg-slate-50 border-none rounded-2xl p-3.5 pl-12 text-sm font-semibold text-[#171717] focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none placeholder:text-slate-500"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Submit Button */}
+                        <button 
+                          type="button" 
+                          onClick={handleVerifyForgotOtp} 
+                          disabled={loading || forgotOtp.join('').length !== 6 || !newPassword || !confirmPassword}
+                          className="w-full p-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[14px] font-bold tracking-wide transition-all hover:-translate-y-0.5 shadow-lg shadow-indigo-200 disabled:opacity-50 flex justify-center items-center gap-2 cursor-pointer mt-2"
+                        >
+                          {loading ? <Loader2 size={18} className="animate-spin" /> : 'Reset Password & Secure Account'}
+                        </button>
+
+                        {/* Resend with Cooldown & 3/day tracking */}
+                        <div className="flex flex-col items-center gap-2 pt-2">
+                          <button
+                            type="button"
+                            onClick={handleRequestForgotOtp}
+                            disabled={forgotResendTimer > 0 || loading || dailyRemaining <= 0}
+                            className={`text-xs font-bold transition-all px-4 py-2 rounded-xl border cursor-pointer ${
+                              forgotResendTimer > 0 || dailyRemaining <= 0
+                                ? 'text-slate-400 bg-slate-50 border-slate-200 cursor-not-allowed'
+                                : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border-indigo-200'
+                            }`}
+                          >
+                            {forgotResendTimer > 0 
+                              ? `Resend code in ${formatTimer(forgotResendTimer)}` 
+                              : dailyRemaining > 0 
+                                ? `Resend Code (${dailyRemaining} left today)`
+                                : 'Daily Limit Reached (3/3)'}
+                          </button>
+
+                          <button 
+                            type="button" 
+                            onClick={() => { setForgotStep(1); setForgotOtp(['', '', '', '', '', '']); setNewPassword(''); setConfirmPassword(''); }} 
+                            className="text-[12px] font-bold text-slate-500 hover:text-slate-800 transition-colors mt-1 cursor-pointer"
+                          >
+                            Change Email Address
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
 

@@ -9,8 +9,11 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useSearchParams, u
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from './supabaseClient'
 import { ensureDeviceIsRegistered, handlePasswordResetDeviceOverride } from './utils/deviceSync'
-import { SESSION_EXPIRED_EVENT, DEVICE_ERROR_EVENT } from './utils/api'
-import { Dna, AlertTriangle, X, CreditCard, KeyRound, MonitorSmartphone, ShieldCheck } from 'lucide-react'
+import { SESSION_EXPIRED_EVENT, DEVICE_ERROR_EVENT, apiFetch } from './utils/api'
+import { 
+  Dna, AlertTriangle, X, CreditCard, KeyRound, MonitorSmartphone, 
+  ShieldCheck, GraduationCap, Sparkles, AlertCircle, Loader2, ArrowRight, BookOpen, Compass
+} from 'lucide-react'
 import { Toaster } from 'sonner'
 
 // Pages
@@ -50,33 +53,21 @@ import AIReport from './components/AIReport'
 import SupportBot from './components/SupportBot'
 import MobileBottomNav from './components/MobileBottomNav'
 
-/**
- * SessionExpiryRedirector — Must live inside <BrowserRouter> to access useNavigate.
- * When a 402 fires anywhere in the app, App.jsx sets sessionExpired=true, and
- * this component immediately navigates the user to /pricing.
- */
 function SessionExpiryRedirector({ sessionExpired, onRedirected }) {
   const navigate = useNavigate();
   useEffect(() => {
     if (sessionExpired) {
       navigate('/pricing', { replace: true });
-      // Don't clear the flag here — let the toast stay visible on /pricing
     }
   }, [sessionExpired, navigate]);
   return null;
 }
 
-/**
- * AuthRouteHandler — Handles the /auth route with redirect support.
- * If user is already logged in and a ?redirect= param exists, navigate there.
- * Otherwise redirect to home. If not logged in, show the Auth component.
- */
 function AuthRouteHandler({ user }) {
   const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get('redirect');
 
   if (user) {
-    // User is already logged in — honor the redirect param if it's a safe internal path
     if (redirectTo && redirectTo.startsWith('/')) {
       return <Navigate to={redirectTo} replace />;
     }
@@ -88,9 +79,9 @@ function AuthRouteHandler({ user }) {
 
 const ProfileSetupModal = ({ isOpen, user, onClose }) => {
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || '');
-  const [academicField, setAcademicField] = useState('Genetic Eng. & Biotech (GEB)');
+  const [academicField, setAcademicField] = useState(user?.user_metadata?.academic_field || '');
   const [customField, setCustomField] = useState('');
-  const [academicStatus, setAcademicStatus] = useState('Undergrad');
+  const [academicStatus, setAcademicStatus] = useState(user?.user_metadata?.academic_status || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -98,42 +89,83 @@ const ProfileSetupModal = ({ isOpen, user, onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!fullName) {
-      setError('Please provide your full name.');
+    if (!fullName || !fullName.trim()) {
+      setError('Please enter your full name.');
+      return;
+    }
+    if (!academicField) {
+      setError('Please select your research discipline.');
       return;
     }
     if (academicField === 'Others' && !customField.trim()) {
       setError('Please specify your domain.');
       return;
     }
+    if (!academicStatus) {
+      setError('Please select your academic status.');
+      return;
+    }
     setLoading(true);
     setError(null);
 
     const finalField = academicField === 'Others' ? customField.trim() : academicField;
+    const trimmedName = fullName.trim();
 
     try {
-      const { error: updateError } = await supabase.auth.updateUser({
-        data: {
-          full_name: fullName,
-          academic_field: finalField,
-          academic_status: academicStatus
-        }
-      });
-      if (updateError) throw updateError;
-
-      if (user) {
-        const { error: profileError } = await supabase.from('profiles').update({
-          full_name: fullName,
-          academic_field: finalField,
-          academic_status: academicStatus,
-          status: 'active'
-        }).eq('id', user.id);
-        if (profileError) console.error("Profile update error:", profileError);
+      // 1. Persist directly via Backend Onboarding Endpoint (Service Role bypasses all RLS)
+      try {
+        await apiFetch('/api/auth/onboarding', {
+          method: 'POST',
+          body: JSON.stringify({
+            full_name: trimmedName,
+            academic_field: finalField,
+            academic_status: academicStatus
+          })
+        });
+      } catch (beErr) {
+        console.warn('[ProfileSetupModal] Backend onboarding API notice:', beErr);
       }
 
-      onClose();
+      // 2. Double assurance: Supabase Auth & Database Upsert
+      try {
+        await supabase.auth.updateUser({
+          data: {
+            full_name: trimmedName,
+            academic_field: finalField,
+            academic_status: academicStatus
+          }
+        });
+      } catch (authErr) {
+        console.warn('[ProfileSetupModal] Auth updateUser notice:', authErr);
+      }
+
+      if (user) {
+        try {
+          await supabase.from('profiles').upsert({
+            id: user.id,
+            email: user.email,
+            full_name: trimmedName,
+            academic_field: finalField,
+            academic_status: academicStatus,
+            status: 'active',
+            user_tier: 'free',
+            role: 'user',
+            compute_credits: 500,
+            total_credits: 500
+          }, { onConflict: 'id' });
+        } catch (dbErr) {
+          console.warn('[ProfileSetupModal] Supabase DB upsert notice:', dbErr);
+        }
+      }
+
+      onClose({
+        full_name: trimmedName,
+        academic_field: finalField,
+        academic_status: academicStatus,
+        status: 'active'
+      });
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Failed to save profile. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -142,78 +174,148 @@ const ProfileSetupModal = ({ isOpen, user, onClose }) => {
   return (
     <AnimatePresence>
       <div 
-        className="fixed inset-0 z-[99999] overflow-y-auto bg-slate-900/60 backdrop-blur-sm p-3 sm:p-6 flex min-h-full items-center justify-center animate-in fade-in duration-200"
+        className="fixed inset-0 z-[99999] overflow-y-auto bg-slate-950/70 backdrop-blur-md p-4 sm:p-6 flex min-h-full items-center justify-center animate-in fade-in duration-200"
       >
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          className="bg-white rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full relative z-10 my-auto max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] overflow-y-auto overscroll-contain"
+          initial={{ opacity: 0, scale: 0.95, y: 15 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 15 }}
+          transition={{ duration: 0.25, ease: 'easeOut' }}
+          className="bg-white rounded-3xl shadow-[0_25px_70px_-15px_rgba(15,23,42,0.35)] border border-slate-200/80 p-6 sm:p-8 max-w-md w-full relative z-10 my-auto max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] overflow-y-auto overscroll-contain"
         >
+          {/* Header Badge & Title */}
           <div className="text-center mb-6">
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Complete Your Profile</h2>
-            <p className="text-xs sm:text-sm font-medium text-slate-500 mt-2">Just a few more details to personalize your workspace.</p>
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-lg shadow-blue-500/30 mb-4 ring-4 ring-blue-50">
+              <GraduationCap size={28} className="animate-pulse" />
+            </div>
+            <h2 className="text-2xl sm:text-[26px] font-black text-slate-900 tracking-tight">
+              Set Up Research Identity
+            </h2>
+            <p className="text-xs sm:text-sm font-medium text-slate-500 mt-2 leading-relaxed max-w-xs mx-auto">
+              Personalize your literature discovery feeds, AI synthesize tools, and compute workspace.
+            </p>
           </div>
 
           {error && (
-            <div className="p-3 bg-red-50 text-red-600 rounded-xl text-xs sm:text-sm font-bold mb-4">
-              {error}
-            </div>
+            <motion.div 
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-3.5 bg-red-50 border border-red-200/80 text-red-700 rounded-2xl text-xs sm:text-sm font-bold mb-5 flex items-center gap-2.5"
+            >
+              <AlertCircle size={16} className="shrink-0 text-red-600" />
+              <span>{error}</span>
+            </motion.div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Full Name */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Full Name</label>
-              <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} disabled={loading}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                Full Name <span className="text-blue-600">*</span>
+              </label>
+              <input 
+                type="text" 
+                required 
+                placeholder="e.g. Dr. Alex Morgan" 
+                value={fullName} 
+                onChange={e => setFullName(e.target.value)} 
+                disabled={loading}
+                className="w-full bg-slate-50/80 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
               />
             </div>
+
+            {/* Academic Field */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Academic Field</label>
-              <select value={academicField} onChange={e => setAcademicField(e.target.value)} disabled={loading}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                Primary Research Discipline <span className="text-blue-600">*</span>
+              </label>
+              <select 
+                value={academicField} 
+                onChange={e => setAcademicField(e.target.value)} 
+                disabled={loading}
+                className="w-full bg-slate-50/80 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
               >
+                <option value="" disabled>Select your research discipline...</option>
                 <option value="Genetic Eng. & Biotech (GEB)">Genetic Eng. & Biotech (GEB)</option>
                 <option value="Pharmacy & Pharmacology">Pharmacy & Pharmacology</option>
-                <option value="Engineering/CS">Engineering/CS</option>
-                <option value="Physics">Physics</option>
-                <option value="Mathematics">Mathematics</option>
-                <option value="Social Sciences">Social Sciences</option>
+                <option value="Engineering/CS">Engineering / Computer Science</option>
+                <option value="Physics">Physics & Quantum Science</option>
+                <option value="Mathematics">Mathematics & Computation</option>
+                <option value="Social Sciences">Social Sciences & Humanities</option>
                 <option value="Law / Legal Studies">Law / Legal Studies</option>
                 <option value="Chemistry / Pharmacy">Chemistry / Pharmacy</option>
-                <option value="Others">Others</option>
+                <option value="Others">Others (Custom Domain)</option>
               </select>
             </div>
+
+            {/* Custom Field Input */}
             {academicField === 'Others' && (
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Specify Domain</label>
-                <input type="text" required placeholder="e.g. Zoology, Botany, Nuclear Physics" value={customField} onChange={e => setCustomField(e.target.value)} disabled={loading}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                />
-              </div>
-            )}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Academic Status</label>
-              <select value={academicStatus} onChange={e => setAcademicStatus(e.target.value)} disabled={loading}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
               >
-                <option value="Undergrad">Undergrad</option>
-                <option value="Masters">Masters</option>
-                <option value="Faculty">Faculty</option>
-                <option value="Independent">Independent</option>
+                <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                  Specify Your Domain <span className="text-blue-600">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  required 
+                  placeholder="e.g. Neuroscience, Botany, Astrophysics" 
+                  value={customField} 
+                  onChange={e => setCustomField(e.target.value)} 
+                  disabled={loading}
+                  className="w-full bg-slate-50/80 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                />
+              </motion.div>
+            )}
+
+            {/* Academic Status */}
+            <div>
+              <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                Academic Role / Status <span className="text-blue-600">*</span>
+              </label>
+              <select 
+                value={academicStatus} 
+                onChange={e => setAcademicStatus(e.target.value)} 
+                disabled={loading}
+                className="w-full bg-slate-50/80 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+              >
+                <option value="" disabled>Select your academic status...</option>
+                <option value="Undergrad">Undergraduate Student</option>
+                <option value="Masters">Graduate / Master's Researcher</option>
+                <option value="PhD / Postdoc">PhD Candidate / Postdoctoral Fellow</option>
+                <option value="Faculty">Faculty / Professor / Lab PI</option>
+                <option value="Independent">Independent Scholar / Industry Scientist</option>
               </select>
             </div>
-            <button type="submit" disabled={loading}
-              className="w-full mt-4 p-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[14px] font-black tracking-wide transition-all shadow-lg flex justify-center items-center gap-2 cursor-pointer"
-            >
-              {loading ? 'Saving...' : 'Save Profile'}
-            </button>
+
+            {/* Submit Button */}
+            <div className="pt-2">
+              <button 
+                type="submit" 
+                disabled={loading}
+                className="w-full py-3.5 px-6 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-sm font-black tracking-wide transition-all shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 hover:scale-[1.01] active:scale-[0.99] flex justify-center items-center gap-2 cursor-pointer disabled:opacity-70 disabled:pointer-events-none"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    <span>Configuring Workspace...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Enter Research Hub</span>
+                    <ArrowRight size={16} />
+                  </>
+                )}
+              </button>
+            </div>
           </form>
         </motion.div>
       </div>
     </AnimatePresence>
   );
-}
+};
 
 const ProtectedRoute = React.memo(({ user, children }) => {
   if (!user) return <Navigate to="/auth" replace />
@@ -387,6 +489,7 @@ function App() {
           setUser(null);
           setProfile(null);
           setIsAdmin(false);
+          setNeedsOnboarding(false);
           setIsInitializing(false);
           initialLoadComplete.current = true;
           isInitialLoad.current = false;
@@ -395,19 +498,37 @@ function App() {
       }
 
       const isFounder = sessionUser.email === 'arupbhowmikpritom@gmail.com';
-      if (isMounted) setUser(sessionUser);
 
       try {
+        // 1. Validate active user existence directly with Supabase Auth backend
+        const { data: authUserData, error: authUserError } = await supabase.auth.getUser();
+        if (authUserError || !authUserData?.user) {
+          console.warn('[App] Stale session for purged/deleted user. Clearing auth state.');
+          await supabase.auth.signOut().catch(() => {});
+          localStorage.removeItem('scholarhub_device_id');
+          if (isMounted) {
+            setUser(null);
+            setProfile(null);
+            setIsAdmin(false);
+            setNeedsOnboarding(false);
+          }
+          return;
+        }
+
+        const validUser = authUserData.user;
+        if (isMounted) setUser(validUser);
+
+        // 2. Fetch profile from database
         const { data, error } = await supabase
           .from('profiles')
           .select('role, full_name, academic_field, status, user_tier')
-          .eq('id', sessionUser.id)
+          .eq('id', validUser.id)
           .maybeSingle();
 
         const { data: subData } = await supabase
           .from('subscriptions')
           .select('tier, expires_at')
-          .eq('user_id', sessionUser.id)
+          .eq('user_id', validUser.id)
           .maybeSingle();
 
         let resolvedTier = (data?.user_tier || 'free').toLowerCase();
@@ -420,7 +541,7 @@ function App() {
           }
         }
 
-        const isMissing = (val) => !val || val === 'Scholar' || val === 'Not Specified' || val === 'Academic User';
+        const isMissing = (val) => !val || !String(val).trim() || val === 'Scholar' || val === 'Not Specified' || val === 'Academic User';
         let profileIsValid = false;
 
         if (!error && data) {
@@ -435,30 +556,24 @@ function App() {
             user_tier: resolvedTier,
             tier: resolvedTier,
             role: data?.role || 'user',
-            full_name: data?.full_name || sessionUser?.user_metadata?.full_name || '',
-            academic_field: data?.academic_field || sessionUser?.user_metadata?.academic_field || '',
-            status: data?.status || sessionUser?.user_metadata?.academic_status || 'Undergrad'
+            full_name: data?.full_name || validUser?.user_metadata?.full_name || '',
+            academic_field: data?.academic_field || validUser?.user_metadata?.academic_field || '',
+            status: data?.status || validUser?.user_metadata?.academic_status || ''
           };
 
           setNeedsOnboarding(!profileIsValid);
           setProfile(finalProfile);
           setIsAdmin(data?.role === 'admin' || isFounder);
         }
-      } catch {
+      } catch (err) {
+        console.error('[App] Profile fetch error:', err);
         if (isMounted) {
-          setNeedsOnboarding(true);
-          setProfile({
-            user_tier: 'free',
-            tier: 'free',
-            academic_field: '',
-            academic_status: 'Undergrad',
-            role: 'user',
-            full_name: ''
-          });
-          setIsAdmin(isFounder);
+          setUser(null);
+          setProfile(null);
+          setNeedsOnboarding(false);
+          setIsAdmin(false);
         }
-      }
- finally {
+      } finally {
         if (isMounted) {
           setIsInitializing(false);
           initialLoadComplete.current = true;
@@ -505,28 +620,20 @@ function App() {
         checkPasswordRecoveryOverride(session, _event);
       }
 
-      // ─── CRITICAL: Silent Auth & Token Refresh Guard ───
-      const isSignificantEvent = _event === 'SIGNED_IN' || _event === 'SIGNED_OUT' || _event === 'USER_UPDATED' || _event === 'PASSWORD_RECOVERY';
-      if (_event === 'TOKEN_REFRESHED' || !isSignificantEvent || !isInitialLoad.current) {
-        if (isMounted && session?.user && (!userRef.current || userRef.current.id !== session.user.id)) {
-          setUser(session.user);
+      if (_event === 'SIGNED_OUT') {
+        if (isMounted) {
+          setUser(null);
+          setProfile(null);
+          setIsAdmin(false);
+          setNeedsOnboarding(false);
         }
         return;
       }
 
-      if (initialLoadComplete.current) {
-        if (isMounted) {
-          if (session?.user) {
-            if (!userRef.current || userRef.current.id !== session.user.id || userRef.current.email !== session.user.email) {
-              setUser(session.user);
-            }
-          } else if (_event === 'SIGNED_OUT') {
-            setUser(null);
-            setProfile(null);
-            setIsAdmin(false);
-          }
-        }
-        if ((_event === 'SIGNED_IN' || _event === 'INITIAL_SESSION') && session?.user) {
+      if (_event === 'SIGNED_IN' || _event === 'USER_UPDATED' || _event === 'PASSWORD_RECOVERY') {
+        if (session?.user) {
+          fetchAndSetProfile(session.user);
+
           const isRecovery = window.location.hash.includes('type=recovery') || window.location.search.includes('type=recovery');
           if (isRecovery) {
             handlePasswordResetDeviceOverride(session.user.id).then(() => {
@@ -543,40 +650,11 @@ function App() {
         return;
       }
 
-      const needsFullFetch = (
-        _event === 'SIGNED_IN' ||
-        _event === 'SIGNED_OUT' ||
-        _event === 'USER_UPDATED' ||
-        _event === 'PASSWORD_RECOVERY'
-      );
-
-      if (needsFullFetch) {
-        if (!initialLoadComplete.current && isFirstLoad.current) {
-          setIsInitializing(true);
-        }
-        fetchAndSetProfile(session?.user ?? null);
-      } else {
-        // TOKEN_REFRESHED, INITIAL_SESSION, or custom events — silently update user object
+      if (_event === 'TOKEN_REFRESHED' || _event === 'INITIAL_SESSION') {
         if (isMounted && session?.user) {
           setUser(session.user);
         }
-      }
-
-      // ─── Silent Background Device Sync ───
-      // Triggers on SIGNED_IN (email confirm, password login) and INITIAL_SESSION
-      // to catch users who bypass Auth.jsx's manual device registration flow.
-      if (
-        (_event === 'SIGNED_IN' || _event === 'INITIAL_SESSION') &&
-        session?.user
-      ) {
-        ensureDeviceIsRegistered(
-          session.user.id,
-          () => {
-            if (isMounted) setDeviceLimitWarning(true);
-          }
-        ).catch((err) => {
-          console.warn('[App] Device sync failed silently:', err);
-        });
+        return;
       }
     });
 
@@ -679,13 +757,17 @@ function App() {
 
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    setUser(null)
-    setProfile(null)
-    setIsAdmin(false)
-    sessionStorage.clear()
-    localStorage.removeItem('sb-access-token')
-    window.location.href = '/'
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {}
+    setUser(null);
+    setProfile(null);
+    setIsAdmin(false);
+    setNeedsOnboarding(false);
+    sessionStorage.clear();
+    localStorage.removeItem('scholarhub_device_id');
+    localStorage.removeItem('sb-access-token');
+    window.location.href = '/';
   }
 
   // ─── Auth Loading Screen ───
@@ -717,8 +799,22 @@ function App() {
   return (
     <BrowserRouter>
       <Toaster position="top-right" richColors />
-      {needsOnboarding ? (
-        <ProfileSetupModal isOpen={true} user={user} onClose={() => setNeedsOnboarding(false)} />
+      {needsOnboarding && user ? (
+        <ProfileSetupModal 
+          isOpen={true} 
+          user={user} 
+          onClose={(newProf) => {
+            setNeedsOnboarding(false);
+            if (newProf) {
+              setProfile(prev => ({
+                ...(prev || {}),
+                ...newProf,
+                user_tier: prev?.user_tier || 'free',
+                tier: prev?.tier || 'free'
+              }));
+            }
+          }} 
+        />
       ) : (
         <>
           <SupportBot user={user} />

@@ -8,6 +8,7 @@ export const VisualExpandModal = ({
   isOpen,
   onClose,
   isTable,
+  isInteractive,
   onShowSource,
   onCopyData,
   children
@@ -72,6 +73,10 @@ export const VisualExpandModal = ({
                 <div className="w-full w-full 2xl:px-12 bg-white rounded-2xl border border-slate-200/90 shadow-sm p-6 overflow-x-auto">
                   {children}
                 </div>
+              </div>
+            ) : isInteractive ? (
+              <div className="w-full h-full p-4 sm:p-8 pt-16 flex items-center justify-center bg-white overflow-hidden">
+                {children}
               </div>
             ) : (
               <TransformWrapper

@@ -67,38 +67,47 @@ class VisualizationErrorBoundary extends React.Component {
   }
 }
 
-const ArtifactFrame = ({ 
-  icon, 
-  title, 
-  onShowSource, 
-  onRefresh, 
-  onExpand, 
+const ArtifactFrame = ({
+  icon,
+  title,
+  onShowSource,
+  onRefresh,
+  onExpand,
   isTable,
-  isReactFlow,
-  isECharts,
-  children 
+  isInteractive,
+  children
 }) => {
   return (
-    <div className="w-full h-[420px] max-h-[420px] relative bg-slate-50 border border-slate-200/80 rounded-2xl overflow-hidden group my-3 shadow-2xs">
-      {/* Floating Top-Right Action Pill */}
-      <div className="absolute top-3 right-3 z-20 flex items-center gap-1 bg-white/95 backdrop-blur-md border border-slate-200/90 p-1 rounded-full shadow-xs">
-        <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 px-2 flex items-center gap-1 select-none">
-          {icon} <span className="hidden sm:inline">{title}</span>
-        </span>
+    <div className="w-full rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden flex flex-col relative group h-[320px] sm:h-[380px] md:h-[420px] transition-all">
+      {/* Dynamic Floating Action Pill (Top-Right) */}
+      <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-30 flex items-center gap-1 sm:gap-1.5 bg-white/95 backdrop-blur-md border border-slate-200/90 py-1 px-1.5 sm:px-2 rounded-full shadow-xs">
         {onShowSource && (
-          <button onClick={onShowSource} className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer" title="Show Source Code">
+          <button 
+            onClick={onShowSource}
+            className="p-1 sm:p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+            title="View Raw Data / Code"
+          >
             <Code size={13} />
           </button>
         )}
         {onRefresh && (
-          <button onClick={onRefresh} className="p-1 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer" title="Refresh">
+          <button 
+            onClick={onRefresh}
+            className="p-1 sm:p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+            title="Re-render Diagram"
+          >
             <RefreshCw size={13} />
           </button>
         )}
+        <div className="h-3 w-px bg-slate-200 mx-0.5" />
         {onExpand && (
-          <button onClick={onExpand} className="p-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-full transition-all flex items-center gap-1 px-2 cursor-pointer shadow-xs" title="Open in Canvas (Full Screen)">
+          <button 
+            onClick={onExpand}
+            className="flex items-center gap-1 px-2 py-0.5 sm:py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-full text-xs font-bold transition-all cursor-pointer shadow-2xs"
+            title="Expand to Fullscreen Canvas"
+          >
             <Maximize2 size={12} />
-            <span className="text-[10px] font-extrabold uppercase tracking-wider">Canvas</span>
+            <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider">Canvas</span>
           </button>
         )}
       </div>
@@ -106,41 +115,48 @@ const ArtifactFrame = ({
       {/* Body */}
       <div className="w-full h-full flex flex-col overflow-hidden bg-slate-50 relative">
         {isTable ? (
-          <div className="w-full h-full overflow-auto p-4 pt-12">
+          <div className="w-full h-full overflow-auto p-3 sm:p-4 pt-10 sm:pt-12">
              {children}
           </div>
-        ) : isReactFlow || isECharts ? (
+        ) : isInteractive ? (
           <div 
-            className="w-full h-full min-h-[380px] p-2 pt-10 flex flex-col relative bg-white overflow-hidden"
-            style={{ width: '100%', height: '100%', minHeight: 380 }}
+            className="w-full h-full min-h-[260px] sm:min-h-[320px] md:min-h-[380px] p-1.5 sm:p-2 pt-9 sm:pt-10 flex flex-col relative bg-white overflow-hidden"
+            style={{ width: '100%', height: '100%' }}
           >
              {children}
           </div>
         ) : (
           <TransformWrapper
             initialScale={1}
-            minScale={0.5}
+            minScale={0.4}
             maxScale={4}
             centerOnInit={true}
             wheel={{ disabled: true }}
-            doubleClick={{ disabled: true }}
+            doubleClick={{ disabled: false, mode: 'reset' }}
+            panning={{ disabled: false, velocityDisabled: false }}
           >
             {({ zoomIn, zoomOut, resetTransform }) => (
               <>
-                <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }} contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {children}
+                <TransformComponent 
+                  wrapperStyle={{ width: '100%', height: '100%' }} 
+                  contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  wrapperClass="w-full h-full cursor-grab active:cursor-grabbing touch-pan-y"
+                >
+                  <div className="w-full h-full flex items-center justify-center p-2 sm:p-4">
+                    {children}
+                  </div>
                 </TransformComponent>
                 
-                {/* Floating Control Panel */}
-                <div className="absolute bottom-3 right-3 z-20 flex items-center gap-1 bg-white/90 backdrop-blur-md border border-slate-200/90 p-1 rounded-full shadow-sm">
-                  <button onClick={() => zoomIn()} className="p-1.5 hover:bg-slate-100 rounded-full text-slate-500 hover:text-slate-800 transition-colors cursor-pointer" title="Zoom In">
+                {/* Floating Control Panel (Mermaid / Static SVG only) */}
+                <div className="absolute bottom-2.5 right-2.5 sm:bottom-3 sm:right-3 z-20 flex items-center gap-0.5 sm:gap-1 bg-white/90 backdrop-blur-md border border-slate-200/90 p-1 rounded-full shadow-sm">
+                  <button onClick={() => zoomIn()} className="p-1 sm:p-1.5 hover:bg-slate-100 rounded-full text-slate-500 hover:text-slate-800 transition-colors cursor-pointer" title="Zoom In">
                     <ZoomIn size={13} />
                   </button>
-                  <button onClick={() => zoomOut()} className="p-1.5 hover:bg-slate-100 rounded-full text-slate-500 hover:text-slate-800 transition-colors cursor-pointer" title="Zoom Out">
+                  <button onClick={() => zoomOut()} className="p-1 sm:p-1.5 hover:bg-slate-100 rounded-full text-slate-500 hover:text-slate-800 transition-colors cursor-pointer" title="Zoom Out">
                     <ZoomOut size={13} />
                   </button>
                   <div className="h-3.5 w-px bg-slate-200 mx-0.5" />
-                  <button onClick={() => resetTransform()} className="p-1.5 hover:bg-slate-100 rounded-full text-slate-500 hover:text-slate-800 transition-colors cursor-pointer" title="Reset Zoom">
+                  <button onClick={() => resetTransform()} className="p-1 sm:p-1.5 hover:bg-slate-100 rounded-full text-slate-500 hover:text-slate-800 transition-colors cursor-pointer" title="Reset Zoom">
                     <Layout size={13} />
                   </button>
                 </div>
@@ -153,8 +169,7 @@ const ArtifactFrame = ({
   );
 };
 
-// Forgiving JSON Auto-Repair Helper
-// Forgiving JSON Auto-Repair Helper
+// Forgiving JSON Auto-Repair Helper (Resilient against mid-stream truncation)
 const repairIncompleteJson = (jsonStr) => {
   if (typeof jsonStr !== 'string') return null;
   let str = jsonStr.trim();
@@ -164,71 +179,74 @@ const repairIncompleteJson = (jsonStr) => {
     str = str.replace(/^```[a-zA-Z0-9_-]*\n?/, '').replace(/\n?```$/, '').trim();
   }
 
-  // 1. Look for a candidate JSON object that contains key visualization markers ("engine", "nodes", "edges", "config")
-  const vizEngineMatch = str.match(/\{\s*"(?:engine|visualization|config|nodes)"[\s\S]*?\}/);
-  if (vizEngineMatch) {
-    try {
-      return JSON.parse(vizEngineMatch[0]);
-    } catch (e) {}
-  }
+  // 1. Direct parse attempt
+  try {
+    return JSON.parse(str);
+  } catch (e) {}
 
-  // 2. Extract JSON substring starting at first '{' to last '}'
   const firstBrace = str.indexOf('{');
   if (firstBrace === -1) return null;
-
-  const lastBrace = str.lastIndexOf('}');
-  if (lastBrace > firstBrace) {
-    const candidate = str.substring(firstBrace, lastBrace + 1);
-    try {
-      return JSON.parse(candidate);
-    } catch (e) {}
-  }
-
-  // Fallback: auto-close unclosed strings, brackets, and braces
   str = str.substring(firstBrace);
-  let openBraces = 0;
-  let openBrackets = 0;
-  let inString = false;
-  let isEscaped = false;
 
-  for (let i = 0; i < str.length; i++) {
-    const char = str[i];
-    if (isEscaped) {
-      isEscaped = false;
-      continue;
-    }
-    if (char === '\\') {
-      isEscaped = true;
-      continue;
-    }
-    if (char === '"') {
-      inString = !inString;
-      continue;
-    }
-    if (!inString) {
-      if (char === '{') openBraces++;
-      else if (char === '}') openBraces = Math.max(0, openBraces - 1);
-      else if (char === '[') openBrackets++;
-      else if (char === ']') openBrackets = Math.max(0, openBrackets - 1);
-    }
-  }
+  // 2. Iterative truncation repair: Strip trailing dangling syntax and balance braces
+  const attemptBalanceAndParse = (input) => {
+    let s = input.trim();
+    if (!s) return null;
 
-  let repaired = str;
-  if (inString) repaired += '"';
-  while (openBrackets > 0) {
-    repaired += ']';
-    openBrackets--;
-  }
-  while (openBraces > 0) {
-    repaired += '}';
-    openBraces--;
-  }
+    // Strip trailing incomplete key or unclosed key-value pair
+    s = s.replace(/,\s*\{[^}]*$/, '');             // Dangling unclosed object at end e.g. ", { id:"
+    s = s.replace(/,\s*"[^"]*":?\s*[^,}\]]*$/, ''); // Dangling unclosed property e.g. ', "id": '
+    s = s.replace(/:\s*"?[^",}\]]*$/, '');         // Trailing colon with partial value e.g. ': "abc'
+    s = s.replace(/,\s*$/, '');                     // Trailing comma
 
-  try {
-    return JSON.parse(repaired);
-  } catch (err) {
+    let openBraces = 0;
+    let openBrackets = 0;
+    let inStr = false;
+    let isEsc = false;
+
+    for (let i = 0; i < s.length; i++) {
+      const c = s[i];
+      if (isEsc) { isEsc = false; continue; }
+      if (c === '\\') { isEsc = true; continue; }
+      if (c === '"') { inStr = !inStr; continue; }
+      if (!inStr) {
+        if (c === '{') openBraces++;
+        else if (c === '}') openBraces = Math.max(0, openBraces - 1);
+        else if (c === '[') openBrackets++;
+        else if (c === ']') openBrackets = Math.max(0, openBrackets - 1);
+      }
+    }
+
+    let balanced = s;
+    if (inStr) balanced += '"';
+    while (openBrackets > 0) { balanced += ']'; openBrackets--; }
+    while (openBraces > 0) { balanced += '}'; openBraces--; }
+
+    try {
+      const parsed = JSON.parse(balanced);
+      if (parsed && typeof parsed === 'object') {
+        return parsed;
+      }
+    } catch (err) {}
     return null;
+  };
+
+  // Try standard balance
+  let result = attemptBalanceAndParse(str);
+  if (result) return result;
+
+  // Fallback: strip line-by-line from the bottom until valid JSON is recovered
+  const lines = str.split('\n');
+  while (lines.length > 2) {
+    lines.pop();
+    const candidate = lines.join('\n');
+    result = attemptBalanceAndParse(candidate);
+    if (result && (result.nodes || result.config || result.series || result.engine || result.visualization)) {
+      return result;
+    }
   }
+
+  return null;
 };
 
 /**
@@ -490,6 +508,15 @@ export const VisualDispatcher = React.memo(({ payload, rawJson, onSourceClick })
     );
   }
 
+  const isInteractive = useMemo(() => {
+    const interactiveEngines = [
+      'react-flow', 'reactflow', 'mindmap', 'mind-map', 'knowledge_graph', 
+      'circuit', 'chemistry', 'math-plot', 'mathplot', 'geo', '3d', 'threed', 
+      'd3', 'echarts', 'chart', 'bar', 'line', 'pie', 'scatter'
+    ];
+    return interactiveEngines.includes(engine) || interactiveEngines.includes(type) || Boolean(viz?.nodes || config?.nodes || config?.series || config?.atoms || config?.components);
+  }, [engine, type, viz, config]);
+
   return (
     <>
       <div ref={containerRef} className="w-full my-2">
@@ -504,8 +531,7 @@ export const VisualDispatcher = React.memo(({ payload, rawJson, onSourceClick })
           }}
           onExpand={() => setIsExpanded(true)}
           isTable={isTable}
-          isReactFlow={['react-flow', 'mindmap', 'circuit', 'chemistry', 'math-plot', 'geo', '3d'].includes(engine)}
-          isECharts={engine === 'echarts' || engine === 'chart'}
+          isInteractive={isInteractive}
         >
           <VisualizationErrorBoundary key={renderKey} onRetry={() => setRenderKey(k => k + 1)}>
             {sharedContent}
@@ -517,6 +543,7 @@ export const VisualDispatcher = React.memo(({ payload, rawJson, onSourceClick })
         isOpen={isExpanded} 
         onClose={() => setIsExpanded(false)} 
         isTable={isTable}
+        isInteractive={isInteractive}
         onShowSource={() => handleCopyData()}
         onCopyData={() => handleCopyData()}
       >

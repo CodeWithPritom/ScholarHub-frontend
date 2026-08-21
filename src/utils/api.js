@@ -172,7 +172,14 @@ export async function apiFetch(path, options = {}) {
     }
   });
 
-  // ─── Global 402 Interception ───
+  // ─── Global 401 / 402 Interception ───
+  if (res.status === 401) {
+    try {
+      supabase.auth.signOut().catch(() => {});
+      localStorage.removeItem('scholarhub_device_id');
+    } catch { /* ignore */ }
+  }
+
   if (res.status === 402) {
     let detail = 'Your premium plan has expired.';
     try {
