@@ -659,6 +659,16 @@ function App() {
       }
     });
 
+    // Global listener for immediate on-demand profile sync (e.g. tier upgrade, credit recharge)
+    const handleProfileUpdatedEvent = () => {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user && isMounted) {
+          fetchAndSetProfile(session.user);
+        }
+      });
+    };
+    window.addEventListener('profileUpdated', handleProfileUpdatedEvent);
+
     // Background profile re-sync every 5 minutes (silent — no loading spinner)
     const intervalId = setInterval(() => {
       supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -712,6 +722,7 @@ function App() {
       isMounted = false;
       subscription.unsubscribe();
       clearInterval(intervalId);
+      window.removeEventListener('profileUpdated', handleProfileUpdatedEvent);
     };
   }, [])
 

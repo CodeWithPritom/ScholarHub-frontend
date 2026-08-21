@@ -138,8 +138,15 @@ const Pricing = ({ user, profile }) => {
       setCouponCode(pendingCoupon)
       sessionStorage.setItem('active_coupon_status', JSON.stringify(newStatus))
       sessionStorage.setItem('active_coupon_code', pendingCoupon)
+      
+      if (data.already_redeemed) {
+        toast.info(data.message)
+      } else {
+        toast.success(data.message)
+      }
     } catch (err) {
       setCouponStatus({ loading: false, error: err.message, success: null, discount: 0 })
+      toast.error(err.message)
     } finally {
       setConfirmModalOpen(false)
     }
@@ -200,8 +207,20 @@ const Pricing = ({ user, profile }) => {
           throw new Error(errData.detail || 'Failed to auto-upgrade.')
         }
 
+        const resData = await response.json()
         setLocalTier(tierName.toLowerCase())
         setUpgradedTierText(tierName.toUpperCase())
+
+        // Clear coupon session state after successful upgrade
+        sessionStorage.removeItem('active_coupon_status')
+        sessionStorage.removeItem('active_coupon_code')
+        setCouponStatus(null)
+        setCouponCode('')
+
+        // Dispatch instant profile sync across all application components
+        window.dispatchEvent(new Event('profileUpdated'))
+
+        toast.success(resData.message || `Upgraded to ${tierName.toUpperCase()} successfully!`)
         setCelebrationModalOpen(true)
       } catch (err) {
         toast.error(err.message)
