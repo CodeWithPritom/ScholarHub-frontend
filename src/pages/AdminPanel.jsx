@@ -1659,20 +1659,39 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
 
   const handleCreateCoupon = async (e) => {
     e.preventDefault()
-    if (!newCoupon.code) return
+    if (!newCoupon.code.trim()) {
+      toast.error('Please enter a coupon code.')
+      return
+    }
     setCreatingCoupon(true)
     try {
+      const selectedPkgs = newCoupon.applicable_packages && newCoupon.applicable_packages.length > 0
+        ? newCoupon.applicable_packages
+        : ['both']
+
+      let tierVal = 'both'
+      if (selectedPkgs.every(p => p.startsWith('pro'))) tierVal = 'pro'
+      else if (selectedPkgs.every(p => p.startsWith('starter'))) tierVal = 'starter'
+
       const res = await apiFetch('/api/admin/coupons', {
         method: 'POST',
         body: JSON.stringify({
-          ...newCoupon,
-          applicable_tier: newCoupon.applicable_packages.join(',')
+          code: newCoupon.code.trim().toUpperCase(),
+          discount_percent: Number(newCoupon.discount_percent) || 20,
+          max_uses: Number(newCoupon.max_uses) || 1,
+          expires_at: newCoupon.expires_at || null,
+          applicable_tier: tierVal,
+          applicable_packages: selectedPkgs
         })
       })
       setCouponMsg({ type: 'success', text: res.message || 'Coupon created successfully' })
+      toast.success(res.message || 'Coupon created successfully!')
       setNewCoupon({ code: '', discount_percent: 20, max_uses: 50, expires_at: '', applicable_packages: ['both'] })
       fetchCoupons()
-    } catch (err) { setCouponMsg({ type: 'error', text: err.message }) }
+    } catch (err) { 
+      setCouponMsg({ type: 'error', text: err.message }) 
+      toast.error(err.message)
+    }
     finally { setCreatingCoupon(false) }
   }
 
@@ -2919,26 +2938,71 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
 
               {/* Coupons List */}
               <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs space-y-4">
-                <h2 className="text-sm font-black uppercase tracking-wider text-slate-900">Active Coupons Directory</h2>
-                <div className="space-y-3 max-h-[420px] overflow-y-auto">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                    <Ticket size={16} className="text-indigo-600" /> Active Coupons Directory
+                  </h2>
+                  <span className="text-[11px] font-bold text-slate-400 bg-slate-100 px-2.5 py-0.5 rounded-full">
+                    {coupons.length} Promo Codes
+                  </span>
+                </div>
+                <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1">
                   {coupons.length === 0 ? (
-                    <div className="py-8 text-center text-xs text-slate-500 font-medium">No active promo codes.</div>
+                    <div className="py-12 text-center text-xs text-slate-400 font-medium">No active promo codes found.</div>
                   ) : (
-                    coupons.map(c => (
-                      <div key={c.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 flex items-center justify-between">
-                        <div>
-                          <div className="text-sm font-black font-mono text-indigo-600">{c.code}</div>
-                          <div className="text-xs font-semibold text-slate-700 mt-0.5">{c.discount_percent}% OFF · {c.current_uses || 0}/{c.max_uses} used</div>
+                    coupons.map(c => {
+                      const pkgs = Array.isArray(c.applicable_packages) ? c.applicable_packages : (c.applicable_tier ? [c.applicable_tier] : ['both'])
+                      const formattedPkgs = pkgs.map(p => p.replace(/_/g, ' ').toUpperCase()).join(', ')
+                      const isExpired = c.expires_at && new Date(c.expires_at) < new Date()
+                      const isExhausted = (c.current_uses || 0) >= (c.max_uses || 1)
+
+                      return (
+                        <div key={c.id} className="p-4 bg-slate-50/80 hover:bg-slate-100/80 rounded-2xl border border-slate-200/80 transition-all flex items-center justify-between gap-3 shadow-2xs">
+                          <div className="space-y-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="px-2.5 py-0.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg text-xs font-black font-mono tracking-wider">
+                                {c.code}
+                              </span>
+                              <span className="px-2 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-[10px] font-extrabold uppercase">
+                                {c.discount_percent}% OFF
+                              </span>
+                              {isExpired && (
+                                <span className="px-2 py-0.5 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg text-[10px] font-bold uppercase">
+                                  Expired
+                                </span>
+                              )}
+                              {isExhausted && !isExpired && (
+                                <span className="px-2 py-0.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-[10px] font-bold uppercase">
+                                  Max Uses Reached
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 text-[11px] text-slate-500 flex-wrap">
+                              <span className="font-semibold text-slate-700">
+                                🎯 {formattedPkgs || 'All Packages'}
+                              </span>
+                              <span>•</span>
+                              <span>
+                                👥 {c.current_uses || 0}/{c.max_uses} used
+                              </span>
+                              {c.expires_at && (
+                                <>
+                                  <span>•</span>
+                                  <span>📅 {new Date(c.expires_at).toLocaleDateString()}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteCoupon(c.id)}
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer shrink-0"
+                            title="Delete Coupon"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </div>
-                        <button
-                          onClick={() => handleDeleteCoupon(c.id)}
-                          className="p-2 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer"
-                          title="Delete Coupon"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    ))
+                      )
+                    })
                   )}
                 </div>
               </div>

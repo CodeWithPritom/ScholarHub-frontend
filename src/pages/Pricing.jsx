@@ -131,7 +131,8 @@ const Pricing = ({ user, profile }) => {
         error: null, 
         success: data.message || 'Coupon applied & locked successfully!', 
         discount: data.discount_percent || 100,
-        applicable_tier: data.applicable_tier || 'both'
+        applicable_tier: data.applicable_tier || 'both',
+        applicable_packages: data.applicable_packages || ['both']
       }
       setCouponStatus(newStatus)
       setCouponCode(pendingCoupon)
@@ -147,15 +148,15 @@ const Pricing = ({ user, profile }) => {
   const isCouponApplicableFor = (tierName) => {
     if (!couponStatus?.success) return false
     const applicableStr = (couponStatus.applicable_tier || 'both').toLowerCase()
-    const applicable = applicableStr.split(',').map(s => s.trim())
+    const rawPkgs = couponStatus.applicable_packages || [applicableStr]
+    const pkgs = Array.isArray(rawPkgs) ? rawPkgs.map(p => String(p).toLowerCase().trim()) : [applicableStr]
+    const tier = tierName.toLowerCase()
+    const cleanDuration = duration.toLowerCase().replace(/\s+/g, '_')
+    const currentPkg = `${tier}_${cleanDuration}`
     
-    if (applicable.includes('both') || applicable.includes('all')) return true
-    if (applicable.includes(tierName.toLowerCase())) return true
-    
-    const cleanDuration = duration.toLowerCase()
-    const currentPkg = `${tierName.toLowerCase()}_${cleanDuration}`
-    if (applicable.includes(currentPkg)) return true
-    if (applicable.includes(cleanDuration)) return true
+    if (pkgs.includes('both') || pkgs.includes('all') || applicableStr === 'both' || applicableStr === 'all') return true
+    if (pkgs.includes(tier) || applicableStr === tier) return true
+    if (pkgs.includes(currentPkg) || pkgs.includes(cleanDuration)) return true
     
     return false
   }
