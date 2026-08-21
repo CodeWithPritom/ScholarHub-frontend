@@ -698,9 +698,28 @@ const AuditorChatMessage = React.memo(({
   );
 });
 
-const Auditor = ({ user, onLogout }) => {
+const Auditor = ({ user, profile: propProfile, onLogout }) => {
   const location = useLocation();
   const navigate = useNavigate();
+
+  const [profile, setProfile] = useState(propProfile || null);
+
+  useEffect(() => {
+    if (propProfile) {
+      setProfile(propProfile);
+    } else if (user?.id) {
+      supabase.from('profiles').select('*').eq('id', user.id).maybeSingle().then(({ data }) => {
+        if (data) setProfile(data);
+      });
+    }
+  }, [propProfile, user]);
+
+  const userTier = (profile?.tier || profile?.user_tier || 'free').toLowerCase();
+  const maxComputeAccess = useMemo(() => {
+    if (userTier === 'pro' || userTier === 'lifetime') return 'deep';
+    if (userTier === 'starter') return 'advanced';
+    return 'standard';
+  }, [userTier]);
 
   // All state hooks
   const [messages, setMessages] = useState(() => {
@@ -721,7 +740,6 @@ const Auditor = ({ user, onLogout }) => {
   const [highlightedSourceRow, setHighlightedSourceRow] = useState(null);
   const [activeWorkflow, setActiveWorkflow] = useState(() => sessionStorage.getItem('auditor_activeWorkflow') || 'research');
   const [researchEffort, setResearchEffort] = useState('standard');
-  const [maxComputeAccess, setMaxComputeAccess] = useState('standard');
   const [activePapers, setActivePapers] = useState(() => {
     const saved = sessionStorage.getItem('auditor_activePapers');
     if (saved) {
@@ -951,8 +969,6 @@ const Auditor = ({ user, onLogout }) => {
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showEffortMenu, setShowEffortMenu] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [profile, setProfile] = useState(null);
-  const [userTier, setUserTier] = useState('free');
   const [exportCount, setExportCount] = useState(0);
   const [latestHistorySession, setLatestHistorySession] = useState(null);
   const [showWorkspaceLimitModal, setShowWorkspaceLimitModal] = useState(false);

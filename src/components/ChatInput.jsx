@@ -490,44 +490,63 @@ export const ChatInput = React.memo(({
                         exit={{ opacity: 0 }}
                         className="absolute bottom-full right-0 mb-3 w-56 bg-white/90 backdrop-blur-xl border border-slate-200 rounded-xl shadow-2xl py-2 z-[60] flex flex-col"
                       >
+                        {/* Standard Option: Available to all tiers */}
                         <button
                           type="button"
                           onClick={() => {
                             if (setResearchEffort) setResearchEffort('standard');
                             setShowEffortMenu(false);
                           }}
-                          className="w-full text-left px-4 py-2 hover:bg-slate-50 transition-colors flex flex-col"
+                          className="w-full text-left px-4 py-2 hover:bg-slate-50 transition-colors flex flex-col cursor-pointer"
                         >
                           <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Standard ⚡</span>
                           <span className="text-[10px] text-slate-500 mt-0.5">50 Zaps • Quick answers</span>
                         </button>
+
+                        {/* Advanced Option: Available to Starter & Pro. Locked for Free */}
                         <button
                           type="button"
+                          disabled={maxComputeAccess === 'standard'}
                           onClick={() => {
+                            if (maxComputeAccess === 'standard') {
+                              toast.error('Upgrade to Starter or Pro plan to unlock Advanced Synthesis ✨.');
+                              return;
+                            }
                             if (setResearchEffort) setResearchEffort('advanced');
                             setShowEffortMenu(false);
                           }}
-                          className="w-full text-left px-4 py-2 hover:bg-slate-50 transition-colors flex flex-col border-t border-slate-100"
+                          className={`w-full text-left px-4 py-2 transition-colors flex flex-col border-t border-slate-100 ${maxComputeAccess === 'standard' ? 'opacity-50 cursor-not-allowed bg-slate-50/50' : 'hover:bg-slate-50 cursor-pointer'}`}
                         >
-                          <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>Advanced ✨</span>
+                          <span className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              {maxComputeAccess === 'standard' ? <Lock size={11} className="text-slate-400" /> : <span className="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>}
+                              Advanced ✨
+                            </span>
+                            {maxComputeAccess === 'standard' && <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">Starter</span>}
+                          </span>
                           <span className="text-[10px] text-slate-500 mt-0.5">100 Zaps • Deep thoroughness</span>
                         </button>
+
+                        {/* Deep Option: Strictly PRO ONLY */}
                         <button
                           type="button"
-                          disabled={maxComputeAccess === 'standard' || maxComputeAccess === 'advanced'}
+                          disabled={maxComputeAccess !== 'deep'}
                           onClick={() => {
-                            if (maxComputeAccess === 'standard' || maxComputeAccess === 'advanced') {
-                              toast.error('Upgrade to Pro tier to unlock Heavy Compute models.');
+                            if (maxComputeAccess !== 'deep') {
+                              toast.error('Deep Reasoning 🧠 Chain-of-Thought is reserved exclusively for Pro members.');
                               return;
                             }
                             if (setResearchEffort) setResearchEffort('deep');
                             setShowEffortMenu(false);
                           }}
-                          className={`w-full text-left px-4 py-2 transition-colors flex flex-col border-t border-slate-100 ${(maxComputeAccess === 'standard' || maxComputeAccess === 'advanced') ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-50'}`}
+                          className={`w-full text-left px-4 py-2 transition-colors flex flex-col border-t border-slate-100 ${maxComputeAccess !== 'deep' ? 'opacity-50 cursor-not-allowed bg-slate-50/50' : 'hover:bg-slate-50 cursor-pointer'}`}
                         >
-                          <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                            {(maxComputeAccess === 'standard' || maxComputeAccess === 'advanced') ? <Lock size={10} className="text-slate-400" /> : <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>}
-                            Deep 🧠
+                          <span className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              {maxComputeAccess !== 'deep' ? <Lock size={11} className="text-slate-400" /> : <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>}
+                              Deep 🧠
+                            </span>
+                            {maxComputeAccess !== 'deep' && <span className="text-[9px] font-black text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded uppercase tracking-wider">Pro Only</span>}
                           </span>
                           <span className="text-[10px] text-slate-500 mt-0.5">200 Zaps • Maximum reasoning</span>
                         </button>
