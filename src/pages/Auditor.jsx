@@ -1113,8 +1113,6 @@ const Auditor = ({ user, profile: propProfile, onLogout }) => {
           .maybeSingle();
         if (!error && data) {
           setProfile(data);
-          setMaxComputeAccess(data.max_compute_access || 'standard');
-          setUserTier(data.user_tier || 'free');
           setExportCount(data.export_count || 0);
         }
       } catch (err) {

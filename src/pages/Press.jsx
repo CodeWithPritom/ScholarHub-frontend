@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import SEOHead from '../components/SEOHead';
 import Footer from '../Footer';
 import Navbar from '../components/Navbar';
+import creatorImg from '../assets/images/creator.jpg';
 import { 
   PRESS_RELEASES, 
   MEDIA_COVERAGE, 
