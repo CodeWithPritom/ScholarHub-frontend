@@ -9,18 +9,27 @@
  * on their personal 7-day rolling schedule.
  */
 
-export function getQuotaResetInfo(lastResetDateStr) {
+export function getQuotaResetInfo(lastResetDateStr, userCreatedAtStr) {
   const now = new Date();
-  let lastReset = lastResetDateStr ? new Date(lastResetDateStr) : new Date();
   
-  if (isNaN(lastReset.getTime())) {
-    lastReset = new Date();
+  // Resolve authentic individual anchor
+  let anchor = null;
+  if (lastResetDateStr) {
+    const d = new Date(lastResetDateStr);
+    if (!isNaN(d.getTime())) anchor = d;
+  }
+  if (!anchor && userCreatedAtStr) {
+    const d = new Date(userCreatedAtStr);
+    if (!isNaN(d.getTime())) anchor = d;
+  }
+  if (!anchor) {
+    anchor = new Date();
   }
 
   const CYCLE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
-  // Jump forward in 7-day increments until nextRefresh is strictly in the future (> now)
-  let nextRefresh = new Date(lastReset.getTime() + CYCLE_MS);
+  // Jump forward in 7-day increments from the user's authentic anchor
+  let nextRefresh = new Date(anchor.getTime() + CYCLE_MS);
   while (nextRefresh <= now) {
     nextRefresh = new Date(nextRefresh.getTime() + CYCLE_MS);
   }

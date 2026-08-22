@@ -1138,8 +1138,8 @@ const Auditor = ({ user, profile: propProfile, onLogout }) => {
       
       if (currentCount >= limit) {
         // Calculate refresh days remaining (Unified 7-day rolling cycle)
-        const quotaInfo = getQuotaResetInfo(data.last_reset_date);
-        const waitText = quotaInfo.daysLeft === 0 ? "today" : quotaInfo.daysLeft === 1 ? "tomorrow" : `in ${quotaInfo.daysLeft} days`;
+        const quotaInfo = getQuotaResetInfo(data.last_reset_date, user?.created_at);
+        const waitText = quotaInfo.label.toLowerCase();
         toast.error(`Export limit reached (${currentCount}/${limit}). Your quota will automatically refresh ${waitText}, or upgrade your plan for instant access.`);
         return false;
       }
