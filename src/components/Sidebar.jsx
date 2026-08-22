@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, Microscope, Library, BarChart3, Settings,
   HelpCircle, ChevronLeft, ChevronRight, X, Sparkles, History, Zap, Download,
-  Newspaper, GraduationCap, BookOpen, MessageSquare, ShieldCheck, Dna
+  Newspaper, GraduationCap, BookOpen, MessageSquare, ShieldCheck, Dna, Clock, RotateCcw
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { toast } from 'sonner';
@@ -27,13 +27,15 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
   const [exportCount, setExportCount] = useState(0);
   const [userTier, setUserTier] = useState('free');
   const [auditSessionCount, setAuditSessionCount] = useState(0);
+  const [nextResetText, setNextResetText] = useState('');
+  const [resetDaysLeft, setResetDaysLeft] = useState(null);
 
   const fetchCredits = useCallback(async () => {
     if (!user?.id) return;
     try {
       const { data } = await supabase
         .from('profiles')
-        .select('compute_credits, total_credits, export_count, user_tier')
+        .select('compute_credits, total_credits, export_count, user_tier, last_reset_date, plan_expiry_date')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -72,6 +74,45 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
       }
       setUserTier(resolvedTier);
 
+      // Calculate Next Quota Refresh Date
+      let resetDateObj = null;
+      if (data?.last_reset_date) {
+        const lastReset = new Date(data.last_reset_date);
+        const cycleDays = resolvedTier === 'free' ? 7 : 30;
+        let tempReset = new Date(lastReset.getTime() + cycleDays * 24 * 60 * 60 * 1000);
+        if (data?.plan_expiry_date) {
+          const planExp = new Date(data.plan_expiry_date);
+          if (!isNaN(planExp.getTime()) && planExp > new Date()) {
+            tempReset = planExp;
+          }
+        }
+        const now = new Date();
+        while (tempReset <= now) {
+          tempReset = new Date(tempReset.getTime() + cycleDays * 24 * 60 * 60 * 1000);
+        }
+        resetDateObj = tempReset;
+      } else if (data?.plan_expiry_date) {
+        const planExp = new Date(data.plan_expiry_date);
+        if (!isNaN(planExp.getTime())) {
+          resetDateObj = planExp;
+        }
+      }
+
+      if (!resetDateObj) {
+        resetDateObj = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      }
+
+      const diffMs = resetDateObj.getTime() - Date.now();
+      const diffDays = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+      setResetDaysLeft(diffDays);
+
+      if (diffDays === 0) {
+        setNextResetText('Refreshes today');
+      } else if (diffDays === 1) {
+        setNextResetText('Refreshes tomorrow');
+      } else {
+        setNextResetText(`Refreshes in ${diffDays} days`);
+      }
 
       const { count, error: countError } = await supabase
         .from('bookmarks')
@@ -419,7 +460,23 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
             </button>
             {/* Compute, Export & Storage Mini-Meter */}
             {user && (
-              <div className={`mt-6 w-full pt-4 border-t border-sds-border flex flex-col gap-4 ${collapsed ? 'items-center gap-5' : 'px-3'}`}>
+              <div className={`mt-6 w-full pt-4 border-t border-sds-border flex flex-col gap-3.5 ${collapsed ? 'items-center gap-5' : 'px-3'}`}>
+                {/* Quota Section Header */}
+                {!collapsed && (
+                  <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Quota Matrix</span>
+                    {nextResetText && (
+                      <div 
+                        className="flex items-center gap-1 px-2 py-0.5 bg-indigo-50 border border-indigo-100/90 rounded-md text-[10px] font-bold text-indigo-600 shadow-2xs cursor-help"
+                        title={`Your workspace Zaps and Export limits will automatically reset ${nextResetText.toLowerCase()}.`}
+                      >
+                        <Clock size={10} className="text-indigo-500 animate-pulse shrink-0" />
+                        <span>{nextResetText}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Compute */}
                 <div className="flex flex-col w-full">
                   <div className={`flex items-center justify-between mb-1.5 ${collapsed ? 'hidden' : 'flex'}`}>
@@ -430,11 +487,11 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
                     <span className="text-xs font-bold text-slate-700">{computeCredits} / {totalCredits} Zaps</span>
                   </div>
                   {collapsed ? (
-                    <div className="text-sds-accent drop-shadow-[0_0_2px_rgba(99,102,241,0.8)]" title={`Compute: ${computeCredits} / ${totalCredits} Zaps`}>
+                    <div className="text-sds-accent drop-shadow-[0_0_2px_rgba(99,102,241,0.8)]" title={`Compute: ${computeCredits} / ${totalCredits} Zaps (${nextResetText})`}>
                       <Zap size={20} />
                     </div>
                   ) : (
-                    <div className="w-full h-2 bg-sds-surface rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-sds-surface rounded-full overflow-hidden" title={`Compute: ${computeCredits}/${totalCredits} Zaps - ${nextResetText}`}>
                       <div
                         className="h-full bg-indigo-500 rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(99,102,241,0.6)]"
                         style={{ width: `${Math.min(100, Math.max(0, (computeCredits / Math.max(1, totalCredits)) * 100))}%` }}
@@ -453,11 +510,11 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
                     <span className="text-xs font-bold text-slate-700">{exportCount} / {exportLimit} Exports</span>
                   </div>
                   {collapsed ? (
-                    <div className="text-emerald-400 drop-shadow-[0_0_2px_rgba(16,185,129,0.8)]" title={`Export Quota: ${exportCount} / ${exportLimit} Exports`}>
+                    <div className="text-emerald-400 drop-shadow-[0_0_2px_rgba(16,185,129,0.8)]" title={`Export Quota: ${exportCount} / ${exportLimit} Exports (${nextResetText})`}>
                       <Download size={20} />
                     </div>
                   ) : (
-                    <div className="w-full h-2 bg-sds-surface rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-sds-surface rounded-full overflow-hidden" title={`Export Quota: ${exportCount}/${exportLimit} Exports - ${nextResetText}`}>
                       <div
                         className="h-full bg-emerald-500 rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(16,185,129,0.6)]"
                         style={{ width: `${Math.min(100, Math.max(0, (exportCount / Math.max(1, exportLimit)) * 100))}%` }}
