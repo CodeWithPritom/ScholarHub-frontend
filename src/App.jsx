@@ -40,6 +40,8 @@ const OpportunityHub = lazyWithRetry(() => import('./pages/OpportunityHub'))
 const AcademyHub = lazyWithRetry(() => import('./pages/AcademyHub'))
 const ResearchDNAPage = lazyWithRetry(() => import('./pages/ResearchDNAPage'))
 const PublicResearchDNAPage = lazyWithRetry(() => import('./pages/PublicResearchDNAPage'))
+const Press = lazyWithRetry(() => import('./pages/Press'))
+const PressReleaseDetail = lazyWithRetry(() => import('./pages/PressReleaseDetail'))
 import MyLibrary from './MyLibrary'
 import Settings from './Settings'
 import VerifyEmail from './VerifyEmail'
@@ -1006,6 +1008,9 @@ function App() {
               <Route path="/refund" element={<RefundPolicy user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} />} />
               <Route path="/refund-policy" element={<RefundPolicy user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} />} />
               <Route path="/about" element={<About />} />
+              <Route path="/press" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div></div>}><Press user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} /></Suspense>} />
+              <Route path="/media" element={<Navigate to="/press" replace />} />
+              <Route path="/press/:slug" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div></div>}><PressReleaseDetail user={user} profile={profile} onLogout={handleLogout} liveUsersCount={liveUsersCount} /></Suspense>} />
               <Route path="/shared/:shareToken" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-950 text-white"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>}><SharedAudit user={user} /></Suspense>} />
             </Routes>
           </AppRootErrorBoundary>

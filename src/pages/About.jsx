@@ -131,6 +131,22 @@ const About = () => {
           </div>
         </section>
 
+        {/* Section: Official Press & Media Center Link */}
+        <section className="bg-slate-900 text-white rounded-3xl p-8 sm:p-12 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
+          <div className="space-y-2 text-center md:text-left">
+            <h3 className="text-2xl font-black tracking-tight">Journalist or Media Representative?</h3>
+            <p className="text-sm text-slate-300 max-w-xl font-medium leading-relaxed">
+              Explore official press releases, company background, downloadable brand assets, and direct media inquiry contacts in our Press Room.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/press')}
+            className="px-6 py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg cursor-pointer shrink-0"
+          >
+            Visit Official Press Room →
+          </button>
+        </section>
+
       </main>
       
       <Footer />

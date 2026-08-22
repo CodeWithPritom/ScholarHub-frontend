@@ -10,6 +10,7 @@ Allow: /opportunities
 Allow: /academy
 Allow: /dna
 Allow: /about
+Allow: /press
 
 # Private, Authenticated & Sensitive Internal Routes (Disallowed)
 Disallow: /admin

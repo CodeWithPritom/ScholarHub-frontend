@@ -51,6 +51,7 @@ const Footer = ({ user, onAuthRequired }) => {
             <ul className="space-y-3 md:space-y-4">
               <li><Link to="/" className="text-sm font-semibold hover:text-blue-400 transition-colors">Home Landing</Link></li>
               <li><Link to="/about" className="text-sm font-semibold hover:text-blue-400 transition-colors">About ScholarHub</Link></li>
+              <li><Link to="/press" className="text-sm font-semibold hover:text-blue-400 transition-colors">Press Room & Media</Link></li>
               <li><Link to="/research" className="text-sm font-semibold hover:text-blue-400 transition-colors">Research Dashboard</Link></li>
               <li><Link to="/archive" className="text-sm font-semibold hover:text-blue-400 transition-colors">Session Archive</Link></li>
               <li><Link to="/resources" className="text-sm font-semibold hover:text-blue-400 transition-colors">Resources</Link></li>
