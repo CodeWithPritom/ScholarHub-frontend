@@ -260,10 +260,10 @@ const Press = ({ user, profile, onLogout, liveUsersCount }) => {
               <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-1.5">
                 <div className="flex items-center gap-2 text-emerald-600 font-bold text-xs">
                   <ShieldCheck size={15} />
-                  <span>Anti-Hallucination Grounding</span>
+                  <span>Source-Grounded AI Synthesis</span>
                 </div>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  AI synthesis is strictly bounded by retrieved paper payloads, preventing fabricated citations and fake DOIs.
+                  AI synthesis is bounded by retrieved paper abstract payloads, designed to reduce unsupported claims and ensure citation traceability.
                 </p>
               </div>
 
@@ -294,12 +294,12 @@ const Press = ({ user, profile, onLogout, liveUsersCount }) => {
         <section id="founder" className="space-y-6 scroll-mt-24">
           <div className="pb-3 border-b border-slate-200">
             <span className="text-xs font-black uppercase tracking-wider text-indigo-600">Leadership</span>
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Founder & Lead System Architect</h2>
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Founder & System Architect</h2>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-10 flex flex-col md:flex-row items-center md:items-start gap-8">
             <img 
-              src={COMPANY_FACTS.founder ? creatorImg : creatorImg} 
+              src={creatorImg} 
               alt="Arup Bhowmik Pritom" 
               className="w-32 h-32 sm:w-40 sm:h-40 rounded-2xl object-cover border border-slate-200 shadow-md shrink-0" 
             />
@@ -308,12 +308,12 @@ const Press = ({ user, profile, onLogout, liveUsersCount }) => {
               <div>
                 <h3 className="text-xl sm:text-2xl font-black text-slate-900">Arup Bhowmik Pritom</h3>
                 <p className="text-xs sm:text-sm font-bold text-indigo-600 uppercase tracking-wider mt-0.5">
-                  Founder & Lead System Architect, ScholarHub AI
+                  Founder & System Architect, ScholarHub AI
                 </p>
               </div>
 
               <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed">
-                Arup Bhowmik Pritom is a Bangladeshi software engineer and system architect specializing in asynchronous distributed backends, academic data federation, and grounded artificial intelligence pipelines. Operating from Dhaka, Bangladesh, he engineered ScholarHub AI to bridge the gap between vast academic databases and the modern researcher's need for deterministic, verifiable literature synthesis.
+                Arup Bhowmik Pritom is a software engineer and system architect specializing in asynchronous distributed backends, academic data federation, and source-grounded artificial intelligence pipelines. Operating from Dhaka, Bangladesh, he engineered ScholarHub AI to bridge the gap between academic databases and the modern researcher's need for structured, verifiable literature synthesis.
               </p>
 
               <div className="flex items-center justify-center md:justify-start gap-3 pt-2">

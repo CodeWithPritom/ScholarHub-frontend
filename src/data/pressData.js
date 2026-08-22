@@ -8,45 +8,46 @@ import creatorImg from '../assets/images/creator.jpg';
 import architectureImg from '../assets/images/architecture.png';
 
 export const MEDIA_CONTACTS = {
+  primaryEmail: 'admin@scholarhub-ai.com',
   pressEmail: 'press@scholarhub-ai.com',
   directEmail: 'arupbhowmikpritom@gmail.com',
   officialWebsite: 'https://scholarhub-ai.com',
   location: 'Dhaka, Bangladesh',
   phone: '+880 1853-343176',
-  responseWindow: 'Typically responds within 24–48 hours for accredited press inquiries.'
+  responseWindow: 'Typically responds within 24–48 hours for accredited media inquiries.'
 };
 
 export const COMPANY_FACTS = {
   companyName: 'ScholarHub AI',
   founder: 'Arup Bhowmik Pritom',
-  role: 'Founder & Lead System Architect',
+  role: 'Founder & System Architect',
   headquarters: 'Dhaka, Bangladesh',
   category: 'Academic Research Technology / EdTech SaaS',
   website: 'https://scholarhub-ai.com',
   primaryRepositories: [
-    'NCBI PubMed (Biomedical Sciences via E-Utilities XML)',
-    'arXiv (Computer Science, Physics, Mathematics via Atom API)',
-    'OpenAlex (Universal Citation Graphs & Open Access Indices)',
-    'Semantic Scholar (Citation Graph Enrichment & DOI Matcher)',
-    'SCImago Journal Rank (SJR Q1–Q4 Local Pre-Indexed SQLite Dataset)'
+    'NCBI PubMed (Biomedical sciences via E-Utilities XML)',
+    'arXiv (Computer science, physics, mathematics via Atom API)',
+    'OpenAlex (Citation graph metadata & open-access indices)',
+    'Semantic Scholar (Citation graph enrichment & DOI matching)',
+    'SCImago Journal Rank (SJR Q1–Q4 local pre-indexed classification dataset)'
   ],
   coreTechnologies: [
-    'FastAPI (Python 3.10) Asynchronous Backend Gateway',
-    'React 19 with Vite & Tailwind CSS Architecture',
-    'Upstash Serverless Redis (Distributed Cache & Sliding Window Rate Limiting)',
-    'Supabase PostgreSQL with Row Level Security (RLS) & Atomic PL/pgSQL RPC Functions',
-    'Groq LPU & OpenRouter Multi-Pool LLM Reasoning Mesh',
-    'Cytoscape.js & Apache ECharts (Topological Concept Graphing & Visual Analytics)'
+    'FastAPI (Python 3.10) asynchronous backend service',
+    'React 19 with Vite & Tailwind CSS architecture',
+    'Upstash Serverless Redis (distributed caching & sliding-window rate limiting)',
+    'Supabase PostgreSQL with Row Level Security (RLS) & atomic PL/pgSQL RPC procedures',
+    'Multi-endpoint LLM inference mesh (Groq LPU & OpenRouter)',
+    'Cytoscape.js & Apache ECharts (interactive concept graphs & visual analytics)'
   ],
-  pricingTiers: 'Freemium model with Free tier (500 Zaps/month), Starter tier (1,500 Zaps), and Pro tier (3,000 Zaps).',
-  deploymentStatus: 'Live Production System on Vercel Edge & Cloud Containers'
+  pricingTiers: 'Freemium tier model (Free tier with 500 Zaps/week; Starter tier with 1,500 Zaps/week; Pro tier with 3,000 Zaps/week).',
+  deploymentStatus: 'Live Production Platform on Vercel Edge & Cloud Containers'
 };
 
 export const BRAND_ASSETS = [
   {
     id: 'logo-primary',
     name: 'ScholarHub AI Primary Logo (PNG)',
-    description: 'High-resolution official icon and typography mark on transparent background.',
+    description: 'Official wordmark and emblem on transparent background.',
     type: 'PNG Image',
     dimensions: '1024 x 1024 px',
     url: logoImg,
@@ -54,8 +55,8 @@ export const BRAND_ASSETS = [
   },
   {
     id: 'architecture-diagram',
-    name: 'System & Neural Architecture Diagram',
-    description: 'Technical workflow diagram displaying federated data ingestion, LLM synthesis, and cache hierarchy.',
+    name: 'System Architecture Workflow',
+    description: 'Technical diagram illustrating federated data ingestion, LLM reasoning stages, and caching tiers.',
     type: 'PNG Diagram',
     dimensions: '1920 x 1080 px',
     url: architectureImg,
@@ -64,7 +65,7 @@ export const BRAND_ASSETS = [
   {
     id: 'founder-photo',
     name: 'Founder Portrait — Arup Bhowmik Pritom',
-    description: 'Official press photograph of Founder & Lead System Architect Arup Bhowmik Pritom.',
+    description: 'Press photograph of Founder & System Architect Arup Bhowmik Pritom.',
     type: 'JPG Photograph',
     dimensions: '800 x 800 px',
     url: creatorImg,
@@ -76,50 +77,51 @@ export const PRESS_RELEASES = [
   {
     id: 'launch-announcement',
     slug: 'scholarhub-ai-launches-ai-powered-research-platform',
-    title: 'ScholarHub AI Launches to Unify Global Scientific Repositories with Grounded, Hallucination-Resistant AI Synthesis',
-    subtitle: 'Engineered in Bangladesh, the platform connects PubMed, arXiv, and OpenAlex to deliver verified literature reviews, journal quartile metrics, and interactive knowledge graphs.',
+    title: 'ScholarHub AI Launches Multi-Repository Academic Discovery Platform with Source-Grounded AI Synthesis',
+    subtitle: 'Developed in Bangladesh, the platform connects PubMed, arXiv, and OpenAlex to deliver source-grounded literature reviews, journal quartile indicators, and interactive concept graphs.',
     date: 'August 22, 2026',
     isoDate: '2026-08-22T00:00:00Z',
-    category: 'Product Launch',
-    readTime: '5 min read',
+    category: 'Platform Launch',
+    readTime: '4 min read',
     author: 'ScholarHub AI Communications',
     heroImage: architectureImg,
-    summary: 'ScholarHub AI has officially launched its academic research operating system, designed to eliminate citation fabrication and database fragmentation for university students, researchers, and scientific laboratories worldwide.',
+    summary: 'ScholarHub AI has released its academic research and synthesis platform, designed to reduce ungrounded AI citations and streamline multi-repository literature discovery for researchers and university students.',
     content: `
 ### Executive Summary
-**DHAKA, BANGLADESH** — Independent software engineer and system architect Arup Bhowmik Pritom has announced the public release of **ScholarHub AI** ([scholarhub-ai.com](https://scholarhub-ai.com)), an integrated academic research and literature synthesis platform designed to modernize how university students, researchers, and faculty members discover, analyze, and synthesize scientific literature.
+**DHAKA, BANGLADESH** — Software engineer and system architect Arup Bhowmik Pritom has announced the public release of **ScholarHub AI** ([scholarhub-ai.com](https://scholarhub-ai.com)), a specialized academic literature discovery and synthesis platform designed to streamline how university researchers, postgraduate students, and faculty members locate and analyze scientific literature.
 
-### The Problem in Scientific Discovery
-University scholars and postgraduate researchers face severe inefficiencies when reviewing scientific literature:
-1. **Repository Fragmentation:** Relevant research is divided across disparate databases—such as PubMed for biomedical research, arXiv for computer science and physics, and OpenAlex for global citation graphs.
-2. **AI Citation Hallucination:** Mainstream generic artificial intelligence chat assistants frequently invent fictitious paper titles, fabricate non-existent author lists, and generate broken Digital Object Identifiers (DOIs), rendering their outputs unacceptable for formal scientific publication.
-3. **Manual Synthesis Bottleneck:** Synthesizing research methodologies, evaluating sample sizes, and identifying unexplored research gaps across dozens of papers typically demands weeks of manual labor.
+### Context and Challenges in Scientific Literature Discovery
+Researchers and students commonly encounter logistical challenges during literature reviews:
+1. **Data Fragmentation:** Relevant studies are distributed across independent repositories—including PubMed for life sciences, arXiv for physics and computing, and OpenAlex for citation graphs.
+2. **AI Citation Inaccuracies:** General-purpose AI chat assistants can generate plausible-sounding but fictitious paper titles, incorrect author attributions, or invalid Digital Object Identifiers (DOIs), making unverified outputs unsuitable for formal academic citation.
+3. **Manual Synthesis Overhead:** Cross-referencing methodologies, extracting sample sizes, and identifying unexplored research gaps across multiple papers often requires extensive manual review.
 
-### The Grounded ScholarHub AI Solution
-ScholarHub AI eliminates these bottlenecks by coupling federated literature aggregation with a deterministic **Grounded Retrieval-Augmented Generation (RAG)** pipeline.
+### The Source-Grounded ScholarHub AI Approach
+ScholarHub AI addresses these workflows by combining federated multi-source search with a **source-grounded Retrieval-Augmented Generation (RAG)** pipeline.
 
-Instead of querying single databases in isolation, ScholarHub AI initiates concurrent asynchronous search queries across PubMed, arXiv, and OpenAlex. The retrieved records are automatically deduplicated by normalized title Levenshtein distance and DOI matching, enriched with citation statistics, and classified with **SCImago Journal Rank (SJR) quartile ratings (Q1–Q4)** directly from a pre-indexed dataset.
+When a query is submitted, ScholarHub AI initiates parallel asynchronous requests across PubMed, arXiv, and OpenAlex. The retrieved results are deduplicated, enriched with verified citation counts, and matched against **SCImago Journal Rank (SJR) quartile indicators (Q1–Q4)** from a local pre-indexed dataset.
 
-### Core Capabilities & Architectural Highlights
-- **Federated Parallel Retrieval:** Queries PubMed, arXiv, and OpenAlex simultaneously with sub-second cache lookups via an asynchronous FastAPI backend and Upstash Redis layer.
-- **Deterministic Research Auditor:** AI reasoning models (Standard, Advanced, and Deep modes) operate strictly on retrieved peer-reviewed abstract payloads, guaranteeing that every literature review assertion is anchored to verified DOIs and real authors.
-- **Interactive Knowledge Topologies:** Converts complex scientific concepts and citation trees into interactive visual graph maps using Cytoscape.js and Apache ECharts.
-- **Universal Reference Formatting:** Exports synthesis summaries and bibliographies instantly into APA 7th, IEEE, Harvard, MLA, BibTeX, PDF manuscripts, and Excel spreadsheets.
-- **Multi-Device & Collaborative Workspaces:** Features hardware-fingerprinted session security and shareable 30-day research audit links for collaborative peer review.
+### Core Capabilities and Technical Implementation
+- **Federated Parallel Search:** Retrieves metadata and abstracts from PubMed, arXiv, and OpenAlex concurrently, leveraging an asynchronous FastAPI backend and Upstash Redis caching for low-latency response times.
+- **Source-Grounded Research Auditor:** AI reasoning models (Standard, Advanced, and Deep modes) evaluate structured abstract payloads and metadata, designing synthesis outputs around verified paper identifiers.
+- **Visual Concept Topologies:** Renders interactive concept relationship trees and citation networks using Cytoscape.js and Apache ECharts.
+- **Multi-Format Reference Export:** Generates formatted bibliographies in standard styles including APA 7th, IEEE, Harvard, MLA, and BibTeX, alongside structured PDF and spreadsheet downloads.
+- **Session Security and Sharing:** Incorporates device session governance and shareable research audit URLs with 30-day access controls for peer collaboration.
 
 ### Founder Perspective
-"When conducting scientific research, the core challenge is not a lack of information, but the inability to rapidly synthesize verified findings without falling victim to AI hallucinations," stated **Arup Bhowmik Pritom, Founder and Lead Architect of ScholarHub AI**. "We built ScholarHub AI from Bangladesh to provide students and researchers worldwide with a transparent, verifiable tool where every summary is backed by real peer-reviewed papers, verified DOIs, and transparent journal impact rankings."
+"In scientific literature analysis, the core priority is verifying that findings and citations are anchored to real peer-reviewed sources," stated **Arup Bhowmik Pritom, Founder and System Architect of ScholarHub AI**. "ScholarHub AI was engineered from Bangladesh to provide students and researchers with a practical workspace where AI synthesis is directly grounded in retrieved paper abstracts, verified DOIs, and transparent journal quartile metrics."
 
 ### Availability
-ScholarHub AI is publicly accessible worldwide at [https://scholarhub-ai.com](https://scholarhub-ai.com). Users can begin searching literature immediately, create personal research workspaces, and access compute quotas tailored for individual and institutional research needs.
+ScholarHub AI is publicly accessible online at [https://scholarhub-ai.com](https://scholarhub-ai.com). Users can begin searching literature immediately, organize personal research libraries, and select compute quota tiers suited to their individual research needs.
 
 ### About ScholarHub AI
-ScholarHub AI ([https://scholarhub-ai.com](https://scholarhub-ai.com)) is an academic research and literature synthesis platform engineered to make scientific discovery faster and more dependable. Headquartered in Dhaka, Bangladesh, the platform serves researchers, scholars, and academic institutions worldwide.
+ScholarHub AI ([https://scholarhub-ai.com](https://scholarhub-ai.com)) is an academic literature discovery and synthesis platform developed to assist students, scholars, and research teams. By connecting open-access repositories with source-grounded AI analysis, ScholarHub AI supports evidence-based literature exploration across STEM and multidisciplinary fields.
 
-### Media Contact
+### Media & Inquiries Contact
 - **Contact:** Arup Bhowmik Pritom
-- **Title:** Founder & Lead System Architect
-- **Email:** press@scholarhub-ai.com / arupbhowmikpritom@gmail.com
+- **Role:** Founder & System Architect
+- **Official Email:** admin@scholarhub-ai.com / press@scholarhub-ai.com
+- **Direct Email:** arupbhowmikpritom@gmail.com
 - **Website:** [https://scholarhub-ai.com](https://scholarhub-ai.com)
 - **Location:** Dhaka, Bangladesh
 - **Phone / WhatsApp:** +880 1853-343176

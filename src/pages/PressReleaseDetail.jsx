@@ -230,13 +230,13 @@ const PressReleaseDetail = ({ user, profile, onLogout, liveUsersCount }) => {
             </ul>
 
             <h3 className="text-lg font-black text-slate-900 border-b border-slate-100 pb-1 mt-6">
-              The Grounded ScholarHub AI Solution
+              The Source-Grounded ScholarHub AI Approach
             </h3>
             <p>
-              ScholarHub AI eliminates these bottlenecks by coupling federated literature aggregation with a deterministic <strong>Grounded Retrieval-Augmented Generation (RAG)</strong> pipeline.
+              ScholarHub AI addresses these bottlenecks by coupling federated literature aggregation with a deterministic <strong>Source-Grounded Retrieval-Augmented Generation (RAG)</strong> pipeline.
             </p>
             <p>
-              Instead of querying single databases in isolation, ScholarHub AI initiates concurrent asynchronous search queries across PubMed, arXiv, and OpenAlex. The retrieved records are automatically deduplicated by title Levenshtein distance and DOI matching, enriched with citation statistics, and classified with <strong>SCImago Journal Rank (SJR) quartile ratings (Q1–Q4)</strong> directly from a pre-indexed dataset.
+              Instead of querying single databases in isolation, ScholarHub AI initiates concurrent asynchronous search queries across PubMed, arXiv, and OpenAlex. The retrieved records are automatically deduplicated by title similarity and DOI matching, enriched with citation statistics, and classified with <strong>SCImago Journal Rank (SJR) quartile ratings (Q1–Q4)</strong> directly from a local pre-indexed dataset.
             </p>
 
             <h3 className="text-lg font-black text-slate-900 border-b border-slate-100 pb-1 mt-6">
@@ -248,8 +248,8 @@ const PressReleaseDetail = ({ user, profile, onLogout, liveUsersCount }) => {
                 <span className="text-xs text-slate-500">Queries PubMed, arXiv, and OpenAlex concurrently with sub-second cache lookups via Upstash Redis.</span>
               </div>
               <div className="bg-slate-50 border border-slate-200/80 p-3.5 rounded-2xl">
-                <span className="text-xs font-black text-slate-900 block">🛡️ Anti-Hallucination Auditor</span>
-                <span className="text-xs text-slate-500">AI models operate strictly on retrieved peer-reviewed abstract payloads, guaranteeing verified citation grounding.</span>
+                <span className="text-xs font-black text-slate-900 block">🛡️ Source-Grounded Synthesis</span>
+                <span className="text-xs text-slate-500">AI models operate on retrieved peer-reviewed abstract payloads, designed to reduce unsupported claims and maintain citation traceability.</span>
               </div>
               <div className="bg-slate-50 border border-slate-200/80 p-3.5 rounded-2xl">
                 <span className="text-xs font-black text-slate-900 block">🌐 Interactive Visual Topologies</span>
@@ -265,10 +265,10 @@ const PressReleaseDetail = ({ user, profile, onLogout, liveUsersCount }) => {
             <div className="my-8 p-6 bg-gradient-to-r from-indigo-50/80 to-blue-50/50 border border-indigo-100 rounded-2xl space-y-3 not-prose">
               <div className="text-xs font-black uppercase tracking-wider text-indigo-600">Founder Perspective</div>
               <blockquote className="text-sm sm:text-base font-semibold text-slate-800 italic leading-relaxed">
-                "When conducting scientific research, the core challenge is not a lack of information, but the inability to rapidly synthesize verified findings without falling victim to AI hallucinations. We built ScholarHub AI from Bangladesh to provide students and researchers worldwide with a transparent, verifiable tool where every summary is backed by real peer-reviewed papers, verified DOIs, and transparent journal impact rankings."
+                "In scientific literature analysis, the core priority is verifying that findings and citations are anchored to real peer-reviewed sources. ScholarHub AI was engineered from Bangladesh to provide students and researchers with a practical workspace where AI synthesis is directly grounded in retrieved paper abstracts, verified DOIs, and transparent journal quartile metrics."
               </blockquote>
               <div className="text-xs font-bold text-slate-700">
-                — Arup Bhowmik Pritom, Founder & Lead System Architect
+                — Arup Bhowmik Pritom, Founder & System Architect
               </div>
             </div>
 
@@ -276,7 +276,7 @@ const PressReleaseDetail = ({ user, profile, onLogout, liveUsersCount }) => {
               Availability & Platform Access
             </h3>
             <p>
-              ScholarHub AI is publicly accessible worldwide at <a href="https://scholarhub-ai.com" target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-bold hover:underline">https://scholarhub-ai.com</a>. Users can begin searching literature immediately, create personal research workspaces, and access compute quotas tailored for individual and institutional research needs.
+              ScholarHub AI is publicly accessible online at <a href="https://scholarhub-ai.com" target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-bold hover:underline">https://scholarhub-ai.com</a>. Users can begin searching literature immediately, create personal research workspaces, and access compute quotas tailored for individual and institutional research needs.
             </p>
 
           </div>
@@ -288,7 +288,7 @@ const PressReleaseDetail = ({ user, profile, onLogout, liveUsersCount }) => {
             <span className="text-xs font-black uppercase tracking-wider text-indigo-400">Official Boilerplate</span>
             <h3 className="text-xl font-black text-white mt-1">About ScholarHub AI</h3>
             <p className="text-xs sm:text-sm text-slate-300 font-medium leading-relaxed mt-2">
-              ScholarHub AI (<a href="https://scholarhub-ai.com" target="_blank" rel="noopener noreferrer" className="text-indigo-300 hover:underline">https://scholarhub-ai.com</a>) is an academic research and literature synthesis platform engineered to make scientific discovery faster and more dependable. By unifying peer-reviewed repositories—including NCBI PubMed, arXiv, OpenAlex, Semantic Scholar, and SCImago Journal Rank—with a grounded, hallucination-resistant AI architecture, the platform enables students and faculty to perform rapid literature reviews and export verified citations in seconds. Headquartered in Dhaka, Bangladesh, ScholarHub AI serves researchers, scholars, and academic institutions worldwide.
+              ScholarHub AI (<a href="https://scholarhub-ai.com" target="_blank" rel="noopener noreferrer" className="text-indigo-300 hover:underline">https://scholarhub-ai.com</a>) is an academic research and literature synthesis platform engineered to make scientific discovery faster and more dependable. By connecting peer-reviewed repositories—including NCBI PubMed, arXiv, OpenAlex, Semantic Scholar, and SCImago Journal Rank—with a source-grounded AI architecture, the platform enables students and faculty to perform rapid literature reviews and export verified citations in seconds. Headquartered in Dhaka, Bangladesh, ScholarHub AI serves researchers, scholars, and academic institutions worldwide.
             </p>
           </div>
 
@@ -296,10 +296,15 @@ const PressReleaseDetail = ({ user, profile, onLogout, liveUsersCount }) => {
             <div>
               <span className="font-bold text-indigo-400 uppercase tracking-wider block mb-1">Media Contact</span>
               <span className="font-bold text-white block">Arup Bhowmik Pritom</span>
-              <span className="text-slate-400 block">Founder & Lead System Architect</span>
-              <a href={`mailto:${MEDIA_CONTACTS.pressEmail}`} className="text-indigo-300 hover:underline block mt-1">
-                {MEDIA_CONTACTS.pressEmail}
-              </a>
+              <span className="text-slate-400 block">Founder & System Architect</span>
+              <div className="space-y-0.5 mt-1">
+                <a href={`mailto:${MEDIA_CONTACTS.primaryEmail}`} className="text-indigo-300 hover:underline block">
+                  {MEDIA_CONTACTS.primaryEmail}
+                </a>
+                <a href={`mailto:${MEDIA_CONTACTS.directEmail}`} className="text-slate-300 hover:underline block">
+                  {MEDIA_CONTACTS.directEmail}
+                </a>
+              </div>
             </div>
 
             <div className="space-y-1 text-slate-400">
