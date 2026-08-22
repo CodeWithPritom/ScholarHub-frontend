@@ -1,11 +1,12 @@
 /**
- * Unified Quota Cycle & Refresh Calculation Utility
+ * Unified User-Specific Quota Cycle & Rolling Refresh Calculation Utility
  * 
- * All tiers (Free: 500 Zaps/wk, Starter: 1500 Zaps/wk, Pro: 3000 Zaps/wk) 
- * follow a consistent WEEKLY (7-day) Jump-Forward Reset for Compute (Zaps) and Reference Exports.
+ * Every user has an individual rolling 7-day quota cycle anchored to:
+ * 1. Their individual account registration timestamp (created_at), OR
+ * 2. Their individual plan purchase / upgrade timestamp (last_reset_date).
  * 
- * Note: Subscription duration (e.g. 30 days) represents the billing plan validity,
- * while Zaps and Exports automatically reset on a 7-day rolling cycle.
+ * Like ChatGPT / Claude, each researcher's weekly quota resets dynamically
+ * on their personal 7-day rolling schedule.
  */
 
 export function getQuotaResetInfo(lastResetDateStr) {
@@ -16,29 +17,38 @@ export function getQuotaResetInfo(lastResetDateStr) {
     lastReset = new Date();
   }
 
-  const CYCLE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
+  const CYCLE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
-  // Advance in 7-day increments until nextRefresh is strictly in the future (> now)
+  // Jump forward in 7-day increments until nextRefresh is strictly in the future (> now)
   let nextRefresh = new Date(lastReset.getTime() + CYCLE_MS);
   while (nextRefresh <= now) {
     nextRefresh = new Date(nextRefresh.getTime() + CYCLE_MS);
   }
 
-  // Calculate exact day difference
   const diffMs = nextRefresh.getTime() - now.getTime();
+  const totalHoursLeft = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60)));
   const daysLeft = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 
   let label = `Refreshes in ${daysLeft} days`;
-  if (daysLeft === 0) {
-    label = 'Refreshing today!';
-  } else if (daysLeft === 1) {
+  let badgeText = `Refreshes in ${daysLeft}d`;
+
+  if (totalHoursLeft <= 12) {
+    label = `Refreshes in ${totalHoursLeft}h`;
+    badgeText = `In ${totalHoursLeft}h`;
+  } else if (totalHoursLeft <= 24 || daysLeft === 1) {
     label = 'Refreshes tomorrow';
+    badgeText = 'Tomorrow';
+  } else {
+    label = `Refreshes in ${daysLeft} days`;
+    badgeText = `${daysLeft} days left`;
   }
 
   return {
     nextRefreshDate: nextRefresh,
     nextRefreshIso: nextRefresh.toISOString(),
     daysLeft,
-    label
+    totalHoursLeft,
+    label,
+    badgeText
   };
 }

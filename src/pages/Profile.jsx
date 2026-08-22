@@ -272,18 +272,10 @@ const Profile = ({ user }) => {
     return isNaN(d.getTime()) ? null : d
   }
 
-  const quotaCalculated = getQuotaResetInfo(profileData.last_reset_date)
-  const nextResetDate = profileData.next_refresh_date_iso 
-    ? parseUtcDate(profileData.next_refresh_date_iso) 
-    : quotaCalculated.nextRefreshDate
-  
-  const daysUntilRefresh = profileData.days_until_refresh !== undefined ? profileData.days_until_refresh : quotaCalculated.daysLeft
-  const refreshPending = daysUntilRefresh === 0
-  const refreshLabel = refreshPending
-    ? 'Refreshing Today!'
-    : daysUntilRefresh === 1
-      ? 'Refreshes tomorrow'
-      : `Refreshes in ${daysUntilRefresh} days`
+  const quotaCalculated = getQuotaResetInfo(profileData.last_reset_date || user?.created_at)
+  const nextResetDate = quotaCalculated.nextRefreshDate
+  const daysUntilRefresh = quotaCalculated.daysLeft
+  const refreshLabel = quotaCalculated.label
 
   const memberSince = user?.created_at 
     ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })

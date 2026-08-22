@@ -76,15 +76,9 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
       setUserTier(resolvedTier);
 
       // Calculate Next Quota Refresh Date (Unified 7-day rolling cycle)
-      const quotaInfo = getQuotaResetInfo(data?.last_reset_date);
+      const quotaInfo = getQuotaResetInfo(data?.last_reset_date || user?.created_at);
       setResetDaysLeft(quotaInfo.daysLeft);
-      if (quotaInfo.daysLeft === 0) {
-        setNextResetText('Refreshes today');
-      } else if (quotaInfo.daysLeft === 1) {
-        setNextResetText('Refreshes tomorrow');
-      } else {
-        setNextResetText(`Refreshes in ${quotaInfo.daysLeft} days`);
-      }
+      setNextResetText(quotaInfo.label);
 
       const { count, error: countError } = await supabase
         .from('bookmarks')
