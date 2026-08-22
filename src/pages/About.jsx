@@ -1,7 +1,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { Dna, ArrowLeft, Terminal, Server, Database, Globe, Layers, ShieldCheck, Zap, Monitor, Smartphone } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import creatorImg from '../assets/images/creator.jpg'
 import architectureImg from '../assets/images/architecture.png'
 import Footer from '../Footer'
