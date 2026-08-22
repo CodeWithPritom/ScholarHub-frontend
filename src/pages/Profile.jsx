@@ -130,11 +130,12 @@ const Profile = ({ user }) => {
       // 3. Fetch real Saved Bookmarks Count
       let savedPapersCount = 0
       try {
-        const { count } = await supabase
+        const { count, error } = await supabase
           .from('bookmarks')
-          .select('*', { count: 'exact', head: true })
+          .select('id', { count: 'exact' })
           .eq('user_id', user.id)
-        if (count !== null) savedPapersCount = count
+          .limit(1)
+        if (!error && count !== null) savedPapersCount = count
       } catch (e) {
         console.error("Error loading bookmarks count:", e)
       }
@@ -142,11 +143,12 @@ const Profile = ({ user }) => {
       // 4. Fetch real Audit History Sessions Count
       let auditSessionsCount = 0
       try {
-        const { count: auditCount } = await supabase
+        const { count: auditCount, error: auditError } = await supabase
           .from('audit_history')
-          .select('*', { count: 'exact', head: true })
+          .select('id', { count: 'exact' })
           .eq('user_id', user.id)
-        if (auditCount !== null) auditSessionsCount = auditCount
+          .limit(1)
+        if (!auditError && auditCount !== null) auditSessionsCount = auditCount
       } catch (e) {
         console.error("Error loading audit history count:", e)
       }

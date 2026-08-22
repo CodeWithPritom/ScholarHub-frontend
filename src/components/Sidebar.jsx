@@ -82,16 +82,18 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
 
       const { count, error: countError } = await supabase
         .from('bookmarks')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-      if (count !== null) setSavedPapersCount(count);
+        .select('id', { count: 'exact' })
+        .eq('user_id', user.id)
+        .limit(1);
+      if (!countError && count !== null) setSavedPapersCount(count);
 
       // Audit session count for quota meter
       const { count: auditCount, error: auditCountError } = await supabase
         .from('audit_history')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-      if (auditCount !== null) setAuditSessionCount(auditCount);
+        .select('id', { count: 'exact' })
+        .eq('user_id', user.id)
+        .limit(1);
+      if (!auditCountError && auditCount !== null) setAuditSessionCount(auditCount);
     } catch (err) {
       console.error('Error fetching compute credits:', err);
     }

@@ -542,8 +542,9 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
     try {
       const { count, error: countErr } = await supabase
         .from('bookmarks')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+        .select('id', { count: 'exact' })
+        .eq('user_id', user.id)
+        .limit(1);
       if (countErr) throw countErr;
       if ((count || 0) + selectedPapers.length > 200) {
         toast.warning("Library limit reached (200 papers). Remove papers to save more.");
@@ -683,9 +684,9 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       const todayStr = new Date().toISOString().split('T')[0];
 
       const [bookmarkRes, usageRes] = await Promise.all([
-        supabase.from('bookmarks').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-        supabase.from('usage_logs').select('id', { count: 'exact', head: true })
-          .eq('user_id', user.id).eq('action', 'ai_summary').eq('usage_date', todayStr)
+        supabase.from('bookmarks').select('id', { count: 'exact' }).eq('user_id', user.id).limit(1),
+        supabase.from('usage_logs').select('id', { count: 'exact' })
+          .eq('user_id', user.id).eq('action', 'ai_summary').eq('usage_date', todayStr).limit(1)
       ]);
 
       if (!bookmarkRes.error && bookmarkRes.count !== null) {

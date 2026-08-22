@@ -79,7 +79,8 @@ const Dashboard = ({ liveUsersCount, user, profile }) => {
   try {
     const { count, error } = await supabase
       .from('profiles')
-      .select('*', { count: 'exact', head: true }); // 'id' এর বদলে '*' দিতে পারেন
+      .select('id', { count: 'exact' })
+      .limit(1);
 
     if (error) throw error;
     

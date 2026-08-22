@@ -2841,8 +2841,9 @@ const Auditor = ({ user, profile: propProfile, onLogout }) => {
           // Pre-check: enforce 100-session workspace quota
           const { count: sessionCount } = await supabase
             .from('audit_history')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', user.id);
+            .select('id', { count: 'exact' })
+            .eq('user_id', user.id)
+            .limit(1);
           if (sessionCount !== null && sessionCount >= 100) {
             setShowWorkspaceLimitModal(true);
             // Still allow the analysis to complete — just skip persisting the new session
