@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { supabase } from '../supabaseClient';
 import { BASE_URL, notifyCreditsUpdated } from '../utils/api';
 import { getOrCreateDeviceId } from '../utils/deviceSync';
+import { getQuotaResetInfo } from '../utils/quotaUtils';
 import WorkspaceLayout from '../components/WorkspaceLayout';
 import SEOHead from '../components/SEOHead';
 import mermaid from 'mermaid';
@@ -1138,20 +1139,9 @@ const Auditor = ({ user, profile: propProfile, onLogout }) => {
       const limit = tier === 'pro' ? 100 : tier === 'starter' ? 50 : 10;
       
       if (currentCount >= limit) {
-        // Calculate refresh days remaining
-        let diffDays = 7;
-        if (data.last_reset_date) {
-          const lastReset = new Date(data.last_reset_date);
-          const cycleDays = tier === 'free' ? 7 : 30;
-          let tempReset = new Date(lastReset.getTime() + cycleDays * 24 * 60 * 60 * 1000);
-          const now = new Date();
-          while (tempReset <= now) {
-            tempReset = new Date(tempReset.getTime() + cycleDays * 24 * 60 * 60 * 1000);
-          }
-          const diffMs = tempReset.getTime() - Date.now();
-          diffDays = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-        }
-        const waitText = diffDays === 0 ? "today" : diffDays === 1 ? "tomorrow" : `in ${diffDays} days`;
+        // Calculate refresh days remaining (Unified 7-day rolling cycle)
+        const quotaInfo = getQuotaResetInfo(data.last_reset_date);
+        const waitText = quotaInfo.daysLeft === 0 ? "today" : quotaInfo.daysLeft === 1 ? "tomorrow" : `in ${quotaInfo.daysLeft} days`;
         toast.error(`Export limit reached (${currentCount}/${limit}). Your quota will automatically refresh ${waitText}, or upgrade your plan for instant access.`);
         return false;
       }

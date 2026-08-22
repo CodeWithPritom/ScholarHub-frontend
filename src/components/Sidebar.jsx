@@ -9,6 +9,7 @@ import { supabase } from '../supabaseClient';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import logo from '../assets/images/logo.png';
+import { getQuotaResetInfo } from '../utils/quotaUtils';
 
 const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, user, profile }) => {
   const location = useLocation();
@@ -74,44 +75,15 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
       }
       setUserTier(resolvedTier);
 
-      // Calculate Next Quota Refresh Date
-      let resetDateObj = null;
-      if (data?.last_reset_date) {
-        const lastReset = new Date(data.last_reset_date);
-        const cycleDays = resolvedTier === 'free' ? 7 : 30;
-        let tempReset = new Date(lastReset.getTime() + cycleDays * 24 * 60 * 60 * 1000);
-        if (data?.plan_expiry_date) {
-          const planExp = new Date(data.plan_expiry_date);
-          if (!isNaN(planExp.getTime()) && planExp > new Date()) {
-            tempReset = planExp;
-          }
-        }
-        const now = new Date();
-        while (tempReset <= now) {
-          tempReset = new Date(tempReset.getTime() + cycleDays * 24 * 60 * 60 * 1000);
-        }
-        resetDateObj = tempReset;
-      } else if (data?.plan_expiry_date) {
-        const planExp = new Date(data.plan_expiry_date);
-        if (!isNaN(planExp.getTime())) {
-          resetDateObj = planExp;
-        }
-      }
-
-      if (!resetDateObj) {
-        resetDateObj = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      }
-
-      const diffMs = resetDateObj.getTime() - Date.now();
-      const diffDays = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-      setResetDaysLeft(diffDays);
-
-      if (diffDays === 0) {
+      // Calculate Next Quota Refresh Date (Unified 7-day rolling cycle)
+      const quotaInfo = getQuotaResetInfo(data?.last_reset_date);
+      setResetDaysLeft(quotaInfo.daysLeft);
+      if (quotaInfo.daysLeft === 0) {
         setNextResetText('Refreshes today');
-      } else if (diffDays === 1) {
+      } else if (quotaInfo.daysLeft === 1) {
         setNextResetText('Refreshes tomorrow');
       } else {
-        setNextResetText(`Refreshes in ${diffDays} days`);
+        setNextResetText(`Refreshes in ${quotaInfo.daysLeft} days`);
       }
 
       const { count, error: countError } = await supabase

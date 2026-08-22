@@ -10,6 +10,7 @@ import {
 import { supabase } from '../supabaseClient'
 import { toast } from 'sonner'
 import { BASE_URL } from '../utils/api'
+import { getQuotaResetInfo } from '../utils/quotaUtils'
 import { motion, AnimatePresence } from 'framer-motion'
 import WorkspaceLayout from '../components/WorkspaceLayout'
 import ResearchDNA from '../components/ResearchDNA'
@@ -271,12 +272,12 @@ const Profile = ({ user }) => {
     return isNaN(d.getTime()) ? null : d
   }
 
-  const lastResetDate = parseUtcDate(profileData.last_reset_date)
+  const quotaCalculated = getQuotaResetInfo(profileData.last_reset_date)
   const nextResetDate = profileData.next_refresh_date_iso 
     ? parseUtcDate(profileData.next_refresh_date_iso) 
-    : (lastResetDate ? new Date(lastResetDate.getTime() + 7 * 24 * 60 * 60 * 1000) : null)
+    : quotaCalculated.nextRefreshDate
   
-  const daysUntilRefresh = profileData.days_until_refresh !== undefined ? profileData.days_until_refresh : 7
+  const daysUntilRefresh = profileData.days_until_refresh !== undefined ? profileData.days_until_refresh : quotaCalculated.daysLeft
   const refreshPending = daysUntilRefresh === 0
   const refreshLabel = refreshPending
     ? 'Refreshing Today!'
