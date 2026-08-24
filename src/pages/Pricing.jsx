@@ -98,8 +98,8 @@ const Pricing = ({ user, profile }) => {
         { name: 'Unified Search (PubMed, arXiv, OpenAlex — 250M+)', included: true },
         { name: 'Standard UVE 2D Charts & Visualizations', included: true },
         { name: 'AI Ethics & Disclosure Statement Generator', included: true },
-        { name: 'Standard Search Speed (10s Queue Cooldown)', included: true },
-        { name: 'Fast Literature Synthesis (5s Cooldown Bypass)', included: false },
+        { name: 'Standard Search Speed (5-min Post-Fetch Cooldown)', included: true },
+        { name: 'Fast Literature Synthesis (1-min Cooldown)', included: false },
         { name: 'Statistical Test Advisor & Python/R Code', included: false },
         { name: 'Deep Reasoning 🧠 Chain-of-Thought', included: false },
         { name: 'The Peer Reviewer & Risk of Bias Matrix', included: false },
@@ -123,7 +123,7 @@ const Pricing = ({ user, profile }) => {
         { name: '1,500 Compute Zaps / month', included: true },
         { name: '50 Reference Exports / mo (BibTeX, Zotero, Mendeley)', included: true },
         { name: '9 PDF Document Uploads / day (Max 25MB)', included: true },
-        { name: 'High-Speed Search (5s Cooldown Bypass)', included: true },
+        { name: 'Fast Search (1-min Post-Fetch Cooldown)', included: true },
         { name: 'Full UVE 2D/3D Mindmap & Visual Engine', included: true },
         { name: 'Statistical Test Advisor & Python/R Code', included: true },
         { name: 'Research DNA Vector Tracking & Faculty Matching', included: true },
@@ -184,7 +184,7 @@ const Pricing = ({ user, profile }) => {
       {/* Main Container */}
       <main className="w-full 2xl:px-12 mx-auto px-4 sm:px-6 pt-10 sm:pt-16 pb-36">
         
-        {/* Guest Banner */}
+        {/* Visitor Banner */}
         {!user && (
           <motion.div 
             initial={{ opacity: 0 }}
@@ -475,7 +475,7 @@ const Pricing = ({ user, profile }) => {
                     {/* Search & Literature */}
                     <tr className="bg-slate-50/40"><td colSpan={4} className="py-2.5 px-6 font-black text-[10px] text-slate-500 uppercase tracking-widest">1. Literature Retrieval & Data Sources</td></tr>
                     <tr><td className="py-3 px-6 font-semibold">PubMed / NCBI, arXiv & OpenAlex (250M+ Papers)</td><td className="text-center font-bold text-emerald-600">Full Access</td><td className="text-center font-bold text-emerald-600">Full Access</td><td className="text-center font-bold text-emerald-600">Full Access</td></tr>
-                    <tr><td className="py-3 px-6 font-semibold">Search Speed Queue & Rate Limits</td><td className="text-center">10s Cooldown</td><td className="text-center text-blue-600 font-bold">5s Fast Bypass</td><td className="text-center text-amber-600 font-bold">0s Instant Dedicated</td></tr>
+                    <tr><td className="py-3 px-6 font-semibold">Search Speed Queue & Rate Limits</td><td className="text-center">5-min Post-Fetch Cooldown</td><td className="text-center text-blue-600 font-bold">1-min Fast Cooldown</td><td className="text-center text-amber-600 font-bold">0s Instant Dedicated</td></tr>
                     <tr><td className="py-3 px-6 font-semibold">SJR Journal Quality & Quartiles (Q1-Q4)</td><td className="text-center font-bold text-emerald-600"><Check size={14} className="inline" /></td><td className="text-center font-bold text-emerald-600"><Check size={14} className="inline" /></td><td className="text-center font-bold text-emerald-600"><Check size={14} className="inline" /></td></tr>
 
                     {/* AI Compute */}

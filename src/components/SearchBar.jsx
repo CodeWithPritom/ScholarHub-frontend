@@ -7,7 +7,7 @@ const SearchBar = ({
   portal, setPortal, userTier, setArticles, setHasSearched,
   suggestionsRef, searchPubMed, setShowSuggestions, searchTerm, handleSearchInput,
   suggestions, loading, resultLimit, setResultLimit, isSearchBlocked, cooldownTime,
-  guestCooldown, handleSuggestionClick, showSuggestions, startDate, setStartDate,
+  fetchCooldown, handleSuggestionClick, showSuggestions, startDate, setStartDate,
   endDate, setEndDate, sortBy, setSortBy, clearFilters, setStarterUnlockModalOpen,
   isRefining, handleAiRefine
 }) => {
@@ -103,8 +103,8 @@ const SearchBar = ({
                 <Loader2 size={18} className="animate-spin" />
               ) : cooldownTime > 0 ? (
                 `${cooldownTime}s`
-              ) : guestCooldown > 0 ? (
-                `Wait ${guestCooldown}s`
+              ) : fetchCooldown > 0 ? (
+                fetchCooldown >= 60 ? `${Math.floor(fetchCooldown / 60)}:${String(fetchCooldown % 60).padStart(2, '0')}` : `${fetchCooldown}s`
               ) : (
                 'FETCH'
               )}
@@ -120,17 +120,17 @@ const SearchBar = ({
                 exit={{ opacity: 0, height: 0 }}
                 className="absolute -bottom-10 left-0 right-0 text-xs font-black text-red-500 flex items-center gap-1.5 bg-red-50 px-4 py-2 rounded-xl border border-red-100"
               >
-                <AlertCircle size={14} /> System Cooling Down. Please wait {cooldownTime > 59 ? '1 minute' : `${cooldownTime}s`}.
+                <AlertCircle size={14} /> System Cooling Down. Please wait {cooldownTime > 59 ? `${Math.floor(cooldownTime / 60)}m ${cooldownTime % 60}s` : `${cooldownTime}s`}.
               </motion.div>
             )}
-            {guestCooldown > 0 && cooldownTime === 0 && (
+            {fetchCooldown > 0 && cooldownTime === 0 && (
               <motion.div 
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
                 className="absolute -bottom-10 left-0 text-xs font-black text-amber-600 flex items-center gap-1.5 bg-amber-50 px-4 py-2 rounded-xl border border-amber-100"
               >
-                <AlertCircle size={14} /> Free Tier cooldown — next search in {guestCooldown}s. <span className="text-slate-900 underline cursor-pointer font-black" onClick={() => navigate('/pricing')}>Upgrade to PRO for instant search</span>
+                <AlertCircle size={14} /> Post-fetch cooldown — next search in {fetchCooldown >= 60 ? `${Math.floor(fetchCooldown / 60)}m ${fetchCooldown % 60}s` : `${fetchCooldown}s`}. <span className="text-slate-900 underline cursor-pointer font-black" onClick={() => navigate('/pricing')}>Upgrade for shorter cooldown</span>
               </motion.div>
             )}
           </AnimatePresence>

@@ -645,7 +645,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
   };
 
   const [cooldownTime, setCooldownTime] = useState(() => calculateRemaining('cooldownExpiry'));
-  const [guestCooldown, setGuestCooldown] = useState(() => calculateRemaining('guestCooldownExpiry'));
+  const [fetchCooldown, setFetchCooldown] = useState(() => calculateRemaining('fetchCooldownExpiry'));
 
   const [userTier, setUserTier] = useState('free');
   const [academicField, setAcademicField] = useState('');
@@ -1400,7 +1400,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
     }
   };
 
-  const isSearchBlocked = cooldownTime > 0 || guestCooldown > 0;
+  const isSearchBlocked = cooldownTime > 0 || fetchCooldown > 0;
 
   const cancelSearch = () => {
     if (searchAbortControllerRef.current) {
@@ -1422,23 +1422,9 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
     const currentSearchTerm = overrideTerm !== null ? overrideTerm : searchTerm;
     if (!currentSearchTerm.trim()) return;
 
-    // Removed artificial results limits; system-optimized limit is set to 50 results.
-
+    // Block if cooldown is active
     if (cooldownTime > 0) return;
-    if (guestCooldown > 0) return;
-
-    if (searchCount >= 10) {
-      if (userTier !== 'pro') {
-        setCooldownTime(60);
-        sessionStorage.setItem('cooldownExpiry', JSON.stringify(Date.now() + 60000));
-        setSearchCount(0);
-        sessionStorage.setItem('searchCount', '0');
-        return;
-      } else {
-        setSearchCount(0);
-        sessionStorage.setItem('searchCount', '0');
-      }
-    }
+    if (fetchCooldown > 0) return;
 
     const queryKey = `cache_${currentSearchTerm}_${resultLimit}_${startDate}_${endDate}_${sortBy}`;
     const cachedData = sessionStorage.getItem(queryKey);
@@ -1461,46 +1447,11 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
     setIsSyncing(true);
 
     try {
-      const newCount = searchCount + 1;
-      setSearchCount(newCount);
-      sessionStorage.setItem('searchCount', newCount.toString());
-
-      if (userTier === 'free' || !user) {
-        setGuestCooldown(5);
-        sessionStorage.setItem('guestCooldownExpiry', JSON.stringify(Date.now() + 5000));
-      } else if (userTier === 'starter') {
-        setGuestCooldown(1);
-        sessionStorage.setItem('guestCooldownExpiry', JSON.stringify(Date.now() + 1000));
-      } else {
-        setGuestCooldown(0);
-        sessionStorage.removeItem('guestCooldownExpiry');
-      }
-
       if (searchAbortControllerRef.current) {
         searchAbortControllerRef.current.abort();
       }
       const controller = new AbortController();
       searchAbortControllerRef.current = controller;
-
-      // Pricing plan delay throttling (10s for free tier, 5s for starter tier, 0s for pro)
-      const delayMs = userTier === 'free' ? 10000 : userTier === 'starter' ? 5000 : 0;
-      if (delayMs > 0) {
-        await new Promise((resolve, reject) => {
-          const signal = controller.signal;
-          if (signal.aborted) {
-            return reject(new DOMException('Aborted', 'AbortError'));
-          }
-          const timeoutId = setTimeout(() => {
-            signal.removeEventListener('abort', onAbort);
-            resolve();
-          }, delayMs);
-          function onAbort() {
-            clearTimeout(timeoutId);
-            reject(new DOMException('Aborted', 'AbortError'));
-          }
-          signal.addEventListener('abort', onAbort);
-        });
-      }
 
       setIsSyncing(false);
 
@@ -1614,15 +1565,19 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
         }, 300);
       }
 
+      // Post-fetch cooldown: only applied AFTER successful data retrieval
+      // Free tier: 5 minutes, Starter: 1 minute, Pro: instant (no cooldown)
       if (userTier === 'free' || !user) {
-        setGuestCooldown(5);
-        sessionStorage.setItem('guestCooldownExpiry', JSON.stringify(Date.now() + 5000));
+        const freeMs = 5 * 60 * 1000; // 5 minutes
+        setFetchCooldown(300);
+        sessionStorage.setItem('fetchCooldownExpiry', JSON.stringify(Date.now() + freeMs));
       } else if (userTier === 'starter') {
-        setGuestCooldown(1);
-        sessionStorage.setItem('guestCooldownExpiry', JSON.stringify(Date.now() + 1000));
+        const starterMs = 1 * 60 * 1000; // 1 minute
+        setFetchCooldown(60);
+        sessionStorage.setItem('fetchCooldownExpiry', JSON.stringify(Date.now() + starterMs));
       } else {
-        setGuestCooldown(0);
-        sessionStorage.removeItem('guestCooldownExpiry');
+        setFetchCooldown(0);
+        sessionStorage.removeItem('fetchCooldownExpiry');
       }
       setLoading(false);
     } catch (err) {
@@ -1668,11 +1623,11 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
   }, [cooldownTime]);
 
   useEffect(() => {
-    if (guestCooldown > 0) {
-      const timer = setTimeout(() => setGuestCooldown(prev => prev - 1), 1000);
+    if (fetchCooldown > 0) {
+      const timer = setTimeout(() => setFetchCooldown(prev => prev - 1), 1000);
       return () => clearTimeout(timer);
     }
-  }, [guestCooldown]);
+  }, [fetchCooldown]);
 
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -1886,7 +1841,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
                 setResultLimit={setResultLimit}
                 isSearchBlocked={isSearchBlocked}
                 cooldownTime={cooldownTime}
-                guestCooldown={guestCooldown}
+                fetchCooldown={fetchCooldown}
                 handleSuggestionClick={handleSuggestionClick}
                 showSuggestions={showSuggestions}
                 startDate={startDate}
