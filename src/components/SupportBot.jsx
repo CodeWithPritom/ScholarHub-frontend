@@ -38,6 +38,7 @@ export default function SupportBot({ user }) {
   });
   const [timeRemaining, setTimeRemaining] = useState(0);
   const messagesEndRef = useRef(null);
+  const isDraggingRef = useRef(false);
 
   // Toggle listener with Research Mentor context support
   useEffect(() => {
@@ -219,9 +220,13 @@ export default function SupportBot({ user }) {
           academy: '/academy',
           news: '/news',
           opportunities: '/opportunities',
-          dna: '/dna',
+          dna: '/research-dna',
+          history: '/history',
           settings: '/settings',
-          about: '/about'
+          profile: '/profile',
+          press: '/press',
+          about: '/about',
+          refund: '/refund'
         };
         const targetRoute = routeMap[page] || `/${page}`;
         navigate(targetRoute);
@@ -361,7 +366,15 @@ export default function SupportBot({ user }) {
       {/* Floating Button and Tooltip */}
       <AnimatePresence>
         {!isOpen && (
-          <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9999] flex flex-col items-end gap-2 sm:gap-3">
+          <motion.div 
+            drag
+            dragMomentum={false}
+            dragElastic={0.1}
+            whileDrag={{ scale: 1.08 }}
+            onDragStart={() => { isDraggingRef.current = true; }}
+            onDragEnd={() => { setTimeout(() => { isDraggingRef.current = false; }, 120); }}
+            className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9999] flex flex-col items-end gap-2 sm:gap-3 touch-none select-none cursor-grab active:cursor-grabbing"
+          >
 
             {/* Tooltip */}
             <AnimatePresence>
@@ -370,7 +383,7 @@ export default function SupportBot({ user }) {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="hidden sm:flex bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-xl border border-indigo-100 items-center gap-2 relative"
+                  className="hidden sm:flex bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-xl border border-indigo-100 items-center gap-2 relative pointer-events-auto"
                 >
                   <p className="text-[13px] font-bold text-slate-700 tracking-wide whitespace-nowrap">Need research guidance?</p>
                   <button
@@ -393,18 +406,23 @@ export default function SupportBot({ user }) {
               whileHover={{ scale: 1.05 }}
               transition={{ type: "spring", stiffness: 400, damping: 10 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => { setIsOpen(true); setShowTooltip(false); }}
-              className="relative w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center rounded-full border-[3px] border-indigo-400/30 bg-white/50 backdrop-blur-md shadow-[0_0_20px_rgba(99,102,241,0.25)] hover:shadow-[0_0_30px_rgba(99,102,241,0.4)] hover:border-indigo-400/50 transition-all"
+              onClick={(e) => { 
+                if (isDraggingRef.current) return;
+                setIsOpen(true); 
+                setShowTooltip(false); 
+              }}
+              title="Click to chat • Drag anywhere to reposition"
+              className="relative w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center rounded-full border-[3px] border-indigo-400/30 bg-white/50 backdrop-blur-md shadow-[0_0_20px_rgba(99,102,241,0.25)] hover:shadow-[0_0_30px_rgba(99,102,241,0.4)] hover:border-indigo-400/50 transition-all cursor-pointer"
             >
               <motion.img
                 src={emoImage}
                 alt="EMO"
-                className="w-14 h-14 sm:w-[70px] sm:h-[70px] object-contain drop-shadow-xl"
+                className="w-14 h-14 sm:w-[70px] sm:h-[70px] object-contain drop-shadow-xl pointer-events-none"
                 animate={{ scale: [1, 1.05, 1], y: [-3, 0, -3] }}
                 transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
               />
             </motion.button>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -412,13 +430,16 @@ export default function SupportBot({ user }) {
       <AnimatePresence>
         {isOpen && (
           <motion.div
+            drag
+            dragMomentum={false}
+            dragElastic={0.05}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.9, transition: { duration: 0.2 } }}
-            className="fixed bottom-6 right-6 z-[9999] w-[350px] max-w-[calc(100vw-3rem)] h-[500px] max-h-[calc(100vh-6rem)] bg-white/80 backdrop-blur-2xl rounded-3xl shadow-[0_12px_40px_rgba(79,70,229,0.25)] border border-white/50 flex flex-col overflow-hidden"
+            className="fixed bottom-6 right-6 z-[9999] w-[350px] max-w-[calc(100vw-2rem)] h-[520px] max-h-[calc(100vh-4rem)] bg-white/85 backdrop-blur-2xl rounded-3xl shadow-[0_12px_40px_rgba(79,70,229,0.25)] border border-white/60 flex flex-col overflow-hidden select-none touch-none"
           >
-            {/* Glassmorphism Header */}
-            <div className="flex items-center justify-between p-4 bg-indigo-600/90 backdrop-blur-md text-white shrink-0 shadow-sm relative z-10 border-b border-indigo-500/50">
+            {/* Glassmorphism Header & Drag Handle */}
+            <div className="flex items-center justify-between p-4 bg-indigo-600/90 backdrop-blur-md text-white shrink-0 shadow-sm relative z-10 border-b border-indigo-500/50 cursor-grab active:cursor-grabbing">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center border-2 border-indigo-200/50 relative shadow-sm overflow-hidden">
                   <img src={emoImage} alt="EMO" className="w-7 h-7 object-contain drop-shadow-sm" />
@@ -455,7 +476,7 @@ export default function SupportBot({ user }) {
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 pointer-events-auto select-text">
               <AnimatePresence>
                 {messages.map((m, idx) => (
                   <motion.div
@@ -595,7 +616,7 @@ export default function SupportBot({ user }) {
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleSend} className="p-3 bg-white/60 backdrop-blur-xl border-t border-slate-200/50 rounded-b-3xl shrink-0">
+              <form onSubmit={handleSend} className="p-3 bg-white/60 backdrop-blur-xl border-t border-slate-200/50 rounded-b-3xl shrink-0 pointer-events-auto">
                 <div className="relative flex items-center">
                   <input
                     type="text"
