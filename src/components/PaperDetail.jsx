@@ -102,62 +102,8 @@ const PaperDetail = ({ user, profile }) => {
   const [upgradeModalMessage, setUpgradeModalMessage] = useState('')
   const [selectedImage, setSelectedImage] = useState(null)
 
-  const [outreachEmail, setOutreachEmail] = useState('')
-  const [generatingOutreach, setGeneratingOutreach] = useState(false)
-  const [outreachError, setOutreachError] = useState('')
-  const [outreachCopied, setOutreachCopied] = useState(false)
-
   // Immediate Unlock: Map the user's tier instantly from the App level profile
   const userTier = profile?.user_tier?.toLowerCase() || profile?.tier?.toLowerCase() || 'free'
-
-  const handleGenerateOutreach = async () => {
-    if (userTier === 'free') {
-      setUpgradeModalMessage('Generic emails get ignored by professors. Use our AI Outreach Architect to write personalized, high-conversion emails based on this paper’s specific methodology. Available for Starter and Pro members.')
-      setShowUpgradeModal(true)
-      return
-    }
-    
-    setGeneratingOutreach(true)
-    setOutreachError('')
-    
-    try {
-      const deviceId = localStorage.getItem('scholarhub_device_id');
-      const { data: sessionData } = await supabase.auth.getSession()
-      const token = sessionData?.session?.access_token
-      
-      if (!token) throw new Error("Authentication required. Please log in.")
-      if (!deviceId) throw new Error("Device ID missing. Please refresh the page or register your device.")
-      
-      const res = await fetch(`${BASE_URL}/ai/generate-outreach`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'X-Device-ID': deviceId || ''
-        },
-        body: JSON.stringify({
-          paper_title: article.title,
-          abstract: article.abstract || '',
-          author_name: article.full_authors?.[0] || article.authors?.split(',')[0] || 'Author'
-        })
-      })
-      
-      if (!res.ok) {
-        const errData = await res.json()
-        throw new Error(errData.detail || 'Failed to generate outreach')
-      }
-      
-      const data = await res.json()
-      setOutreachEmail(data.output)
-      
-      // Live reactive credit sync
-      notifyCreditsUpdated(data.credits_remaining)
-    } catch (err) {
-      setOutreachError(err.message)
-    } finally {
-      setGeneratingOutreach(false)
-    }
-  }
 
   const [citationCopied, setCitationCopied] = useState(false)
   const handleCopyCitation = async () => {
@@ -662,60 +608,7 @@ const PaperDetail = ({ user, profile }) => {
                 </div>
               </div>
 
-              {/* AI Outreach Architect */}
-              <div className="pt-4 border-t border-slate-200/60 pb-2">
-                <h5 className="text-[10px] font-black font-sds-content text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <Sparkles size={12} className="text-indigo-400" /> AI Outreach Architect
-                </h5>
-                
-                {!outreachEmail ? (
-                  <button
-                    onClick={handleGenerateOutreach}
-                    disabled={generatingOutreach}
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-4 py-3 flex items-center justify-center gap-2 text-xs font-bold transition-all shadow-md hover:scale-[1.01]"
-                  >
-                    {generatingOutreach ? (
-                      <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Drafting Email...</>
-                    ) : (
-                      <><Sparkles size={14} /> Draft AI Outreach Email (⚡ 10 Zaps)</>
-                    )}
-                  </button>
-                ) : (
-                  <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 mt-2">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Drafted Message</span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={handleGenerateOutreach}
-                          disabled={generatingOutreach}
-                          className="text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-100/50 hover:bg-indigo-200/50 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 border border-indigo-200/40"
-                          title="Re-generate email draft (⚡ 10 Zaps)"
-                        >
-                          <Sparkles size={12} className={generatingOutreach ? "animate-spin" : ""} />
-                          {generatingOutreach ? 'Drafting...' : 'Regenerate (⚡ 10 Zaps)'}
-                        </button>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(outreachEmail)
-                            setOutreachCopied(true)
-                            setTimeout(() => setOutreachCopied(false), 2000)
-                          }}
-                          className="text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-100/50 hover:bg-indigo-200/50 px-3 py-1 rounded-lg transition-colors flex items-center gap-1.5 border border-indigo-200/40"
-                        >
-                          {outreachCopied ? <Check size={14} /> : <Copy size={14} />} 
-                          {outreachCopied ? 'Copied!' : 'Copy'}
-                        </button>
-                      </div>
-                    </div>
-                    <div className="text-xs text-[#171717] whitespace-pre-wrap font-medium leading-[1.75] font-sds-content bg-[#FAFAF8] p-3.5 rounded-lg border border-indigo-100/80 max-h-[360px] overflow-y-auto scrollbar-thin scrollbar-thumb-indigo-200">
-                      {outreachEmail}
-                    </div>
-                  </div>
-                )}
-                {outreachError && (
-                  <p className="text-xs font-medium text-red-500 mt-2 text-center">{outreachError}</p>
-                )}
-              </div>
+
 
               {/* Mentorship & Contact */}
               <div className="pt-4 border-t border-slate-200/60">

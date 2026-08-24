@@ -232,64 +232,11 @@ const exportToPDF = (content) => {
 // Quick-View Sidebar component
 const SidePanel = ({ paper, onClose, onChatWithPaper, onFindRelated, userTier }) => {
   const navigate = useNavigate();
-  const [generatingOutreach, setGeneratingOutreach] = useState(false);
-  const [outreachEmail, setOutreachEmail] = useState('');
-  const [outreachError, setOutreachError] = useState('');
-  const [outreachCopied, setOutreachCopied] = useState(false);
 
   const title = paper?.title || 'No Title Available';
   const authors = paper?.authors || 'Authors not listed';
   const abstract = paper?.abstract || 'No abstract text available.';
   const pmid = paper?.pmid || '';
-
-  const handleGenerateOutreach = async (e) => {
-    e.stopPropagation();
-    if (userTier === 'free') {
-      toast.warning('AI Outreach is a premium feature. Please upgrade.');
-      return;
-    }
-    
-    setGeneratingOutreach(true);
-    setOutreachError('');
-    
-    try {
-      const deviceId = localStorage.getItem('scholarhub_device_id') || getOrCreateDeviceId();
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      
-      if (!token) throw new Error("Authentication required. Please log in.");
-      if (!deviceId) throw new Error("Device ID missing. Please refresh.");
-      
-      const res = await fetch(`${BASE_URL}/ai/generate-outreach`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'X-Device-ID': deviceId || ''
-        },
-        body: JSON.stringify({
-          paper_title: paper.title,
-          abstract: paper.abstract || '',
-          author_name: paper.full_authors?.[0] || paper.authors?.split(',')[0] || 'Author'
-        })
-      });
-      
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.detail || 'Failed to generate outreach');
-      }
-      
-      const data = await res.json();
-      setOutreachEmail(data.output);
-      notifyCreditsUpdated(data.credits_remaining);
-      toast.success('Outreach email drafted! (-10 Zaps deducted)');
-    } catch (err) {
-      setOutreachError(err.message);
-      toast.error(err.message);
-    } finally {
-      setGeneratingOutreach(false);
-    }
-  };
 
   const handleFindProfessor = () => {
     if (paper.author_orcid) {
@@ -302,13 +249,6 @@ const SidePanel = ({ paper, onClose, onChatWithPaper, onFindRelated, userTier })
         toast.error('No author information found.');
       }
     }
-  };
-
-  const copyOutreach = () => {
-    navigator.clipboard.writeText(outreachEmail);
-    setOutreachCopied(true);
-    toast.success('Copied to clipboard!');
-    setTimeout(() => setOutreachCopied(false), 2000);
   };
 
   return (
@@ -347,28 +287,6 @@ const SidePanel = ({ paper, onClose, onChatWithPaper, onFindRelated, userTier })
             {abstract}
           </div>
         </div>
-
-        {/* Dynamic Outreach Box in Sidebar */}
-        {outreachEmail && (
-          <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 mt-2">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Drafted Message</span>
-              <button
-                onClick={copyOutreach}
-                className="text-[10px] font-black text-indigo-600 hover:text-indigo-700 bg-indigo-100/50 hover:bg-indigo-200/50 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 border border-indigo-200/50"
-              >
-                {outreachCopied ? <Check size={12} /> : <Copy size={12} />} 
-                {outreachCopied ? 'COPIED!' : 'COPY'}
-              </button>
-            </div>
-            <div className="text-xs text-slate-700 whitespace-pre-wrap font-medium leading-relaxed bg-white p-3 rounded-lg border border-slate-200 max-h-[180px] overflow-y-auto">
-              {outreachEmail}
-            </div>
-          </div>
-        )}
-        {outreachError && (
-          <p className="text-xs font-semibold text-red-500 text-center">{outreachError}</p>
-        )}
       </div>
 
       {/* Bottom Action Hub */}
@@ -380,15 +298,6 @@ const SidePanel = ({ paper, onClose, onChatWithPaper, onFindRelated, userTier })
             className="col-span-2 w-full py-3.5 bg-slate-900 text-white hover:bg-slate-800 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2"
           >
             <FileText size={14} /> Full Analysis
-          </button>
-
-          {/* AI Outreach */}
-          <button
-            onClick={() => navigate(`/paper/${encodeURIComponent(pmid)}`, { state: { article: paper, activeFeature: 'outreach' } })}
-            className="w-full py-3 px-4 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-black border border-slate-200 hover:border-slate-300 transition-all flex items-center justify-center gap-2"
-          >
-            <Mail size={14} />
-            AI Outreach
           </button>
 
           {/* Find Related */}
@@ -410,7 +319,7 @@ const SidePanel = ({ paper, onClose, onChatWithPaper, onFindRelated, userTier })
           {/* Chat with Paper */}
           <button
             onClick={onChatWithPaper}
-            className="w-full py-3 px-4 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-black border border-slate-200 hover:border-slate-300 transition-all flex items-center justify-center gap-2"
+            className="col-span-2 w-full py-3 px-4 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-black border border-slate-200 hover:border-slate-300 transition-all flex items-center justify-center gap-2"
           >
             <MessageSquare size={14} /> Chat with Paper
           </button>
