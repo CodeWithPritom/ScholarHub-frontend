@@ -146,6 +146,30 @@ const AIMentorChat = ({ lessonTitle, lessonContent, user, profile, isOpen, onClo
                 </div>
               ))}
 
+              {/* Quick Suggestion Chips for Beginners */}
+              {messages.length <= 2 && !loading && (
+                <div className="pt-2 pb-1 space-y-1.5">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-1">Suggested Questions:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      'Difference between Project & Research?',
+                      'How to find a genuine Research Gap?',
+                      'Explain baseline & benchmark selection',
+                      'Family PhD Financial Sustainability rule'
+                    ].map((chip, cIdx) => (
+                      <button
+                        key={cIdx}
+                        type="button"
+                        onClick={() => setInput(chip)}
+                        className="text-[11px] bg-white border border-slate-200 text-slate-700 hover:bg-teal-50 hover:border-teal-300 hover:text-teal-800 px-2.5 py-1 rounded-full shadow-2xs transition-all cursor-pointer text-left"
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {loading && (
                 <div className="flex items-center gap-2 text-slate-400 text-xs pl-2">
                   <Loader2 size={14} className="animate-spin text-slate-600" />
