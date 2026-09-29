@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { supabase } from './supabaseClient'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Turnstile } from '@marsidev/react-turnstile'
@@ -49,6 +49,16 @@ const Auth = () => {
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
   const [resendTimer, setResendTimer] = useState(60)
   const turnstileRef = useRef(null)
+
+  const mainTurnstileOptions = useMemo(() => ({
+    theme: 'light',
+    action: 'auth'
+  }), [])
+
+  const forgotTurnstileOptions = useMemo(() => ({
+    theme: 'light',
+    action: 'forgot_password'
+  }), [])
 
   useEffect(() => {
     const isVerifying = localStorage.getItem('sh_verifying_otp');
@@ -101,13 +111,18 @@ const Auth = () => {
 
   const handleResendOtp = async () => {
     if (resendTimer > 0) return;
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      setError('Please provide a valid email address.');
+      return;
+    }
     setLoading(true);
     setError(null);
     setSuccess(null);
     try {
       const { error } = await supabase.auth.resend({
         type: 'signup',
-        email: email
+        email: cleanEmail
       });
       if (error) throw error;
       setSuccess('A new verification code has been sent to your email.');
@@ -220,12 +235,17 @@ const Auth = () => {
       setError('Please enter the 6-digit code.')
       return
     }
+    const cleanEmail = email.trim().toLowerCase()
+    if (!cleanEmail) {
+      setError('Email address is missing. Please restart the process.')
+      return
+    }
     setLoading(true)
     setError(null)
     setSuccess(null)
     try {
       const { data, error } = await supabase.auth.verifyOtp({
-        email: email,
+        email: cleanEmail,
         token: token,
         type: 'signup'
       })
@@ -239,7 +259,7 @@ const Auth = () => {
         try {
           await supabase.from('profiles').upsert({
             id: data.user.id,
-            email: data.user.email || email,
+            email: data.user.email || cleanEmail,
             full_name: data.user.user_metadata?.full_name || null,
             academic_field: data.user.user_metadata?.academic_field || null,
             academic_status: data.user.user_metadata?.academic_status || null,
@@ -288,6 +308,13 @@ const Auth = () => {
     setError(null)
     setSuccess(null)
 
+    const cleanEmail = email.trim().toLowerCase()
+    if (!cleanEmail) {
+      setError("Please enter a valid email address.")
+      setLoading(false)
+      return
+    }
+
     // 1. Mandatory Captcha Check
     if (!captchaToken) {
       setError("Please complete the security challenge verification.")
@@ -300,7 +327,7 @@ const Auth = () => {
       if (isLogin) {
 
         const { data: authData, error } = await supabase.auth.signInWithPassword({
-          email,
+          email: cleanEmail,
           password,
           options: { captchaToken }
         })
@@ -310,7 +337,7 @@ const Auth = () => {
         // Fetch profile to determine role-based redirect
         if (authData?.user) {
           // Immediate Founder Check
-          if (authData.user.email === 'arupbhowmikpritom@gmail.com') {
+          if (authData.user.email?.toLowerCase() === 'arupbhowmikpritom@gmail.com') {
             navigate('/admin')
             return
           }
@@ -383,14 +410,14 @@ const Auth = () => {
         }
       } else {
         // Enforce registration guard to block double signups
-        const checkRes = await fetch(`${BASE_URL}/api/auth/check-email?email=${encodeURIComponent(email)}`);
+        const checkRes = await fetch(`${BASE_URL}/api/auth/check-email?email=${encodeURIComponent(cleanEmail)}`);
         if (!checkRes.ok) {
           const checkData = await checkRes.json();
           throw new Error(checkData.detail || 'This email is already registered.');
         }
 
         const { error } = await supabase.auth.signUp({
-          email,
+          email: cleanEmail,
           password,
           options: {
             captchaToken: captchaToken
@@ -399,7 +426,7 @@ const Auth = () => {
         if (error) throw error
         setStep(3)
         localStorage.setItem('sh_verifying_otp', 'true');
-        localStorage.setItem('sh_verifying_email', email);
+        localStorage.setItem('sh_verifying_email', cleanEmail);
         localStorage.setItem('sh_verifying_time', Date.now().toString());
 
         setSuccess(
@@ -551,7 +578,7 @@ const Auth = () => {
 
           <form onSubmit={step === 3 ? handleVerifyOtp : handleAuth} className="relative">
             <AnimatePresence mode="wait">
-              <motion.div key={isLogin ? 'login' : step === 1 ? 'signup1' : 'signup2'} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="space-y-4">
+              <motion.div key={isForgotPassword ? 'forgot' : step === 3 ? 'otp' : 'auth-step-1'} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="space-y-4">
 
                 {/* STEP 1 FIELDS */}
                 {step === 1 && !isForgotPassword && (
@@ -579,13 +606,19 @@ const Auth = () => {
                     {/* Turnstile for both Login and Signup Step 1 */}
                     <div className="flex justify-center pt-2">
                       <Turnstile 
+                        id="cf-turnstile-main"
                         ref={turnstileRef} 
                         siteKey={CLOUDFLARE_SITE_KEY} 
                         onSuccess={(token) => setCaptchaToken(token)} 
-                        options={{ 
-                          theme: 'light',
-                          action: isLogin ? 'login' : 'signup'
-                        }} 
+                        onExpire={() => {
+                          setCaptchaToken('')
+                          turnstileRef.current?.reset()
+                        }}
+                        onError={(err) => {
+                          console.warn('[Turnstile] Security challenge notice:', err)
+                          setCaptchaToken('')
+                        }}
+                        options={mainTurnstileOptions} 
                       />
                     </div>
 
@@ -644,13 +677,19 @@ const Auth = () => {
 
                         <div className="flex justify-center py-2">
                           <Turnstile 
+                            id="cf-turnstile-forgot"
                             ref={turnstileRef} 
                             siteKey={CLOUDFLARE_SITE_KEY} 
                             onSuccess={(token) => setCaptchaToken(token)} 
-                            options={{ 
-                              theme: 'light',
-                              action: 'forgot_password'
-                            }} 
+                            onExpire={() => {
+                              setCaptchaToken('')
+                              turnstileRef.current?.reset()
+                            }}
+                            onError={(err) => {
+                              console.warn('[Turnstile] Security challenge notice:', err)
+                              setCaptchaToken('')
+                            }}
+                            options={forgotTurnstileOptions} 
                           />
                         </div>
 
