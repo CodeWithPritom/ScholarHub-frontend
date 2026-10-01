@@ -1324,7 +1324,7 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
   // Paginated user management state
   const [usersList, setUsersList] = useState([])
   const [userPage, setUserPage] = useState(1)
-  const [userLimit] = useState(15)
+  const [userLimit, setUserLimit] = useState(15)
   const [searchTerm, setSearchTerm] = useState('')
   const [tierFilter, setTierFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -1515,13 +1515,13 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
   }
 
   // Fetch Users with Server-Side Pagination
-  const fetchAllUsers = async (p = userPage, s = searchTerm, t = tierFilter, st = statusFilter) => {
+  const fetchAllUsers = async (p = userPage, s = searchTerm, t = tierFilter, st = statusFilter, lim = userLimit) => {
     setLoadingUsers(true)
     try {
       const query = new URLSearchParams({
         page: p,
-        limit: userLimit,
-        search: s || '',
+        limit: lim,
+        search: (s || '').trim(),
         tier: t || 'all',
         status: st || 'all'
       }).toString()
@@ -1534,10 +1534,41 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
         setUsersList(data)
       }
     } catch (err) {
-      console.error(err)
+      console.error('Failed to fetch users:', err)
     } finally {
       setLoadingUsers(false)
     }
+  }
+
+  const handleTierFilterChange = (val) => {
+    setTierFilter(val)
+    setUserPage(1)
+    fetchAllUsers(1, searchTerm, val, statusFilter, userLimit)
+  }
+
+  const handleStatusFilterChange = (val) => {
+    setStatusFilter(val)
+    setUserPage(1)
+    fetchAllUsers(1, searchTerm, tierFilter, val, userLimit)
+  }
+
+  const handleLimitChange = (val) => {
+    const lim = Number(val)
+    setUserLimit(lim)
+    setUserPage(1)
+    fetchAllUsers(1, searchTerm, tierFilter, statusFilter, lim)
+  }
+
+  const handleClearSearch = () => {
+    setSearchTerm('')
+    setUserPage(1)
+    fetchAllUsers(1, '', tierFilter, statusFilter, userLimit)
+  }
+
+  const handleSearchSubmit = (e) => {
+    if (e) e.preventDefault()
+    setUserPage(1)
+    fetchAllUsers(1, searchTerm, tierFilter, statusFilter, userLimit)
   }
 
   const fetchStats = async () => {
@@ -1593,7 +1624,7 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
   useEffect(() => {
     if (!authToken || !isAdmin) return
     if (activeTab === 'users') {
-      fetchAllUsers(userPage, searchTerm, tierFilter, statusFilter)
+      fetchAllUsers(userPage, searchTerm, tierFilter, statusFilter, userLimit)
     } else if (activeTab === 'intelligence') {
       fetchIntelStatus()
     } else if (activeTab === 'upstash') {
@@ -1607,13 +1638,7 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
     } else if (activeTab === 'feedback') {
       fetchFeedback()
     }
-  }, [authToken, isAdmin, activeTab, userPage, tierFilter, statusFilter])
-
-  const handleSearchSubmit = (e) => {
-    e.preventDefault()
-    setUserPage(1)
-    fetchAllUsers(1, searchTerm, tierFilter, statusFilter)
-  }
+  }, [authToken, isAdmin, activeTab, userPage, tierFilter, statusFilter, userLimit])
 
   const handlePostAnnouncement = async (e) => {
     e.preventDefault()
@@ -2622,13 +2647,18 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
           {/* TAB 3: USER DIRECTORY */}
           {activeTab === 'users' && (
             <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs space-y-6">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-5">
                 <div>
                   <h2 className="text-sm font-black uppercase tracking-wider text-slate-900">User Directory & Management</h2>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5">Total Users Registered: {totalUsersCount}</p>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Total Registered: <strong className="text-slate-800">{totalUsersCount}</strong>
+                    {(searchTerm || tierFilter !== 'all' || statusFilter !== 'all') && (
+                      <span className="text-indigo-600 font-bold ml-1.5">(Filtered Results)</span>
+                    )}
+                  </p>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <button
                     onClick={handleSyncAllDbCredits}
                     disabled={syncingAllDbCredits}
@@ -2638,57 +2668,90 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
                     <span>Sync DB Credits</span>
                   </button>
 
-                  {/* Filters & Search */}
-                  <form onSubmit={handleSearchSubmit} className="flex flex-wrap items-center gap-3">
-                  <div className="relative">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                    <input
-                      type="text"
-                      placeholder="Search email, name..."
-                      value={searchTerm}
-                      onChange={e => setSearchTerm(e.target.value)}
-                      className="pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 w-48"
-                    />
-                  </div>
+                  {/* Filters & Search Form */}
+                  <form onSubmit={handleSearchSubmit} className="flex flex-wrap items-center gap-2.5">
+                    {/* Search Input with Clear Button */}
+                    <div className="relative">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Search email, name, ID..."
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        className="pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 w-44 sm:w-56"
+                      />
+                      {searchTerm && (
+                        <button
+                          type="button"
+                          onClick={handleClearSearch}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full"
+                          title="Clear search"
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
 
-                  <select
-                    value={tierFilter}
-                    onChange={e => setTierFilter(e.target.value)}
-                    className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none"
-                  >
-                    <option value="all">All Tiers</option>
-                    <option value="free">Free</option>
-                    <option value="starter">Starter</option>
-                    <option value="pro">Pro</option>
-                  </select>
+                    {/* Tier Filter */}
+                    <select
+                      value={tierFilter}
+                      onChange={e => handleTierFilterChange(e.target.value)}
+                      className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
+                    >
+                      <option value="all">All Tiers</option>
+                      <option value="free">Free</option>
+                      <option value="starter">Starter</option>
+                      <option value="pro">Pro</option>
+                    </select>
 
-                  <select
-                    value={statusFilter}
-                    onChange={e => setStatusFilter(e.target.value)}
-                    className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none"
-                  >
-                    <option value="all">All Statuses</option>
-                    <option value="active">Active</option>
-                    <option value="suspended">Suspended</option>
-                    <option value="blocked">Blocked</option>
-                  </select>
+                    {/* Status Filter */}
+                    <select
+                      value={statusFilter}
+                      onChange={e => handleStatusFilterChange(e.target.value)}
+                      className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
+                    >
+                      <option value="all">All Statuses</option>
+                      <option value="active">Active</option>
+                      <option value="suspended">Suspended</option>
+                      <option value="blocked">Blocked</option>
+                    </select>
 
-                  <button type="submit" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-extrabold transition-all cursor-pointer">
-                    Search
-                  </button>
-                </form>
+                    {/* Page Size (Limit) Selector */}
+                    <select
+                      value={userLimit}
+                      onChange={e => handleLimitChange(e.target.value)}
+                      className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none cursor-pointer"
+                      title="Users per page"
+                    >
+                      <option value={10}>10 / page</option>
+                      <option value={15}>15 / page</option>
+                      <option value={25}>25 / page</option>
+                      <option value={50}>50 / page</option>
+                      <option value={100}>100 / page</option>
+                    </select>
+
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-xs"
+                    >
+                      Search
+                    </button>
+                  </form>
+                </div>
               </div>
-            </div>
 
               {/* Table */}
               {loadingUsers ? (
-                <div className="py-12 flex justify-center"><Loader2 size={24} className="animate-spin text-indigo-600" /></div>
+                <div className="py-16 flex flex-col items-center justify-center gap-3">
+                  <Loader2 size={26} className="animate-spin text-indigo-600" />
+                  <span className="text-xs text-slate-500 font-bold">Loading researchers directory...</span>
+                </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs text-slate-700">
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-500">
-                        <th className="py-3 px-4">User</th>
+                        <th className="py-3 px-4">User / Researcher</th>
                         <th className="py-3 px-4">Current Tier</th>
                         <th className="py-3 px-4">Expiry Date</th>
                         <th className="py-3 px-4">Status</th>
@@ -2697,7 +2760,22 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {usersList.length === 0 ? (
-                        <tr><td colSpan={5} className="py-8 text-center text-slate-500 font-medium">No researchers found.</td></tr>
+                        <tr>
+                          <td colSpan={5} className="py-12 text-center text-slate-500 font-medium">
+                            <div className="flex flex-col items-center justify-center gap-2">
+                              <Users size={28} className="text-slate-300" />
+                              <p className="text-xs font-bold text-slate-600">No researchers found matching your query.</p>
+                              {(searchTerm || tierFilter !== 'all' || statusFilter !== 'all') && (
+                                <button
+                                  onClick={handleClearSearch}
+                                  className="text-xs text-indigo-600 hover:underline font-bold"
+                                >
+                                  Clear Filters & Search
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
                       ) : (
                         usersList.map(u => {
                           const isExpired = u.is_expired || (u.plan_expiry_date && new Date() > new Date(u.plan_expiry_date));
@@ -2707,7 +2785,12 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
                             <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
                               <td className="py-3 px-4">
                                 <div className="font-bold text-slate-900">{u.full_name || 'Academic User'}</div>
-                                <div className="text-[11px] text-slate-500">{u.email}</div>
+                                <div className="text-[11px] text-slate-500 font-mono">{u.email || u.id}</div>
+                                {u.academic_field && (
+                                  <span className="inline-block mt-0.5 text-[10px] text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded font-semibold">
+                                    {u.academic_field}
+                                  </span>
+                                )}
                               </td>
                               <td className="py-3 px-4">
                                 <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase border ${
@@ -2748,22 +2831,70 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
               )}
 
               {/* Pagination Controls */}
-              <div className="flex items-center justify-between border-t border-slate-100 pt-4 text-xs font-semibold text-slate-500">
-                <span>Page {userPage} of {totalUserPages}</span>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100 pt-4 text-xs font-semibold text-slate-500">
+                <div>
+                  Showing <strong className="text-slate-800">{totalUsersCount === 0 ? 0 : (userPage - 1) * userLimit + 1}</strong> to{' '}
+                  <strong className="text-slate-800">{Math.min(userPage * userLimit, totalUsersCount)}</strong> of{' '}
+                  <strong className="text-slate-800">{totalUsersCount}</strong> researchers
+                </div>
+
                 <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-600 font-bold mr-2">
+                    Page {userPage} of {totalUserPages}
+                  </span>
+
+                  {/* First Page */}
                   <button
                     disabled={userPage <= 1}
-                    onClick={() => setUserPage(p => Math.max(1, p - 1))}
+                    onClick={() => {
+                      setUserPage(1);
+                      fetchAllUsers(1, searchTerm, tierFilter, statusFilter, userLimit);
+                    }}
+                    className="px-2 py-1.5 rounded-lg border border-slate-200 disabled:opacity-30 hover:bg-slate-100 cursor-pointer font-bold text-[10px]"
+                    title="First Page"
+                  >
+                    « First
+                  </button>
+
+                  {/* Previous Page */}
+                  <button
+                    disabled={userPage <= 1}
+                    onClick={() => {
+                      const prevP = Math.max(1, userPage - 1);
+                      setUserPage(prevP);
+                      fetchAllUsers(prevP, searchTerm, tierFilter, statusFilter, userLimit);
+                    }}
                     className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-30 hover:bg-slate-100 cursor-pointer"
+                    title="Previous Page"
                   >
                     <ChevronLeft size={16} />
                   </button>
+
+                  {/* Next Page */}
                   <button
                     disabled={userPage >= totalUserPages}
-                    onClick={() => setUserPage(p => p + 1)}
+                    onClick={() => {
+                      const nextP = Math.min(totalUserPages, userPage + 1);
+                      setUserPage(nextP);
+                      fetchAllUsers(nextP, searchTerm, tierFilter, statusFilter, userLimit);
+                    }}
                     className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-30 hover:bg-slate-100 cursor-pointer"
+                    title="Next Page"
                   >
                     <ChevronRight size={16} />
+                  </button>
+
+                  {/* Last Page */}
+                  <button
+                    disabled={userPage >= totalUserPages}
+                    onClick={() => {
+                      setUserPage(totalUserPages);
+                      fetchAllUsers(totalUserPages, searchTerm, tierFilter, statusFilter, userLimit);
+                    }}
+                    className="px-2 py-1.5 rounded-lg border border-slate-200 disabled:opacity-30 hover:bg-slate-100 cursor-pointer font-bold text-[10px]"
+                    title="Last Page"
+                  >
+                    Last »
                   </button>
                 </div>
               </div>

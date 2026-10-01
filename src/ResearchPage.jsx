@@ -22,6 +22,10 @@ import * as XLSX from 'xlsx';
 import AIChatWidget from './components/AIChatWidget';
 import SearchBar from './components/SearchBar';
 import ArticleGrid from './components/ArticleGrid';
+import DatasetCard from './components/datasets/DatasetCard';
+import DatasetFilterBar from './components/datasets/DatasetFilterBar';
+import DatasetAiModal from './components/datasets/DatasetAiModal';
+import DatasetCodeModal from './components/datasets/DatasetCodeModal';
 
 
 
@@ -560,6 +564,54 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
   const [academicField, setAcademicField] = useState('');
   const [bookmarkCount, setBookmarkCount] = useState(0);
   const [usageStats, setUsageStats] = useState({ aiSummaries: 0 });
+
+  // ─── Dual-Mode Search: Papers vs Datasets ───
+  const [searchMode, setSearchMode] = useState('papers'); // 'papers' | 'datasets'
+  const [datasetResults, setDatasetResults] = useState([]);
+  const [datasetLoading, setDatasetLoading] = useState(false);
+  const [datasetSearched, setDatasetSearched] = useState(false);
+  const [datasetTotalResults, setDatasetTotalResults] = useState(0);
+  const [datasetError, setDatasetError] = useState(null);
+  const [dsDiscipline, setDsDiscipline] = useState('');
+  const [dsFormat, setDsFormat] = useState('');
+  const [dsSource, setDsSource] = useState('all');
+  const [dsSort, setDsSort] = useState('relevance');
+  const [dsAiModalOpen, setDsAiModalOpen] = useState(false);
+  const [dsCodeModalOpen, setDsCodeModalOpen] = useState(false);
+  const [dsSelectedDataset, setDsSelectedDataset] = useState(null);
+  const datasetSearchRef = React.useRef(null);
+
+  const searchDatasets = React.useCallback(async (q) => {
+    const query = q || searchTerm;
+    if (!query?.trim()) return;
+    setDatasetLoading(true);
+    setDatasetError(null);
+    setDatasetSearched(true);
+    try {
+      const params = new URLSearchParams({
+        q: query.trim(), source: dsSource, format: dsFormat,
+        discipline: dsDiscipline, sort: dsSort, page: '1', page_size: '20',
+      });
+      const res = await fetch(`${BASE_URL}/api/datasets/search?${params}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setDatasetResults(data.datasets || []);
+      setDatasetTotalResults(data.total_results || 0);
+    } catch (err) {
+      console.error('[ResearchPage] Dataset search error:', err);
+      setDatasetError('Dataset search failed. Please try again.');
+      setDatasetResults([]);
+    } finally {
+      setDatasetLoading(false);
+    }
+  }, [searchTerm, dsSource, dsFormat, dsDiscipline, dsSort]);
+
+  // Re-search datasets when filters change
+  React.useEffect(() => {
+    if (searchMode === 'datasets' && datasetSearched && searchTerm?.trim()) {
+      searchDatasets();
+    }
+  }, [dsSource, dsFormat, dsDiscipline, dsSort]);
 
   const [announcement, setAnnouncement] = useState(null);
 
@@ -1331,6 +1383,12 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
     const currentSearchTerm = overrideTerm !== null ? overrideTerm : searchTerm;
     if (!currentSearchTerm.trim()) return;
 
+    // Dual-Mode routing: if Datasets mode active, trigger dataset search
+    if (searchMode === 'datasets') {
+      searchDatasets(currentSearchTerm);
+      return;
+    }
+
     // Block if cooldown is active
     if (cooldownTime > 0) return;
     if (fetchCooldown > 0) return;
@@ -1731,6 +1789,39 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
             </div>
           </div>
 
+          {/* ═══ Dual-Mode Search Toggle: Papers vs Datasets ═══ */}
+          <div className="w-full 2xl:px-12 mx-auto mb-6 flex items-center justify-center">
+            <div className="inline-flex bg-white border border-[#E5E5DF] rounded-2xl p-1 shadow-sm">
+              <button
+                onClick={() => setSearchMode('papers')}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                  searchMode === 'papers'
+                    ? 'bg-[#315CFF] text-white shadow-md shadow-blue-500/20'
+                    : 'text-slate-600 hover:text-[#171717] hover:bg-slate-50'
+                }`}
+              >
+                <BookOpen size={14} />
+                <span>📄 Research Papers</span>
+                <span className={`text-[10px] font-black ${searchMode === 'papers' ? 'text-white/70' : 'text-slate-400'}`}>(32M+)</span>
+              </button>
+              <button
+                onClick={() => {
+                  setSearchMode('datasets');
+                  if (searchTerm?.trim() && !datasetSearched) searchDatasets();
+                }}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                  searchMode === 'datasets'
+                    ? 'bg-[#315CFF] text-white shadow-md shadow-blue-500/20'
+                    : 'text-slate-600 hover:text-[#171717] hover:bg-slate-50'
+                }`}
+              >
+                <Search size={14} />
+                <span>💾 Open Datasets</span>
+                <span className={`text-[10px] font-black ${searchMode === 'datasets' ? 'text-white/70' : 'text-slate-400'}`}>(1.8M+)</span>
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-16 items-start">
             <div className="lg:col-span-3">
               <SearchBar
@@ -1859,6 +1950,99 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       {/* Results Workspace */}
       <div className="w-full pb-40">
 
+        {/* ═══ Dataset Mode Results ═══ */}
+        {searchMode === 'datasets' && (
+          <div className="mb-8">
+            {/* Dataset Filters */}
+            {datasetSearched && (
+              <div className="mb-6">
+                <DatasetFilterBar
+                  discipline={dsDiscipline} setDiscipline={setDsDiscipline}
+                  format={dsFormat} setFormat={setDsFormat}
+                  source={dsSource} setSource={setDsSource}
+                  sort={dsSort} setSort={setDsSort}
+                  onReset={() => { setDsDiscipline(''); setDsFormat(''); setDsSource('all'); setDsSort('relevance'); }}
+                />
+              </div>
+            )}
+
+            {/* Dataset Results Meta */}
+            {datasetSearched && !datasetLoading && datasetResults.length > 0 && (
+              <div className="flex items-center gap-3 mb-5">
+                <span className="px-4 py-1.5 rounded-full bg-[#315CFF] text-white text-[10px] font-black uppercase tracking-widest">
+                  {datasetTotalResults.toLocaleString()} Datasets
+                </span>
+              </div>
+            )}
+
+            {/* Dataset Loading */}
+            {datasetLoading && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="bg-white rounded-2xl border border-[#E5E5DF] p-5 animate-pulse">
+                    <div className="w-16 h-5 bg-slate-100 rounded-full mb-3" />
+                    <div className="w-full h-4 bg-slate-100 rounded mb-2" />
+                    <div className="w-3/4 h-4 bg-slate-100 rounded mb-4" />
+                    <div className="flex gap-2 mb-3">
+                      <div className="w-10 h-5 bg-green-50 rounded" />
+                      <div className="w-10 h-5 bg-yellow-50 rounded" />
+                    </div>
+                    <div className="border-t border-slate-100 pt-3 flex gap-2">
+                      <div className="w-20 h-7 bg-blue-50 rounded-lg" />
+                      <div className="w-20 h-7 bg-violet-50 rounded-lg" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Dataset Error */}
+            {datasetError && !datasetLoading && (
+              <div className="text-center py-12">
+                <p className="text-sm font-bold text-red-600 mb-3">{datasetError}</p>
+                <button onClick={() => searchDatasets()} className="px-5 py-2.5 bg-[#315CFF] text-white rounded-xl text-xs font-bold">Retry</button>
+              </div>
+            )}
+
+            {/* Dataset Results Grid */}
+            {!datasetLoading && !datasetError && datasetResults.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {datasetResults.map((ds, i) => (
+                  <DatasetCard
+                    key={ds.id || i}
+                    dataset={ds}
+                    index={i}
+                    onAiTopics={(d) => { setDsSelectedDataset(d); setDsAiModalOpen(true); }}
+                    onStarterCode={(d) => { setDsSelectedDataset(d); setDsCodeModalOpen(true); }}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Dataset Empty State */}
+            {datasetSearched && !datasetLoading && !datasetError && datasetResults.length === 0 && (
+              <div className="text-center py-16">
+                <p className="text-sm font-bold text-[#171717] mb-1">No datasets found</p>
+                <p className="text-xs text-slate-500">Try different keywords or adjust filters.</p>
+              </div>
+            )}
+
+            {/* Dataset Not Searched Yet */}
+            {!datasetSearched && !datasetLoading && (
+              <div className="text-center py-16">
+                <p className="text-sm font-semibold text-slate-500">Enter a search query above to discover open-access datasets, or visit the <a href="/datasets" className="text-[#315CFF] font-bold underline">full Data Hub</a>.</p>
+              </div>
+            )}
+
+            {/* Dataset Modals */}
+            <DatasetAiModal isOpen={dsAiModalOpen} onClose={() => setDsAiModalOpen(false)} dataset={dsSelectedDataset} userTier={userTier} />
+            <DatasetCodeModal isOpen={dsCodeModalOpen} onClose={() => setDsCodeModalOpen(false)} dataset={dsSelectedDataset} userTier={userTier} />
+          </div>
+        )}
+
+
+        {/* ═══ Papers Mode Results ═══ */}
+        {searchMode === 'papers' && (<>
         {universalFallbackAlert && (
           <div className="mb-8 p-5 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
             <div className="flex items-center gap-4">
@@ -1953,6 +2137,7 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
             }}
           />
         </div>
+        </>)}
       </div>
 
       {/* AI Assistant Elements */}

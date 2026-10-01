@@ -98,7 +98,10 @@ const Pricing = ({ user, profile }) => {
         { name: 'Unified Search (PubMed, arXiv, OpenAlex — 250M+)', included: true },
         { name: 'Standard UVE 2D Charts & Visualizations', included: true },
         { name: 'AI Ethics & Disclosure Statement Generator', included: true },
+        { name: 'Open Data Hub — Search 1.8M+ Datasets (Zenodo, HF, GEO)', included: true },
         { name: 'Standard Search Speed (5-min Post-Fetch Cooldown)', included: true },
+        { name: 'AI Dataset Topic Generation (1 Preview Topic)', included: false },
+        { name: 'Python/R Starter Code Generator', included: false },
         { name: 'Fast Literature Synthesis (1-min Cooldown)', included: false },
         { name: 'Statistical Test Advisor & Python/R Code', included: false },
         { name: 'Deep Reasoning 🧠 Chain-of-Thought', included: false },
@@ -127,6 +130,8 @@ const Pricing = ({ user, profile }) => {
         { name: 'Full UVE 2D/3D Mindmap & Visual Engine', included: true },
         { name: 'Statistical Test Advisor & Python/R Code', included: true },
         { name: 'Research DNA Vector Tracking & Faculty Matching', included: true },
+        { name: 'Open Data Hub — Full AI Topic Generation (3 Topics)', included: true },
+        { name: 'Python/R Starter Code for Any Dataset', included: true },
         { name: 'Weekly Curated Academic Digest Email', included: true },
         { name: 'Deep Reasoning 🧠 Chain-of-Thought', included: false },
         { name: 'The Peer Reviewer & Risk of Bias Matrix', included: false },
@@ -158,6 +163,8 @@ const Pricing = ({ user, profile }) => {
         { name: 'Vision-RAG Multimodal Paper & Chart Parser', included: true },
         { name: 'Research Gap Detector & Novelty Radar', included: true },
         { name: 'Daily Morning Breakthrough Intelligence Briefing', included: true },
+        { name: 'Open Data Hub — Unlimited AI Topics + Research Gaps + Models', included: true },
+        { name: 'Python/R Starter Code + Cleaning Pipelines', included: true },
         { name: 'Zero-Queue Dedicated AI Gateway Routing', included: true },
         { name: 'Direct Faculty ORCID & Outreach Drafter', included: true },
         { name: 'Priority 24/7 VIP Admin Support', included: true }
@@ -498,6 +505,14 @@ const Pricing = ({ user, profile }) => {
                     <tr><td className="py-3 px-6 font-semibold">Daily PDF Uploads & Max Size</td><td className="text-center">3 / day (10MB)</td><td className="text-center">9 / day (25MB)</td><td className="text-center font-bold">15 / day (50MB)</td></tr>
                     <tr><td className="py-3 px-6 font-semibold">Live Device Concurrency Slots</td><td className="text-center font-bold">2 Devices</td><td className="text-center font-bold">2 Devices</td><td className="text-center font-bold">2 Devices</td></tr>
                     <tr><td className="py-3 px-6 font-semibold">Support SLA</td><td className="text-center">Community</td><td className="text-center">Standard Email (24h)</td><td className="text-center font-bold text-amber-600">VIP Priority (1-2h)</td></tr>
+
+                    {/* Open Research Data Hub */}
+                    <tr className="bg-slate-50/40"><td colSpan={4} className="py-2.5 px-6 font-black text-[10px] text-slate-500 uppercase tracking-widest">5. Open Research Data Hub</td></tr>
+                    <tr><td className="py-3 px-6 font-semibold">Dataset Search (Zenodo, HuggingFace, Dataverse, NCBI GEO)</td><td className="text-center font-bold text-emerald-600"><Check size={14} className="inline" /> 1.8M+ Datasets</td><td className="text-center font-bold text-emerald-600"><Check size={14} className="inline" /> Full Access</td><td className="text-center font-bold text-emerald-600"><Check size={14} className="inline" /> Priority API</td></tr>
+                    <tr><td className="py-3 px-6 font-semibold">AI Thesis Topic Generator</td><td className="text-center">1 Preview Topic (Blurred)</td><td className="text-center font-bold text-blue-600">3 Full Topics + Journals</td><td className="text-center font-bold text-amber-600">Unlimited + Research Gaps</td></tr>
+                    <tr><td className="py-3 px-6 font-semibold">Python / R Starter Code Generator</td><td className="text-center text-slate-300">—</td><td className="text-center font-bold text-emerald-600"><Check size={14} className="inline" /> Pandas & Tidyverse</td><td className="text-center font-bold text-emerald-600"><Check size={14} className="inline" /> + Cleaning Pipelines</td></tr>
+                    <tr><td className="py-3 px-6 font-semibold">Research Gap Analysis & Recommended Models</td><td className="text-center text-slate-300">—</td><td className="text-center text-slate-300">—</td><td className="text-center font-bold text-emerald-600"><Check size={14} className="inline" /> Full Analysis</td></tr>
+                    <tr><td className="py-3 px-6 font-semibold">Dataset Download (Direct from Source CDN)</td><td className="text-center font-bold text-emerald-600"><Check size={14} className="inline" /></td><td className="text-center font-bold text-emerald-600"><Check size={14} className="inline" /></td><td className="text-center font-bold text-emerald-600"><Check size={14} className="inline" /></td></tr>
                   </tbody>
                 </table>
               </div>

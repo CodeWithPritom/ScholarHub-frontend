@@ -133,6 +133,13 @@ const Navbar = ({ user, profile, liveUsersCount, onLogout, transparent = false }
                           <div className="text-[10px] text-slate-500 leading-normal font-normal">External tools guidelines database</div>
                         </div>
                       </Link>
+                      <Link to="/datasets" className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-slate-200/50 transition-colors">
+                        <Database size={18} className="text-[#315CFF] shrink-0 mt-0.5" />
+                        <div>
+                          <div className="text-xs font-bold text-[#171717]">Open Data Hub</div>
+                          <div className="text-[10px] text-slate-500 leading-normal font-normal">Search 1.8M+ scientific datasets</div>
+                        </div>
+                      </Link>
                     </div>
                   )}
                 </div>
@@ -317,6 +324,10 @@ const Navbar = ({ user, profile, liveUsersCount, onLogout, transparent = false }
                 <Link to="/resources" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2.5 text-sm font-bold text-slate-700 hover:text-[#315CFF] transition-colors py-1">
                   <FileText size={16} className="text-[#315CFF]" />
                   <span>Reference Guides</span>
+                </Link>
+                <Link to="/datasets" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2.5 text-sm font-bold text-slate-700 hover:text-[#315CFF] transition-colors py-1">
+                  <Database size={16} className="text-[#315CFF]" />
+                  <span>Open Data Hub</span>
                 </Link>
               </div>
 

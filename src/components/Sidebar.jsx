@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, Microscope, Library, BarChart3, Settings,
   HelpCircle, ChevronLeft, ChevronRight, X, Sparkles, History, Zap, Download,
-  Newspaper, GraduationCap, BookOpen, MessageSquare, ShieldCheck, Dna, Clock, RotateCcw
+  Newspaper, GraduationCap, BookOpen, MessageSquare, ShieldCheck, Dna, Clock, RotateCcw, Database
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { toast } from 'sonner';
@@ -266,6 +266,7 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
     { name: 'News', path: '/news', icon: <Newspaper size={20} /> },
     { name: 'Opportunities', path: '/opportunities', icon: <GraduationCap size={20} /> },
     { name: 'Academy', path: '/academy', icon: <BookOpen size={20} /> },
+    { name: 'Open Data Hub', path: '/datasets', icon: <Database size={20} /> },
     { name: 'Settings', path: '/settings', icon: <Settings size={20} /> },
     ...(isAdminUser ? [{ name: 'Admin Panel', path: '/admin', icon: <ShieldCheck size={20} /> }] : []),
   ];

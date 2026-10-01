@@ -20,6 +20,7 @@ const WorkspaceTabs = React.memo(({ user, profile, onLogout, toggleMobileMenu })
     if (location.pathname.startsWith('/research')) return 'Research Hub';
     if (location.pathname.startsWith('/library')) return 'My Library';
     if (location.pathname.startsWith('/auditor')) return 'Research Auditor';
+    if (location.pathname.startsWith('/datasets')) return 'Open Data Hub';
     if (location.pathname.startsWith('/profile')) return 'User Profile';
     if (location.pathname.startsWith('/settings')) return 'Account Settings';
     return 'Workspace';
