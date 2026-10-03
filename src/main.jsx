@@ -21,9 +21,8 @@ const originalError = console.error;
 console.error = (...args) => {
   if (
     typeof args[0] === 'string' &&
-    (args[0].includes('challenges.cloudflare.com') ||
-     args[0].includes('Cloudflare Turnstile') ||
-     args[0].includes('turnstile.remove'))
+    (args[0].includes('turnstile.remove') ||
+     args[0].includes('Cannot remove widget'))
   ) {
     return;
   }

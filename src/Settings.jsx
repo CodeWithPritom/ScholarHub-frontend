@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { supabase } from './supabaseClient'
 import { BASE_URL } from './utils/api'
 import { handlePasswordResetDeviceOverride } from './utils/deviceSync'
+import { validatePassword } from './utils/passwordPolicy'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   User, Lock, Mail, Loader2, Save, Compass, X, ShieldCheck, 
@@ -249,8 +250,9 @@ const Settings = ({ user }) => {
   const handleSaveSecurity = async (e) => {
     e.preventDefault()
     
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters long.')
+    const pwdCheck = validatePassword(password)
+    if (!pwdCheck.isValid) {
+      toast.error(pwdCheck.errorMessage)
       return
     }
 

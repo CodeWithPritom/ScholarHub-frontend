@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { BASE_URL } from './utils/api'
+import { validatePassword, checkPasswordCriteria, PASSWORD_MIN_LENGTH } from './utils/passwordPolicy'
 import logo from './assets/images/logo.png'
 import emoImage from './assets/images/EMO.png'
 
@@ -48,7 +49,8 @@ const Auth = () => {
   const [dailyRemaining, setDailyRemaining] = useState(3)
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
   const [resendTimer, setResendTimer] = useState(60)
-  const turnstileRef = useRef(null)
+  const mainTurnstileRef = useRef(null)
+  const forgotTurnstileRef = useRef(null)
 
   const mainTurnstileOptions = useMemo(() => ({
     theme: 'light',
@@ -171,7 +173,7 @@ const Auth = () => {
       setError(err.message);
     } finally {
       setLoading(false);
-      turnstileRef.current?.reset();
+      forgotTurnstileRef.current?.reset();
       setCaptchaToken('');
     }
   };
@@ -183,8 +185,9 @@ const Auth = () => {
       setError('Please enter the complete 6-digit verification code.');
       return;
     }
-    if (!newPassword || newPassword.length < 6) {
-      setError('Password must be at least 6 characters long.');
+    const pwdCheck = validatePassword(newPassword);
+    if (!pwdCheck.isValid) {
+      setError(pwdCheck.errorMessage);
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -322,6 +325,16 @@ const Auth = () => {
       return
     }
 
+    // 2. Password Policy Check for Registration
+    if (!isLogin) {
+      const pwdCheck = validatePassword(password)
+      if (!pwdCheck.isValid) {
+        setError(pwdCheck.errorMessage)
+        setLoading(false)
+        return
+      }
+    }
+
     try {
       // Supabase Auth Call (Supabase internally calls Cloudflare siteverify with the captchaToken)
       if (isLogin) {
@@ -434,12 +447,12 @@ const Auth = () => {
             Account created! Please check your email (and your <span className="font-black text-emerald-900 bg-emerald-200/60 px-1.5 py-0.5 rounded-md mx-0.5">Spam</span> folder) for the 6-digit verification code.
           </>
         )
-        turnstileRef.current?.reset()
+        mainTurnstileRef.current?.reset()
         setCaptchaToken('')
       }
     } catch (err) {
       setError(err.message)
-      turnstileRef.current?.reset()
+      mainTurnstileRef.current?.reset()
       setCaptchaToken('')
     } finally {
       setLoading(false)
@@ -592,14 +605,69 @@ const Auth = () => {
                     </div>
                     <div className="relative">
                       <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
-                      <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" minLength={6} disabled={loading}
+                      <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" minLength={PASSWORD_MIN_LENGTH} disabled={loading}
                         className="w-full bg-slate-50 border-none rounded-2xl p-4 pl-12 text-sm font-semibold text-[#171717] focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none placeholder:text-slate-600"
                       />
                     </div>
 
+                    {/* Live Password Policy Checklist for Signup */}
+                    {!isLogin && (
+                      <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-1.5 text-[11px]">
+                        <div className="font-extrabold text-slate-700 flex items-center justify-between pb-0.5 border-b border-slate-200/60">
+                          <span>Password Requirements:</span>
+                          <span className={validatePassword(password).isValid ? "text-emerald-600 font-extrabold" : "text-slate-400 font-semibold"}>
+                            {validatePassword(password).isValid ? "✓ All criteria met" : "Required for registration"}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-2 gap-y-1 font-semibold pt-1">
+                          <div className={`flex items-center gap-1.5 transition-colors ${checkPasswordCriteria(password).length ? 'text-emerald-600 font-bold' : 'text-slate-500'}`}>
+                            <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-bold ${checkPasswordCriteria(password).length ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
+                              {checkPasswordCriteria(password).length ? '✓' : '•'}
+                            </span>
+                            <span>At least 6 characters</span>
+                          </div>
+                          <div className={`flex items-center gap-1.5 transition-colors ${checkPasswordCriteria(password).lowercase ? 'text-emerald-600 font-bold' : 'text-slate-500'}`}>
+                            <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-bold ${checkPasswordCriteria(password).lowercase ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
+                              {checkPasswordCriteria(password).lowercase ? '✓' : '•'}
+                            </span>
+                            <span>One lowercase (a-z)</span>
+                          </div>
+                          <div className={`flex items-center gap-1.5 transition-colors ${checkPasswordCriteria(password).uppercase ? 'text-emerald-600 font-bold' : 'text-slate-500'}`}>
+                            <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-bold ${checkPasswordCriteria(password).uppercase ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
+                              {checkPasswordCriteria(password).uppercase ? '✓' : '•'}
+                            </span>
+                            <span>One uppercase (A-Z)</span>
+                          </div>
+                          <div className={`flex items-center gap-1.5 transition-colors ${checkPasswordCriteria(password).number ? 'text-emerald-600 font-bold' : 'text-slate-500'}`}>
+                            <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-bold ${checkPasswordCriteria(password).number ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
+                              {checkPasswordCriteria(password).number ? '✓' : '•'}
+                            </span>
+                            <span>One number (0-9)</span>
+                          </div>
+                          <div className={`flex items-center gap-1.5 transition-colors col-span-2 ${checkPasswordCriteria(password).special ? 'text-emerald-600 font-bold' : 'text-slate-500'}`}>
+                            <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-bold ${checkPasswordCriteria(password).special ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
+                              {checkPasswordCriteria(password).special ? '✓' : '•'}
+                            </span>
+                            <span>One special character (!@#$%^&*...)</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {isLogin && (
                       <div className="flex justify-end">
-                        <button type="button" onClick={() => setIsForgotPassword(true)} className="text-[12px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors">Forgot Password?</button>
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            setIsForgotPassword(true);
+                            setCaptchaToken('');
+                            mainTurnstileRef.current?.reset();
+                            setTimeout(() => forgotTurnstileRef.current?.reset(), 50);
+                          }} 
+                          className="text-[12px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors cursor-pointer"
+                        >
+                          Forgot Password?
+                        </button>
                       </div>
                     )}
 
@@ -607,16 +675,19 @@ const Auth = () => {
                     <div className="flex justify-center pt-2">
                       <Turnstile 
                         id="cf-turnstile-main"
-                        ref={turnstileRef} 
+                        ref={mainTurnstileRef} 
                         siteKey={CLOUDFLARE_SITE_KEY} 
                         onSuccess={(token) => setCaptchaToken(token)} 
                         onExpire={() => {
                           setCaptchaToken('')
-                          turnstileRef.current?.reset()
+                          mainTurnstileRef.current?.reset()
                         }}
                         onError={(err) => {
-                          console.warn('[Turnstile] Security challenge notice:', err)
+                          console.warn('[Turnstile] Main security challenge notice:', err)
                           setCaptchaToken('')
+                          try {
+                            mainTurnstileRef.current?.reset()
+                          } catch (_) {}
                         }}
                         options={mainTurnstileOptions} 
                       />
@@ -678,16 +749,19 @@ const Auth = () => {
                         <div className="flex justify-center py-2">
                           <Turnstile 
                             id="cf-turnstile-forgot"
-                            ref={turnstileRef} 
+                            ref={forgotTurnstileRef} 
                             siteKey={CLOUDFLARE_SITE_KEY} 
                             onSuccess={(token) => setCaptchaToken(token)} 
                             onExpire={() => {
                               setCaptchaToken('')
-                              turnstileRef.current?.reset()
+                              forgotTurnstileRef.current?.reset()
                             }}
                             onError={(err) => {
-                              console.warn('[Turnstile] Security challenge notice:', err)
+                              console.warn('[Turnstile] Forgot password challenge notice:', err)
                               setCaptchaToken('')
+                              try {
+                                forgotTurnstileRef.current?.reset()
+                              } catch (_) {}
                             }}
                             options={forgotTurnstileOptions} 
                           />
@@ -710,7 +784,13 @@ const Auth = () => {
 
                         <button 
                           type="button" 
-                          onClick={() => { setIsForgotPassword(false); setForgotStep(1); }} 
+                          onClick={() => {
+                            setIsForgotPassword(false);
+                            setForgotStep(1);
+                            setCaptchaToken('');
+                            forgotTurnstileRef.current?.reset();
+                            setTimeout(() => mainTurnstileRef.current?.reset(), 50);
+                          }} 
                           className="w-full text-[12px] font-bold text-slate-600 hover:text-slate-900 transition-colors mt-2 cursor-pointer"
                         >
                           Back to Login
@@ -778,11 +858,53 @@ const Auth = () => {
                               required 
                               value={newPassword} 
                               onChange={(e) => setNewPassword(e.target.value)} 
-                              placeholder="New Password (min. 6 chars)" 
-                              minLength={6} 
+                              placeholder="New Password" 
+                              minLength={PASSWORD_MIN_LENGTH} 
                               disabled={loading}
                               className="w-full bg-slate-50 border-none rounded-2xl p-3.5 pl-12 text-sm font-semibold text-[#171717] focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none placeholder:text-slate-500"
                             />
+                          </div>
+
+                          {/* Live Password Policy Checklist for Forgot Password */}
+                          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-1.5 text-[11px]">
+                            <div className="font-extrabold text-slate-700 flex items-center justify-between pb-0.5 border-b border-slate-200/60">
+                              <span>Password Requirements:</span>
+                              <span className={validatePassword(newPassword).isValid ? "text-emerald-600 font-extrabold" : "text-slate-400 font-semibold"}>
+                                {validatePassword(newPassword).isValid ? "✓ All criteria met" : "At least 6 characters"}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-2 gap-y-1 font-semibold pt-1">
+                              <div className={`flex items-center gap-1.5 transition-colors ${checkPasswordCriteria(newPassword).length ? 'text-emerald-600 font-bold' : 'text-slate-500'}`}>
+                                <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-bold ${checkPasswordCriteria(newPassword).length ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
+                                  {checkPasswordCriteria(newPassword).length ? '✓' : '•'}
+                                </span>
+                                <span>At least 6 characters</span>
+                              </div>
+                              <div className={`flex items-center gap-1.5 transition-colors ${checkPasswordCriteria(newPassword).lowercase ? 'text-emerald-600 font-bold' : 'text-slate-500'}`}>
+                                <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-bold ${checkPasswordCriteria(newPassword).lowercase ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
+                                  {checkPasswordCriteria(newPassword).lowercase ? '✓' : '•'}
+                                </span>
+                                <span>One lowercase (a-z)</span>
+                              </div>
+                              <div className={`flex items-center gap-1.5 transition-colors ${checkPasswordCriteria(newPassword).uppercase ? 'text-emerald-600 font-bold' : 'text-slate-500'}`}>
+                                <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-bold ${checkPasswordCriteria(newPassword).uppercase ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
+                                  {checkPasswordCriteria(newPassword).uppercase ? '✓' : '•'}
+                                </span>
+                                <span>One uppercase (A-Z)</span>
+                              </div>
+                              <div className={`flex items-center gap-1.5 transition-colors ${checkPasswordCriteria(newPassword).number ? 'text-emerald-600 font-bold' : 'text-slate-500'}`}>
+                                <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-bold ${checkPasswordCriteria(newPassword).number ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
+                                  {checkPasswordCriteria(newPassword).number ? '✓' : '•'}
+                                </span>
+                                <span>One number (0-9)</span>
+                              </div>
+                              <div className={`flex items-center gap-1.5 transition-colors col-span-2 ${checkPasswordCriteria(newPassword).special ? 'text-emerald-600 font-bold' : 'text-slate-500'}`}>
+                                <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-bold ${checkPasswordCriteria(newPassword).special ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
+                                  {checkPasswordCriteria(newPassword).special ? '✓' : '•'}
+                                </span>
+                                <span>One special character (!@#$%^&*...)</span>
+                              </div>
+                            </div>
                           </div>
 
                           <div className="relative">

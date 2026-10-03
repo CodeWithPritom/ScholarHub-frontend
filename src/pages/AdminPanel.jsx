@@ -2711,9 +2711,10 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
                       className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
                     >
                       <option value="all">All Statuses</option>
-                      <option value="active">Active</option>
+                      <option value="active">Active (Current)</option>
+                      <option value="expired">Expired (Plan)</option>
                       <option value="suspended">Suspended</option>
-                      <option value="blocked">Blocked</option>
+                      <option value="banned">Banned</option>
                     </select>
 
                     {/* Page Size (Limit) Selector */}
@@ -2806,8 +2807,11 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
                               </td>
                               <td className="py-3 px-4">
                                 {isExpired ? (
-                                  <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
-                                    EXPIRED
+                                  <span 
+                                    className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 inline-flex items-center gap-1 cursor-help"
+                                    title="Subscription plan has expired (auto-downgraded to Free). Account is active."
+                                  >
+                                    PLAN EXPIRED
                                   </span>
                                 ) : (
                                   <StatusBadge status={u.status} />
