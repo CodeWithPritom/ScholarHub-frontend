@@ -12,7 +12,7 @@ import { ensureDeviceIsRegistered, handlePasswordResetDeviceOverride } from './u
 import { SESSION_EXPIRED_EVENT, DEVICE_ERROR_EVENT, apiFetch } from './utils/api'
 import { 
   Dna, AlertTriangle, X, CreditCard, KeyRound, MonitorSmartphone, 
-  ShieldCheck, GraduationCap, Sparkles, AlertCircle, Loader2, ArrowRight, BookOpen, Compass
+  ShieldCheck, GraduationCap, Sparkles, AlertCircle, Loader2, ArrowRight, BookOpen, Compass, PlayCircle
 } from 'lucide-react'
 import { Toaster } from 'sonner'
 
@@ -432,11 +432,14 @@ const DeviceSecurityModal = ({ isOpen, message, onClose }) => {
             </button>
 
             <a
-              href="/profile"
-              onClick={onClose}
-              className="w-full sm:w-auto py-3.5 px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-xs font-bold transition-all text-center"
+              href="https://youtu.be/weeXUIA4WsQ"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full sm:w-auto py-3.5 px-5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200/80 rounded-2xl text-xs font-extrabold transition-all flex items-center justify-center gap-2 text-center group cursor-pointer shadow-xs"
+              title="Watch video tutorial on resolving device sync"
             >
-              Manage Devices
+              <PlayCircle size={16} className="text-red-600 group-hover:scale-110 transition-transform" />
+              <span>Watch Video Tutorial</span>
             </a>
           </div>
         </motion.div>
@@ -937,10 +940,14 @@ function App() {
                       Reset Password
                     </a>
                     <a
-                      href="/profile"
-                      className="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg text-xs font-semibold transition-colors"
+                      href="https://youtu.be/weeXUIA4WsQ"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg text-xs font-semibold transition-colors"
+                      title="Watch video tutorial on resolving device sync"
                     >
-                      Manage Devices
+                      <PlayCircle size={13} className="text-red-600" />
+                      Watch Tutorial
                     </a>
                   </div>
                 </div>
