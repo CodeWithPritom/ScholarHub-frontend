@@ -1625,11 +1625,21 @@ const ResearchPage = ({ user, profile, liveUsersCount, onLogout }) => {
       if (res.ok) {
         const data = await res.json();
         if (data.refined_query) {
-          setSearchTerm(data.refined_query);
+          const oldTerm = searchTerm.trim();
+          const newTerm = data.refined_query.trim();
+          setSearchTerm(newTerm);
+          if (oldTerm.toLowerCase() !== newTerm.toLowerCase()) {
+            toast.success(`Query refined: "${newTerm}"`);
+          } else {
+            toast.info('Query is already optimal.');
+          }
         }
+      } else {
+        toast.error('Could not refine query right now.');
       }
     } catch (err) {
       console.error('AI Refine error:', err);
+      toast.error('Failed to refine query.');
     } finally {
       setIsRefining(false);
     }

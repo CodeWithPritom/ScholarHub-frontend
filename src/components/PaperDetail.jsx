@@ -64,7 +64,7 @@ const FigureLoader = ({ fig, idx, pmcid, isLightbox = false, onImageClick }) => 
           href={originalFigureUrl} 
           target="_blank" 
           rel="noopener noreferrer" 
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 hover:text-[#171717] text-[10px] font-black text-slate-650 rounded-lg transition-colors border border-slate-300 shadow-sm"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-800 text-[11px] font-bold rounded-lg transition-colors border border-slate-300 shadow-sm"
           onClick={(e) => e.stopPropagation()}
         >
           View Figure on PMC ↗
@@ -337,36 +337,37 @@ const PaperDetail = ({ user, profile }) => {
             {(() => {
               const url = article.redirection_url || article.url || ''
               const urlLower = url.toLowerCase()
-              let label, color
+              let label = 'View Original Source'
+              let color = 'bg-blue-600 hover:bg-blue-700 text-white'
               
               if (urlLower.includes('arxiv.org') || /^\d{4}\.\d{4,5}/.test(pmid)) {
                 label = 'View on arXiv'
-                color = 'bg-indigo-600 hover:bg-indigo-700'
+                color = 'bg-indigo-600 hover:bg-indigo-700 text-white'
               } else if (urlLower.includes('semanticscholar.org')) {
                 label = 'View on Scholar'
-                color = 'bg-amber-500 hover:bg-amber-600'
+                color = 'bg-amber-600 hover:bg-amber-700 text-white'
               } else if (urlLower.includes('openalex.org')) {
                 label = 'View on OpenAlex'
-                color = 'bg-orange-500 hover:bg-orange-600'
+                color = 'bg-orange-600 hover:bg-orange-700 text-white'
               } else if (urlLower.includes('europepmc.org')) {
                 label = 'View on Europe PMC'
-                color = 'bg-emerald-600 hover:bg-emerald-700'
-              } else if (urlLower.includes('pubmed') || urlLower.includes('ncbi.nlm.nih.gov')) {
+                color = 'bg-emerald-600 hover:bg-emerald-700 text-white'
+              } else if (urlLower.includes('pubmed') || urlLower.includes('ncbi.nlm.nih.gov') || pmid) {
                 label = 'View on PubMed'
-                color = 'bg-blue-600 hover:bg-blue-700'
+                color = 'bg-blue-600 hover:bg-blue-700 text-white'
               } else {
                 label = 'View Original Source'
-                color = 'bg-[#FAFAF8] hover:bg-[#F3F3EF]'
+                color = 'bg-slate-900 hover:bg-slate-800 text-white'
               }
 
-              const finalUrl = url || `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`
+              const finalUrl = url || (pmid ? `https://pubmed.ncbi.nlm.nih.gov/${pmid}/` : '')
 
               return (
                 <a
                   href={finalUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`flex items-center gap-2 px-4 py-2 ${color} text-white text-xs font-bold rounded-lg transition-all shadow-sm`}
+                  className={`flex items-center gap-2 px-4 py-2 ${color} text-xs font-bold rounded-lg transition-all shadow-sm`}
                 >
                   {label}
                   <ExternalLink size={14} />
