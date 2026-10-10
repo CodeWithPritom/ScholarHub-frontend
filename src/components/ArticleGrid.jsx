@@ -191,6 +191,18 @@ const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, o
                 <BookOpen size={14} />
                 {journal}
               </span>
+              {(article.is_exact_doi_match || article.full_metadata?.is_exact_doi_match) && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[12px] text-[10px] font-black bg-indigo-600 text-white border border-indigo-700 uppercase tracking-widest shadow-sm">
+                  <CheckCircle2 size={12} className="text-emerald-300" />
+                  Exact DOI Match
+                </span>
+              )}
+              {(article.is_preprint || article.preprint_server || article.full_metadata?.is_preprint || article.full_metadata?.preprint_server) && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[12px] text-[10px] font-black bg-amber-500 text-white border border-amber-600 uppercase tracking-widest shadow-sm" title="Early-access breakthrough discovery (Pre-peer review)">
+                  <Zap size={12} className="text-amber-200 fill-current" />
+                  {article.preprint_server || article.full_metadata?.preprint_server || 'Preprint'}
+                </span>
+              )}
               {(article.verified_metadata || article.full_metadata?.verified_metadata || (article.sources && article.sources.length > 1) || (article.full_metadata?.sources && article.full_metadata.sources.length > 1)) && (
                 <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-[12px] text-[10px] font-black bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase tracking-widest shadow-sm">
                   <CheckCircle size={12} className="text-indigo-500" />

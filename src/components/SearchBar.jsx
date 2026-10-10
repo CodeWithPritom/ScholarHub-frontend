@@ -36,7 +36,7 @@ const SearchBar = ({
             </div>
             <input
               type="text"
-              placeholder="Search across all academic databases (NCBI, arXiv, OpenAlex)..."
+              placeholder="Search 250M+ papers, preprints, datasets & DOIs (e.g. 10.1038/..., CRISPR, mRNA vaccine)..."
               className="w-full pl-11 pr-3 py-3 md:py-4 bg-transparent outline-none text-slate-900 font-semibold placeholder:text-slate-400 border-none focus:ring-0"
               value={searchTerm}
               onChange={handleSearchInput}

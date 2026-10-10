@@ -37,6 +37,9 @@ const SOURCES = [
   { id: 'huggingface', label: 'Hugging Face' },
   { id: 'dataverse', label: 'Harvard Dataverse' },
   { id: 'ncbi_geo', label: 'NCBI GEO' },
+  { id: 'mendeley', label: 'Mendeley Data' },
+  { id: 'figshare', label: 'Figshare' },
+  { id: 'dryad', label: 'Dryad Data' },
 ];
 
 const SORTS = [

@@ -335,12 +335,19 @@ const PaperDetail = ({ user, profile }) => {
               {citationCopied ? 'Copied APA Citation!' : 'Cite'}
             </button>
             {(() => {
-              const url = article.redirection_url || article.url || ''
-              const urlLower = url.toLowerCase()
-              let label = 'View Original Source'
-              let color = 'bg-blue-600 hover:bg-blue-700 text-white'
+              const doi = article.doi || article.full_metadata?.doi || ''
+              const url = article.redirection_url || article.url || (doi ? `https://doi.org/${doi.replace(/^doi:/i, '').trim()}` : '')
+              const urlLower = (url || '').toLowerCase()
+              const isPreprint = article.is_preprint || article.full_metadata?.is_preprint || urlLower.includes('biorxiv') || urlLower.includes('medrxiv') || urlLower.includes('chemrxiv') || urlLower.includes('researchsquare')
               
-              if (urlLower.includes('arxiv.org') || /^\d{4}\.\d{4,5}/.test(pmid)) {
+              let label = 'View Original Source'
+              let color = 'bg-slate-900 hover:bg-slate-800 text-white'
+              
+              if (isPreprint || urlLower.includes('biorxiv') || urlLower.includes('medrxiv')) {
+                const serverName = article.preprint_server || article.full_metadata?.preprint_server || 'bioRxiv / medRxiv'
+                label = `View on ${serverName}`
+                color = 'bg-amber-600 hover:bg-amber-700 text-white'
+              } else if (urlLower.includes('arxiv.org') || /^\d{4}\.\d{4,5}/.test(pmid)) {
                 label = 'View on arXiv'
                 color = 'bg-indigo-600 hover:bg-indigo-700 text-white'
               } else if (urlLower.includes('semanticscholar.org')) {
@@ -352,15 +359,20 @@ const PaperDetail = ({ user, profile }) => {
               } else if (urlLower.includes('europepmc.org')) {
                 label = 'View on Europe PMC'
                 color = 'bg-emerald-600 hover:bg-emerald-700 text-white'
-              } else if (urlLower.includes('pubmed') || urlLower.includes('ncbi.nlm.nih.gov') || pmid) {
+              } else if (urlLower.includes('pubmed') || urlLower.includes('ncbi.nlm.nih.gov') || (pmid && !pmid.startsWith('ppr_') && !pmid.startsWith('doi_') && /^\d+$/.test(pmid))) {
                 label = 'View on PubMed'
+                color = 'bg-blue-600 hover:bg-blue-700 text-white'
+              } else if (doi) {
+                label = 'View Publisher Article'
                 color = 'bg-blue-600 hover:bg-blue-700 text-white'
               } else {
                 label = 'View Original Source'
                 color = 'bg-slate-900 hover:bg-slate-800 text-white'
               }
 
-              const finalUrl = url || (pmid ? `https://pubmed.ncbi.nlm.nih.gov/${pmid}/` : '')
+              const finalUrl = url || (pmid && /^\d+$/.test(pmid) ? `https://pubmed.ncbi.nlm.nih.gov/${pmid}/` : '')
+
+              if (!finalUrl) return null;
 
               return (
                 <a

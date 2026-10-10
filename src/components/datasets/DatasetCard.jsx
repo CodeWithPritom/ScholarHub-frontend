@@ -38,6 +38,24 @@ const SOURCE_CONFIG = {
     dotColor: 'bg-emerald-500',
     icon: FileSpreadsheet,
   },
+  mendeley: {
+    name: 'Mendeley Data',
+    color: 'bg-rose-100 text-rose-700 border-rose-200',
+    dotColor: 'bg-rose-600',
+    icon: Database,
+  },
+  figshare: {
+    name: 'Figshare',
+    color: 'bg-cyan-100 text-cyan-800 border-cyan-200',
+    dotColor: 'bg-cyan-600',
+    icon: Globe,
+  },
+  dryad: {
+    name: 'Dryad Data',
+    color: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    dotColor: 'bg-emerald-600',
+    icon: Beaker,
+  },
 };
 
 // Format badge color mapping

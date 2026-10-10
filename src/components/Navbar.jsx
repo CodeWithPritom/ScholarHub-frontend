@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Dna, Menu, X, Library, User, ChevronDown, Settings, ShieldAlert, LogOut, MessageCircle, Megaphone, GraduationCap, Archive, FileText, Cpu, Eye, Database, BookOpen, Shield } from 'lucide-react'
+import { Dna, Menu, X, Library, User, ChevronDown, Settings, ShieldAlert, LogOut, MessageCircle, Megaphone, GraduationCap, Archive, FileText, Cpu, Eye, Database, BookOpen, Shield, Activity } from 'lucide-react'
 import logo from '../assets/images/logo.png'
 
 const Navbar = ({ user, profile, liveUsersCount, onLogout, transparent = false }) => {
@@ -138,6 +138,13 @@ const Navbar = ({ user, profile, liveUsersCount, onLogout, transparent = false }
                         <div>
                           <div className="text-xs font-bold text-[#171717]">Open Data Hub</div>
                           <div className="text-[10px] text-slate-500 leading-normal font-normal">Search 1.8M+ scientific datasets</div>
+                        </div>
+                      </Link>
+                      <Link to="/trials" className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-slate-200/50 transition-colors">
+                        <Activity size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+                        <div>
+                          <div className="text-xs font-bold text-[#171717]">Clinical Trials Hub</div>
+                          <div className="text-[10px] text-slate-500 leading-normal font-normal">NIH 450k+ medical studies & drugs</div>
                         </div>
                       </Link>
                     </div>
@@ -328,6 +335,10 @@ const Navbar = ({ user, profile, liveUsersCount, onLogout, transparent = false }
                 <Link to="/datasets" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2.5 text-sm font-bold text-slate-700 hover:text-[#315CFF] transition-colors py-1">
                   <Database size={16} className="text-[#315CFF]" />
                   <span>Open Data Hub</span>
+                </Link>
+                <Link to="/trials" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2.5 text-sm font-bold text-slate-700 hover:text-emerald-600 transition-colors py-1">
+                  <Activity size={16} className="text-emerald-600" />
+                  <span>Clinical Trials Hub</span>
                 </Link>
               </div>
 
