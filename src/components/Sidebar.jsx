@@ -3,12 +3,13 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, Microscope, Library, BarChart3, Settings,
   HelpCircle, ChevronLeft, ChevronRight, X, Sparkles, History, Zap, Download,
-  Newspaper, GraduationCap, BookOpen, MessageSquare, ShieldCheck, Dna, Clock, RotateCcw, Database, Activity
+  Newspaper, GraduationCap, BookOpen, MessageSquare, ShieldCheck, Dna, Clock, RotateCcw, Database, Activity, Building2
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import logo from '../assets/images/logo.png';
+import aigniteSticker from '../assets/built-for-aignite.png';
 import { getQuotaResetInfo } from '../utils/quotaUtils';
 
 const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, user, profile }) => {
@@ -260,6 +261,7 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
   const links = [
     { name: 'Dashboard', path: '/', icon: <Home size={20} /> },
     { name: 'Research', path: '/research', icon: <Microscope size={20} /> },
+    { name: 'Research Labs', path: '/lab', icon: <Building2 size={20} /> },
     { name: 'Library', path: '/library', icon: <Library size={20} /> },
     { name: 'Auditor', path: '/auditor', icon: <BarChart3 size={20} /> },
     { name: 'History', path: '/history', icon: <History size={20} /> },
@@ -541,6 +543,18 @@ const Sidebar = ({ mobileMenuOpen, setMobileMenuOpen, collapsed, setCollapsed, u
               </div>
             )}
           </div>
+
+          {/* Buildathon Sticker Badge inside expanded Sidebar */}
+          {!collapsed && (
+            <div className="p-3 mx-4 mb-4 bg-slate-50/90 border border-slate-200/90 rounded-xl hidden lg:flex flex-col items-center justify-center text-center shadow-xs">
+              <img 
+                src={aigniteSticker} 
+                alt="Built For Ostad Presents YUNet AIgnite Buildathon 2026" 
+                className="w-full h-auto object-contain rounded-lg"
+                title="Built For Ostad Presents YUNet AIgnite Buildathon 2026"
+              />
+            </div>
+          )}
 
         </aside>
 

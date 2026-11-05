@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Dna, ArrowRight, Activity, Users, Database, Globe, Megaphone, X, Play, Brain, CheckCircle2, Server, MessageSquare, Smartphone, Monitor, Zap, ChevronLeft, ChevronRight, ChevronDown, Book, Atom, Sparkles, Shield, Timer, GraduationCap, AlertTriangle, Eye, BookOpen, Layers, Cpu } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 import logo from '../assets/images/logo.png'
+import aigniteSticker from '../assets/built-for-aignite.png'
 import Footer from '../Footer'
 import Navbar from '../components/Navbar'
 import Testimonials from '../components/Testimonials'
@@ -35,8 +36,8 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
       a: 'Absolutely. All uploaded documents are parsed and stored in private, isolated vector storage blocks encrypted at rest. Your uploads, search keywords, and chat histories are never shared publicly or used to train open LLM models.' 
     },
     { 
-      q: 'Does the platform guarantee zero hallucinations in summaries?', 
-      a: 'Yes. Our Autonomous Agent uses active Chain-of-Thought critique checks. It extracts direct text snippets from papers and verifies each claim against the retrieved snippet before outputting the report, ensuring 100% citation grounding.' 
+      q: 'How does ScholarHub AI prevent hallucinations in research summaries?', 
+      a: 'Our Autonomous Agent uses active evidence-first verification checks. It extracts direct text snippets from papers and verifies each factual claim against the retrieved passage before outputting the report, delivering strict citation grounding and transparent quote attribution.' 
     },
     { 
       q: 'How does the Opportunities Matcher find funding and jobs?', 
@@ -267,6 +268,15 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
           className="w-full max-w-7xl mx-auto px-6 text-center"
         >
           <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8">
+            {/* Built for AIgnite Buildathon Badge */}
+            <div className="inline-flex items-center p-1 bg-white/90 border border-[#E5E5DF] rounded-2xl shadow-xs">
+              <img 
+                src={aigniteSticker} 
+                alt="Built For Ostad Presents YUNet AIgnite Buildathon 2026" 
+                className="h-8 sm:h-9 w-auto object-contain"
+                title="Built For Ostad Presents YUNet AIgnite Buildathon 2026"
+              />
+            </div>
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-black uppercase tracking-widest backdrop-blur-md">
               <Globe size={14} /> Phase 5 Deployment Active
             </div>

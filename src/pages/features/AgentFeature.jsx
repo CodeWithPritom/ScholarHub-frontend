@@ -60,7 +60,7 @@ const AgentFeature = ({ user, profile, onLogout, liveUsersCount }) => {
             transition={{ duration: 0.4, delay: 0.1 }}
             className="text-xl sm:text-2xl text-slate-650 max-w-3xl mx-auto font-normal leading-relaxed"
           >
-            Synthesize literature with zero hallucination. Our autonomous agent runs background searches, critiques predatory journals, and compiles verified summaries with absolute factual grounding.
+            Synthesize literature with evidence-verified rigor. Our autonomous agent runs background searches, critiques predatory journals, and compiles verified summaries with strict passage grounding.
           </motion.p>
 
           <motion.div

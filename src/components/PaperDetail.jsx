@@ -10,7 +10,7 @@ import { supabase } from '../supabaseClient'
 import {
   ArrowLeft, ExternalLink, ArrowUpRight, Quote,
   Tag, Globe, BookOpen, Calendar, Users, Activity,
-  ChevronDown, ChevronUp, Lock, Mail, Search, Sparkles, Copy, Check, CheckCircle, FileText, ImageOff
+  ChevronDown, ChevronUp, Lock, Mail, Search, Sparkles, Copy, Check, CheckCircle, FileText, ImageOff, AlertTriangle
 } from 'lucide-react'
 
 const FigureLoader = ({ fig, idx, pmcid, isLightbox = false, onImageClick }) => {
@@ -208,7 +208,19 @@ const PaperDetail = ({ user, profile }) => {
 
           if (data.main_article) {
             setArticle(data.main_article)
-            
+
+            // Trigger background Retraction Watch screening if paper has DOI (enhance.md T3)
+            if (data.main_article.doi) {
+              fetch(`${BASE_URL}/api/integrity/check?doi=${encodeURIComponent(data.main_article.doi)}`)
+                .then(r => r.ok ? r.json() : null)
+                .then(integrity => {
+                  if (integrity && integrity.is_retracted) {
+                    setArticle(prev => prev ? { ...prev, is_retracted: true, integrity } : prev)
+                  }
+                })
+                .catch(() => {})
+            }
+
             // Also save fetched article to archive if it wasn't there
             const currentArchive = JSON.parse(sessionStorage.getItem('viewedHistory') || '[]')
             if (!currentArchive.some(p => p.pmid === data.main_article.pmid)) {
@@ -412,6 +424,32 @@ const PaperDetail = ({ user, profile }) => {
                   </span>
                 )}
               </div>
+
+              {(article.is_retracted || article.integrity?.is_retracted) && (
+                <div className="w-full mb-6 p-4 rounded-xl bg-rose-50 border-2 border-rose-300 text-rose-900 flex items-start gap-3 shadow-xs animate-fadeIn">
+                  <AlertTriangle className="text-rose-600 shrink-0 mt-0.5" size={20} />
+                  <div>
+                    <div className="font-bold text-sm tracking-wide text-rose-950 uppercase flex items-center gap-2">
+                      <span>Publisher Retraction Notice</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] bg-rose-600 text-white font-black">RETRACTED</span>
+                    </div>
+                    <p className="text-xs text-rose-800 mt-1 leading-relaxed font-medium">
+                      {article.integrity?.warning || "This academic paper has been officially retracted by the issuing journal or publisher. Citing this study as valid scientific evidence is strongly discouraged."}
+                    </p>
+                    {article.integrity?.notice_doi && (
+                      <a 
+                        href={`https://doi.org/${article.integrity.notice_doi}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="inline-flex items-center gap-1 text-xs font-bold text-rose-700 underline mt-2 hover:text-rose-900"
+                      >
+                        View Official Retraction Notice <ExternalLink size={12} />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <h1 className="text-2xl md:text-4xl font-bold font-sds-content text-[#171717] leading-snug md:leading-tight tracking-tight mb-4 break-words overflow-wrap-anywhere">
                 {article.title}
               </h1>

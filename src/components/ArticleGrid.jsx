@@ -218,6 +218,15 @@ const ArticleCard = ({ article, user, userTier, bookmarkCount, onAuthRequired, o
                   {article.journal_quartile}
                 </span>
               )}
+              {(article.is_retracted || article.integrity?.is_retracted) && (
+                <span 
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[12px] text-[10px] font-black bg-rose-600 text-white border border-rose-700 uppercase tracking-widest shadow-sm animate-pulse"
+                  title={article.integrity?.warning || "Official publisher retraction notice detected for this paper."}
+                >
+                  <AlertCircle size={12} className="text-white" />
+                  RETRACTED
+                </span>
+              )}
             </div>
             {article.citationCount !== undefined && article.citationCount !== null && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[12px] text-[10px] font-black bg-amber-50 text-amber-600 border border-amber-100 uppercase tracking-widest">
@@ -550,6 +559,15 @@ const TableRow = ({ article, user, userTier, bookmarkCount, onAuthRequired, onBo
                       'bg-slate-50 text-slate-700 border-slate-100'
                 }`}>
                 {article.journal_quartile}
+              </span>
+            )}
+            {(article.is_retracted || article.integrity?.is_retracted) && (
+              <span 
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-black bg-rose-600 text-white uppercase tracking-wider"
+                title={article.integrity?.warning || "Retracted publication"}
+              >
+                <AlertCircle size={10} className="text-white" />
+                RETRACTED
               </span>
             )}
             {article.citationCount !== undefined && article.citationCount !== null && (

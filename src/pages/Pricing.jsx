@@ -5,13 +5,14 @@ import {
   Check, X, Shield, Sparkles, ArrowRight, Zap, 
   AlertCircle, GraduationCap, Building2, HelpCircle, ChevronDown, 
   ChevronUp, Cpu, Flame, Search, FileText, Share2, Award, Sliders,
-  Ticket, ShieldCheck, Lock, ArrowUpRight
+  Ticket, ShieldCheck, Lock, ArrowUpRight, CreditCard, Phone
 } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 import { motion, AnimatePresence } from 'framer-motion'
 import Footer from '../Footer'
 import SEOHead from '../components/SEOHead'
 import { BASE_URL } from '../utils/api'
+import CheckoutModal from '../components/CheckoutModal'
 
 const Pricing = ({ user, profile }) => {
   const navigate = useNavigate()
@@ -24,6 +25,7 @@ const Pricing = ({ user, profile }) => {
   // Modals
   const [isStudentModalOpen, setStudentModalOpen] = useState(false)
   const [isCustomModalOpen, setCustomModalOpen] = useState(false)
+  const [checkoutModalPlan, setCheckoutModalPlan] = useState(null)
 
   // Credit Estimator Slider State
   const [estimatedAudits, setEstimatedAudits] = useState(30)
@@ -65,13 +67,8 @@ const Pricing = ({ user, profile }) => {
   }
 
   const handlePlanSelect = (tierId) => {
-    if (!user) {
-      navigate(`/auth?redirect=/cart?plan=${tierId}&duration=${duration}`)
-      return
-    }
-
     if (tierId === 'free') {
-      navigate('/research')
+      navigate(user ? '/research' : '/auth?mode=register')
       return
     }
 
@@ -351,9 +348,18 @@ const Pricing = ({ user, profile }) => {
                 </button>
 
                 {plan.isUpgrade && (
-                  <p className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-3">
-                    Fast Checkout with Promo Code Support
-                  </p>
+                  <div className="mt-3 flex flex-col items-center gap-1.5">
+                    <p className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      Paddle (International) & bKash (Local) Accepted
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setCheckoutModalPlan(plan)}
+                      className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 underline underline-offset-2 cursor-pointer flex items-center gap-1"
+                    >
+                      <Zap size={11} /> Quick Checkout (Paddle / bKash)
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -682,6 +688,25 @@ const Pricing = ({ user, profile }) => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* ─── Dual Payment Modal (Paddle & bKash) ─── */}
+      {checkoutModalPlan && (
+        <CheckoutModal
+          isOpen={!!checkoutModalPlan}
+          onClose={() => setCheckoutModalPlan(null)}
+          plan={checkoutModalPlan.id}
+          duration={duration}
+          basePriceBdt={checkoutModalPlan.basePriceNum || 499}
+          finalPriceBdt={checkoutModalPlan.basePriceNum || 499}
+          user={user}
+          profile={profile}
+          onSuccess={() => {
+            setCheckoutModalPlan(null)
+            toast.success('Your subscription has been activated!')
+            navigate('/research')
+          }}
+        />
+      )}
 
       <Footer user={user} onAuthRequired={() => navigate('/auth')} />
     </div>

@@ -6,8 +6,8 @@ export const MobileBottomNav = ({ user }) => {
   const location = useLocation();
   const currentPath = location.pathname;
 
-  // Don't render on auth or shared preview pages where full screen is preferred
-  if (currentPath === '/auth' || currentPath.startsWith('/share/')) {
+  // Don't render on auth, shared preview, or dedicated lab portal pages
+  if (currentPath === '/auth' || currentPath.startsWith('/share/') || currentPath.startsWith('/lab')) {
     return null;
   }
 

@@ -44,6 +44,7 @@ const Press = lazyWithRetry(() => import('./pages/Press'))
 const PressReleaseDetail = lazyWithRetry(() => import('./pages/PressReleaseDetail'))
 const DataHub = lazyWithRetry(() => import('./pages/DataHub'))
 const TrialsHub = lazyWithRetry(() => import('./pages/TrialsHub'))
+const LabPortal = lazyWithRetry(() => import('./lab/LabPortal'))
 import MyLibrary from './MyLibrary'
 import Settings from './Settings'
 import VerifyEmail from './VerifyEmail'
@@ -997,6 +998,7 @@ function App() {
               <Route path="/datasets" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#FAFAF8]"><div className="w-8 h-8 border-2 border-[#315CFF] border-t-transparent rounded-full animate-spin"></div></div>}><DataHub user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense>} />
               <Route path="/trials" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#FDFCFB]"><div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div></div>}><TrialsHub user={user} profile={profile} liveUsersCount={liveUsersCount} onLogout={handleLogout} /></Suspense>} />
               <Route path="/dna" element={<Navigate to="/research-dna" replace />} />
+              <Route path="/lab/*" element={<ProtectedRoute user={user}><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#FAFAF8]"><div className="w-8 h-8 border-2 border-[#0F172A] border-t-transparent rounded-full animate-spin"></div></div>}><LabPortal user={user} profile={profile} onLogout={handleLogout} /></Suspense></ProtectedRoute>} />
               <Route path="/research-dna" element={<ProtectedRoute user={user}><Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-2 border-violet-600 border-t-transparent rounded-full animate-spin"></div></div>}><ResearchDNAPage user={user} profile={profile} onLogout={handleLogout} /></Suspense></ProtectedRoute>} />
               <Route path="/dna/:shareToken" element={<Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-950 text-white"><div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div></div>}><PublicResearchDNAPage /></Suspense>} />
               <Route path="/pricing" element={<Pricing user={user} profile={profile} />} />
@@ -1007,6 +1009,22 @@ function App() {
                 element={
                   <ProtectedRoute user={user}>
                     {isAdmin ? <AdminPanel user={user} profile={profile} liveUsersCount={liveUsersCount} /> : <Navigate to="/" replace />}
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/security" 
+                element={
+                  <ProtectedRoute user={user}>
+                    {isAdmin ? <AdminPanel user={user} profile={profile} liveUsersCount={liveUsersCount} defaultTab="security" /> : <Navigate to="/" replace />}
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/broadcasts" 
+                element={
+                  <ProtectedRoute user={user}>
+                    {isAdmin ? <AdminPanel user={user} profile={profile} liveUsersCount={liveUsersCount} defaultTab="broadcasts" /> : <Navigate to="/" replace />}
                   </ProtectedRoute>
                 } 
               />

@@ -7,11 +7,14 @@ import {
   Radio, Bell, Megaphone, X, Key, Activity, Clock, FileText, RefreshCcw, RefreshCw,
   Server, Database, Cpu, ArrowUp, DollarSign, Layers, ChevronLeft, ChevronRight, Sliders, Terminal,
   Percent, CheckCircle2, XCircle, HardDrive, Flame, TrendingUp,
-  Eye, EyeOff, Plus, Copy, MessageSquare, Lock, LayoutGrid, Building2
+  Eye, EyeOff, Plus, Copy, MessageSquare, Lock, LayoutGrid, Building2,
+  ShieldAlert, Mail
 } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 import { BASE_URL, fireSessionExpired } from '../utils/api'
 import { APICostObservability } from '../components/admin/APICostObservability'
+import { SecuritySOC } from '../components/admin/SecuritySOC'
+import { EmailBroadcastCenter } from '../components/admin/EmailBroadcastCenter'
 
 // Status Badge Component
 const StatusBadge = ({ status }) => {
@@ -238,9 +241,26 @@ const AIGatewaySettings = ({ apiFetch }) => {
     try {
       setLoading(true)
       const data = await apiFetch('/api/admin/ai-gateway/features')
-      setFeatures(data || [])
+      let list = Array.isArray(data) ? [...data] : []
+      if (!list.some(f => f.feature_id === 'lab_copilot')) {
+        list.unshift({
+          feature_id: 'lab_copilot',
+          display_name: 'Lab Autonomous AI Copilot & Gateway',
+          current_provider: 'groq',
+          current_model: 'llama-3.3-70b-versatile',
+          fallback_chain: ['openrouter', 'gemini'],
+          custom_fallback_configs: [
+            { id: 'step-1', provider: 'openrouter', model_id: 'deepseek/deepseek-r1', api_key: '', api_url: '', priority_index: 0 },
+            { id: 'step-2', provider: 'gemini', model_id: 'gemini-1.5-pro', api_key: '', api_url: '', priority_index: 1 }
+          ],
+          is_overridden: false,
+          override_api_key: '',
+          custom_api_url: ''
+        })
+      }
+      setFeatures(list)
       const states = {}
-      data.forEach(f => {
+      list.forEach(f => {
         states[f.feature_id] = {
           current_provider: f.current_provider,
           current_model: f.current_model,
@@ -415,6 +435,10 @@ const AIGatewaySettings = ({ apiFetch }) => {
     gap_analysis: {
       name: 'AI Research Gap Detector',
       desc: 'Analyzes limitations and discrepancies in literature to identify unexplored areas.'
+    },
+    lab_copilot: {
+      name: 'Lab Autonomous AI Copilot & Gateway',
+      desc: 'Central neural engine for custom research laboratories. Configure the exact provider, model ID, API key override, and custom endpoint that powers the Lab AI Copilot.'
     }
   }
 
@@ -1063,6 +1087,62 @@ const OrganizationsManagementSection = ({ apiFetch }) => {
     }
   }
 
+  const handleToggleLabStatus = async (labId) => {
+    try {
+      const res = await apiFetch(`/api/admin/labs/${labId}/toggle-status`, { method: 'POST' })
+      toast.success(res.is_active ? 'Lab activated and unlocked' : 'Lab deactivated and locked')
+      fetchOrgs()
+    } catch (err) {
+      toast.error(err.message || 'Failed to toggle status')
+    }
+  }
+
+  const handleRenewLab = async (labId, days = 365) => {
+    try {
+      const res = await apiFetch(`/api/admin/labs/${labId}/renew?days=${days}`, { method: 'POST' })
+      toast.success(res.message || `Lab renewed for ${days} days`)
+      fetchOrgs()
+    } catch (err) {
+      toast.error(err.message || 'Failed to renew lab')
+    }
+  }
+
+  const [editingLabId, setEditingLabId] = useState(null)
+  const [labPricingForm, setLabPricingForm] = useState({})
+  const [savingSettings, setSavingSettings] = useState(false)
+
+  const handleOpenPricingModal = (org) => {
+    if (editingLabId === org.id) {
+      setEditingLabId(null)
+      return
+    }
+    setEditingLabId(org.id)
+    setLabPricingForm({
+      price_usd: org.price_usd !== undefined ? org.price_usd : 499,
+      plan: org.plan_duration || 'Institutional Enterprise',
+      allocated_credits: (org.allocated_monthly_credits || 10000) * (org.is_v2_lab ? 1 : 100),
+      max_seats: org.max_seats || 20,
+      extend_days: 0
+    })
+  }
+
+  const handleSaveLabSettings = async (labId) => {
+    try {
+      setSavingSettings(true)
+      const res = await apiFetch(`/api/admin/labs/${labId}/update-settings`, {
+        method: 'POST',
+        body: JSON.stringify(labPricingForm)
+      })
+      toast.success(res.message || 'Lab pricing and settings updated!')
+      setEditingLabId(null)
+      fetchOrgs()
+    } catch (err) {
+      toast.error(err.message || 'Failed to update lab settings')
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1113,36 +1193,217 @@ const OrganizationsManagementSection = ({ apiFetch }) => {
                       Contact: <strong className="text-slate-800">{org.contact_email}</strong> • Plan: <strong className="text-indigo-600 uppercase">{org.plan_duration}</strong>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="px-3 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-black">
                       {members.length} / {org.max_seats} Seats Used
                     </span>
                     <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase ${
-                      org.status === 'active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'
+                      org.status === 'active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
                     }`}>
                       {org.status}
                     </span>
+                    {org.days_remaining !== undefined && (
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                        org.days_remaining > 15 ? 'text-emerald-700 bg-emerald-50 border border-emerald-200' : 'text-amber-700 bg-amber-50 border border-amber-200'
+                      }`}>
+                        {org.days_remaining > 0 ? `${org.days_remaining}d left` : 'Expired'}
+                      </span>
+                    )}
+                    <span className="px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg text-[10px] font-black">
+                      ${org.price_usd !== undefined ? org.price_usd : 499} USD/yr
+                    </span>
+                    {org.is_v2_lab && (
+                      <>
+                        <button
+                          onClick={() => handleOpenPricingModal(org)}
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors cursor-pointer border flex items-center gap-1 ${
+                            editingLabId === org.id
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                              : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
+                          }`}
+                          title="Configure custom subscription price, token quota, and plan name"
+                        >
+                          <Sliders size={11} />
+                          <span>{editingLabId === org.id ? 'Close Controls' : 'Price & Controls'}</span>
+                        </button>
+                        <button
+                          onClick={() => handleToggleLabStatus(org.id)}
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors cursor-pointer border ${
+                            org.is_active 
+                              ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200' 
+                              : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-xs'
+                          }`}
+                        >
+                          {org.is_active ? 'Deactivate' : 'Activate / Unlock'}
+                        </button>
+                        <button
+                          onClick={() => handleRenewLab(org.id, 365)}
+                          className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+                          title="Extend validity by 365 days and reactivate upon payment"
+                        >
+                          Renew (+1 Yr)
+                        </button>
+                      </>
+                    )}
+                    <a
+                      href={`/lab/${org.id}/overview`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[10px] font-bold tracking-wide transition-colors"
+                      title="Launch Lab Portal Workspace"
+                    >
+                      Open Portal →
+                    </a>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Configured Price</span>
+                    <div className="text-sm font-black text-amber-700 mt-0.5">
+                      ${org.price_usd !== undefined ? org.price_usd : 499} USD
+                    </div>
+                  </div>
                   <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
                     <span className="text-[10px] font-bold text-slate-400 uppercase block">Monthly Credit Pool</span>
                     <div className="text-sm font-black text-slate-900 mt-0.5">{org.allocated_monthly_credits?.toLocaleString()} Zaps</div>
                   </div>
                   <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
                     <span className="text-[10px] font-bold text-slate-400 uppercase block">Dedicated AI Rate Limit</span>
-                    <div className="text-sm font-black text-indigo-600 mt-0.5">{org.dedicated_ai_rpm_limit} RPM (Isolated)</div>
+                    <div className="text-sm font-black text-indigo-600 mt-0.5">{org.dedicated_ai_rpm_limit || 60} RPM (Isolated)</div>
                   </div>
                   <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
                     <span className="text-[10px] font-bold text-slate-400 uppercase block">Expires At</span>
                     <div className="text-xs font-bold text-slate-800 mt-1">{org.expires_at ? new Date(org.expires_at).toLocaleDateString() : 'Never'}</div>
                   </div>
-                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Lab ID</span>
-                    <div className="text-[10px] font-mono text-slate-500 mt-1 truncate">{org.id}</div>
-                  </div>
                 </div>
+
+                {/* Inline Pricing & Governance Control Console */}
+                {editingLabId === org.id && (
+                  <div className="p-5 bg-indigo-50/60 border border-indigo-200 rounded-2xl space-y-4 animate-in fade-in duration-200">
+                    <div className="flex items-center justify-between pb-2 border-b border-indigo-200/60">
+                      <div className="flex items-center gap-2">
+                        <Sliders size={16} className="text-indigo-600" />
+                        <h4 className="text-xs font-black text-indigo-950 uppercase tracking-wider">
+                          Custom Pricing &amp; Governance Control ({org.name})
+                        </h4>
+                      </div>
+                      <span className="text-[10px] text-indigo-700 font-bold">Admin Override Mode</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-700 uppercase block mb-1">
+                          Custom Price ($ USD)
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-2 text-slate-400 font-bold">$</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={labPricingForm.price_usd ?? 499}
+                            onChange={e => setLabPricingForm({ ...labPricingForm, price_usd: parseFloat(e.target.value) || 0 })}
+                            className="w-full pl-7 pr-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-black text-slate-900 outline-none focus:border-indigo-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-700 uppercase block mb-1">
+                          Plan Tier Label
+                        </label>
+                        <input
+                          type="text"
+                          value={labPricingForm.plan || ''}
+                          onChange={e => setLabPricingForm({ ...labPricingForm, plan: e.target.value })}
+                          placeholder="e.g. Institutional Enterprise"
+                          className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 outline-none focus:border-indigo-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-700 uppercase block mb-1">
+                          Compute Token Quota
+                        </label>
+                        <input
+                          type="number"
+                          step="100000"
+                          value={labPricingForm.allocated_credits ?? 1000000}
+                          onChange={e => setLabPricingForm({ ...labPricingForm, allocated_credits: parseInt(e.target.value) || 0 })}
+                          className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 outline-none focus:border-indigo-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-700 uppercase block mb-1">
+                          Max Member Seats
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="200"
+                          value={labPricingForm.max_seats ?? 20}
+                          onChange={e => setLabPricingForm({ ...labPricingForm, max_seats: parseInt(e.target.value) || 10 })}
+                          className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Quick Validity Extension */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] font-bold text-slate-600 mr-1">Extend Validity:</span>
+                        <button
+                          type="button"
+                          onClick={() => setLabPricingForm({ ...labPricingForm, extend_days: 30 })}
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${
+                            labPricingForm.extend_days === 30 ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
+                          }`}
+                        >
+                          +30 Days
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setLabPricingForm({ ...labPricingForm, extend_days: 90 })}
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${
+                            labPricingForm.extend_days === 90 ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
+                          }`}
+                        >
+                          +90 Days
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setLabPricingForm({ ...labPricingForm, extend_days: 365 })}
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${
+                            labPricingForm.extend_days === 365 ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'
+                          }`}
+                        >
+                          +1 Year (365d)
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2 justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setEditingLabId(null)}
+                          className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveLabSettings(org.id)}
+                          disabled={savingSettings}
+                          className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        >
+                          {savingSettings ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                          <span>Save Lab Pricing &amp; Quotas</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Lab Members Management */}
                 <div className="space-y-3 pt-3 border-t border-slate-100">
@@ -1260,14 +1521,15 @@ const OrganizationsManagementSection = ({ apiFetch }) => {
   )
 }
 
-export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
+export default function AdminPanel({ user, profile, liveUsersCount = 1, defaultTab = 'overview' }) {
   const navigate = useNavigate()
   const [isAdmin, setIsAdmin] = useState(false)
   const [checkingAdmin, setCheckingAdmin] = useState(true)
   const [authToken, setAuthToken] = useState('')
 
-  // Sidebar navigation state
-  const [activeTab, setActiveTab] = useState('overview')
+  // Sidebar navigation state (supports deep link ?tab=security or ?tab=broadcasts)
+  const urlTab = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null
+  const [activeTab, setActiveTab] = useState(urlTab || defaultTab || 'overview')
 
   // Command Center Metrics State
   const [metrics, setMetrics] = useState(null)
@@ -1911,6 +2173,8 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
       <div className="md:hidden bg-white border-b border-slate-200 px-3 py-2 flex items-center gap-1.5 overflow-x-auto scrollbar-none whitespace-nowrap z-20 shrink-0">
         {[
           { id: 'overview', label: 'Overview', icon: LayoutDashboardIcon },
+          { id: 'security', label: 'SOC Security', icon: ShieldAlert },
+          { id: 'broadcasts', label: 'Broadcasts', icon: Mail },
           { id: 'tiers', label: 'Tiers', icon: Layers },
           { id: 'organizations', label: 'Labs', icon: Building2 },
           { id: 'api_monitoring', label: 'API & Costs', icon: DollarSign },
@@ -1958,6 +2222,8 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
             
             {[
               { id: 'overview', label: 'Overview & Health', icon: LayoutDashboardIcon },
+              { id: 'security', label: 'Security & WAF SOC', icon: ShieldAlert },
+              { id: 'broadcasts', label: 'Email Broadcasts', icon: Mail },
               { id: 'tiers', label: 'Tiers & Quotas', icon: Layers },
               { id: 'organizations', label: 'Institutional Labs', icon: Building2 },
               { id: 'api_monitoring', label: 'API & Cost Center', icon: DollarSign },
@@ -2011,6 +2277,12 @@ export default function AdminPanel({ user, profile, liveUsersCount = 1 }) {
 
         {/* Dashboard Content */}
         <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
+          {activeTab === 'security' && (
+            <SecuritySOC apiFetch={apiFetch} />
+          )}
+          {activeTab === 'broadcasts' && (
+            <EmailBroadcastCenter apiFetch={apiFetch} adminEmail={user?.email || 'admin@scholarhub-ai.com'} />
+          )}
           {activeTab === 'api_monitoring' && (
             <APICostObservability apiFetch={apiFetch} />
           )}

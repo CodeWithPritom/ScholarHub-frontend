@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Dna, Menu, X, Library, User, ChevronDown, Settings, ShieldAlert, LogOut, MessageCircle, Megaphone, GraduationCap, Archive, FileText, Cpu, Eye, Database, BookOpen, Shield, Activity } from 'lucide-react'
 import logo from '../assets/images/logo.png'
+import aigniteSticker from '../assets/built-for-aignite.png'
 
 const Navbar = ({ user, profile, liveUsersCount, onLogout, transparent = false }) => {
   const [isScrolled, setIsScrolled] = useState(false)
@@ -56,15 +57,27 @@ const Navbar = ({ user, profile, liveUsersCount, onLogout, transparent = false }
         <div className="w-full 2xl:px-12 mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             
-            {/* 1. Logo area */}
-            <Link to="/" className="flex items-center gap-2.5 flex-shrink-0 z-[60]">
-              <img src={logo} alt="ScholarHub AI" className="h-8 w-auto object-contain" />
-              <div className="hidden min-[360px]:block">
-                <h1 className="text-base sm:text-lg font-bold tracking-tight leading-none text-[#171717]">
-                  ScholarHub <span className="text-[#315CFF]">AI</span>
-                </h1>
+            {/* 1. Logo area & Buildathon Sticker */}
+            <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0 z-[60]">
+              <Link to="/" className="flex items-center gap-2.5 flex-shrink-0">
+                <img src={logo} alt="ScholarHub AI" className="h-8 w-auto object-contain" />
+                <div className="hidden min-[360px]:block">
+                  <h1 className="text-base sm:text-lg font-bold tracking-tight leading-none text-[#171717]">
+                    ScholarHub <span className="text-[#315CFF]">AI</span>
+                  </h1>
+                </div>
+              </Link>
+
+              {/* Buildathon Sticker — Ostad Presents YUNet AIgnite 2026 */}
+              <div className="hidden sm:flex items-center pl-3 border-l border-[#E5E5DF]">
+                <img 
+                  src={aigniteSticker} 
+                  alt="Built For Ostad Presents YUNet AIgnite Buildathon 2026" 
+                  className="h-8 md:h-9 w-auto object-contain hover:scale-105 transition-all duration-200"
+                  title="Built For Ostad Presents YUNet AIgnite Buildathon 2026"
+                />
               </div>
-            </Link>
+            </div>
 
             {/* Middle: Minimalist Desktop Links */}
             <div className="hidden md:flex items-center gap-8">
@@ -265,8 +278,16 @@ const Navbar = ({ user, profile, liveUsersCount, onLogout, transparent = false }
                 )}
               </div>
 
-              {/* Mobile View: Live Badge + Hamburger */}
+              {/* Mobile View: Sticker + Live Badge + Hamburger */}
               <div className="flex md:hidden items-center gap-2 sm:gap-3 z-[60]">
+                {/* Mobile Buildathon Sticker */}
+                <img 
+                  src={aigniteSticker} 
+                  alt="Built For AIgnite 2026" 
+                  className="h-6 w-auto object-contain"
+                  title="Built For Ostad Presents YUNet AIgnite Buildathon 2026"
+                />
+
                 {liveUsersCount !== undefined && (
                   <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 rounded-full border border-emerald-100" title="Real-time Active Users">
                     <span className="relative flex h-1.5 w-1.5">
@@ -299,6 +320,15 @@ const Navbar = ({ user, profile, liveUsersCount, onLogout, transparent = false }
           onClick={e => e.stopPropagation()}
         >
           <div className="pt-24 pb-8 px-6 flex flex-col h-full overflow-y-auto">
+            {/* Mobile Buildathon Sticker in Drawer */}
+            <div className="mb-6 p-2 bg-slate-50 border border-[#E5E5DF] rounded-xl flex items-center justify-center">
+              <img 
+                src={aigniteSticker} 
+                alt="Built For Ostad Presents YUNet AIgnite Buildathon 2026" 
+                className="h-8 w-auto object-contain"
+              />
+            </div>
+
             {/* Mobile Navigation Links */}
              <div className="space-y-4 mb-8">
               <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">Navigation</h3>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import aigniteSticker from '../assets/built-for-aignite.png';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { LayoutGrid, Library, Settings, User, Menu, ChevronDown, ShieldAlert, MessageCircle, LogOut, BarChart3 } from 'lucide-react';
 
@@ -42,6 +43,14 @@ const WorkspaceTabs = React.memo(({ user, profile, onLogout, toggleMobileMenu })
           <span className="text-slate-700">ScholarHub</span>
           <span className="text-slate-600">/</span>
           <span>{getBreadcrumb()}</span>
+        </div>
+        <div className="hidden xl:flex items-center pl-3 border-l border-[#E5E5DF]">
+          <img 
+            src={aigniteSticker} 
+            alt="Built For Ostad Presents YUNet AIgnite Buildathon 2026" 
+            className="h-7 w-auto object-contain"
+            title="Built For Ostad Presents YUNet AIgnite Buildathon 2026"
+          />
         </div>
       </div>
 

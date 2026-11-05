@@ -5,10 +5,13 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Search, Edit3, Trash2, ArrowLeft, ArrowRight, ShieldCheck, 
   Check, Loader2, Sparkles, AlertCircle, RefreshCw, Lock, 
-  FileText, User, Mail, Globe, CheckCircle2, ChevronRight, ShoppingBag
+  FileText, User, Mail, Globe, CheckCircle2, ChevronRight, ShoppingBag,
+  CreditCard, Phone
 } from 'lucide-react'
 import { supabase } from '../supabaseClient'
 import { BASE_URL } from '../utils/api'
+import { USD_PRICES } from '../utils/paddle'
+import CheckoutModal from '../components/CheckoutModal'
 import SEOHead from '../components/SEOHead'
 import Footer from '../Footer'
 
@@ -61,6 +64,7 @@ const Cart = ({ user, profile }) => {
 
   // Modals & Controls
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false)
   const [agreeTerms, setAgreeTerms] = useState(true)
   const [isCelebrationOpen, setIsCelebrationOpen] = useState(false)
   const [upgradedTierText, setUpgradedTierText] = useState('')
@@ -79,7 +83,16 @@ const Cart = ({ user, profile }) => {
 
   useEffect(() => {
     window.scrollTo(0, 0)
-  }, [])
+
+    // Handle return from Paddle Checkout redirect
+    if (searchParams.get('payment_success') === 'true') {
+      const pTier = (searchParams.get('tier') || 'pro').toUpperCase()
+      setUpgradedTierText(pTier)
+      setIsCelebrationOpen(true)
+      window.dispatchEvent(new Event('profileUpdated'))
+      toast.success(`Paddle payment confirmed! Activated ${pTier} Scholar Tier.`)
+    }
+  }, [searchParams])
 
   const currentPlan = TIER_DATA[selectedTier] || TIER_DATA.pro
   const currentCycle = DURATION_CYCLES[selectedDuration] || DURATION_CYCLES['1_month']
@@ -141,6 +154,12 @@ const Cart = ({ user, profile }) => {
   const discountAmount = isApplicable ? Math.round(basePrice * (discountPercent / 100)) : 0
   const finalPayable = Math.max(0, basePrice - discountAmount)
   const suggestedPkg = getApplicablePackageSuggestion()
+
+  const packageKey = `${selectedTier}_${selectedDuration}`
+  const priceUsd = USD_PRICES[packageKey] || 4.99
+  const discountedUsd = discountPercent > 0 
+    ? Math.max(0.5, +(priceUsd * (1 - discountPercent / 100)).toFixed(2)) 
+    : priceUsd
 
   // Validate Promo Code
   const handleValidatePromo = async (e) => {
@@ -210,24 +229,29 @@ const Cart = ({ user, profile }) => {
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false)
 
-  // Handle Place Order — opens confirmation modal
+  // Handle Place Order — opens dual payment modal or processes 100% discount
   const handlePlaceOrder = () => {
     if (!agreeTerms) {
       toast.error('Please accept the Terms & Conditions and Privacy Policy to proceed.')
       return
     }
 
-    if (!user) {
-      navigate(`/auth?redirect=/cart?plan=${selectedTier}&duration=${selectedDuration}`)
+    // 100% Free Instant Automated Access requires an active account to link
+    if (discountPercent === 100 && isApplicable) {
+      if (!user) {
+        navigate(`/auth?redirect=/cart?plan=${selectedTier}&duration=${selectedDuration}`)
+        return
+      }
+      executeFreeAutoUpgrade()
       return
     }
 
-    setIsConfirmModalOpen(true)
+    // Open Dual Option Payment Modal (Paddle International vs bKash Local)
+    setIsCheckoutModalOpen(true)
   }
 
-  // Execute Confirmed Order
-  const executeConfirmedOrder = async () => {
-    setIsConfirmModalOpen(false)
+  // Execute 100% Free Auto-Upgrade
+  const executeFreeAutoUpgrade = async () => {
 
     // 100% Free Instant Automated Access
     if (discountPercent === 100 && isApplicable) {
@@ -615,15 +639,34 @@ const Cart = ({ user, profile }) => {
 
               {/* Total Due Today */}
               <div className="py-5 space-y-1">
-                <div className="text-xs font-semibold text-indigo-200">
-                  Total Due Today
+                <div className="flex items-center justify-between text-xs font-semibold text-indigo-200">
+                  <span>Total Due Today</span>
+                  <span className="bg-white/20 px-2 py-0.5 rounded text-white font-bold text-[11px]">~${discountedUsd} USD</span>
                 </div>
                 <div className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
                   BDT {finalPayable}.00
                 </div>
               </div>
 
-              {/* Place Order Button */}
+              {/* Dual Payment Gateways Preview */}
+              <div className="mb-4 bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/15 space-y-2 text-xs text-white">
+                <div className="text-[10px] font-black uppercase tracking-wider text-indigo-200 flex items-center justify-between">
+                  <span>Checkout Options</span>
+                  <span className="text-amber-300">Choose Next ➔</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div className="bg-white/15 rounded-xl p-2 flex items-center gap-1.5 font-bold">
+                    <CreditCard size={13} className="text-amber-300 shrink-0" />
+                    <span>Paddle (USD)</span>
+                  </div>
+                  <div className="bg-white/15 rounded-xl p-2 flex items-center gap-1.5 font-bold">
+                    <Phone size={13} className="text-pink-300 shrink-0" />
+                    <span>bKash (BDT)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Proceed to Checkout Button */}
               <button
                 onClick={handlePlaceOrder}
                 disabled={isPlacingOrder}
@@ -632,7 +675,7 @@ const Cart = ({ user, profile }) => {
                 {isPlacingOrder ? (
                   <Loader2 size={18} className="animate-spin text-indigo-700" />
                 ) : (
-                  <>Place Order <ArrowRight size={16} /></>
+                  <>Proceed to Checkout <ArrowRight size={16} /></>
                 )}
               </button>
             </div>
@@ -867,6 +910,24 @@ const Cart = ({ user, profile }) => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* ─── Dual Option Payment Modal (Paddle & bKash) ─── */}
+      <CheckoutModal
+        isOpen={isCheckoutModalOpen}
+        onClose={() => setIsCheckoutModalOpen(false)}
+        plan={selectedTier}
+        duration={selectedDuration}
+        basePriceBdt={basePrice}
+        finalPriceBdt={finalPayable}
+        discountPercent={discountPercent}
+        couponCode={couponCode}
+        user={user}
+        profile={profile}
+        onSuccess={() => {
+          setUpgradedTierText(selectedTier.toUpperCase())
+          setIsCelebrationOpen(true)
+        }}
+      />
 
       <Footer user={user} onAuthRequired={() => navigate('/auth')} />
     </div>
