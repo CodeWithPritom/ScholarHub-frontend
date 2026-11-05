@@ -337,7 +337,7 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
           <motion.div variants={itemVariants} className="mt-24 w-full max-w-7xl mx-auto px-6">
             <div className="relative w-full max-w-4xl mx-auto aspect-video rounded-[12px] overflow-hidden border border-[#E5E5DF]/60 shadow-sm shadow-blue-500/10">
               <iframe 
-                src="https://www.youtube.com/embed/uA6XPPecG5k?autoplay=0&controls=1&rel=0" 
+                src="https://www.youtube.com/embed/QW8tsbBkg4w?autoplay=0&controls=1&rel=0" 
                 title="ScholarHub AI Demo" 
                 className="absolute inset-0 w-full h-full object-cover bg-sds-bg"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
@@ -745,7 +745,7 @@ const LandingPage = ({ user, profile, liveUsersCount, totalMembersCount, onLogou
               
               <div className="w-full aspect-video rounded-2xl overflow-hidden border border-[#E5E5DF] shadow-sm">
                 <iframe 
-                  src="https://www.youtube.com/embed/7RjTeYbRYfI?rel=0" 
+                  src="https://www.youtube.com/embed/QW8tsbBkg4w?rel=0" 
                   title="Full Tutorial" 
                   className="w-full h-full object-cover bg-sds-bg"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
