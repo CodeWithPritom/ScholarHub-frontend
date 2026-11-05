@@ -21,6 +21,27 @@
 
 ---
 
+
+---
+
+## 🎬 Product Demo Video & Walkthrough (English)
+
+<div align="center">
+  <a href="https://youtu.be/QW8tsbBkg4w" target="_blank" rel="noopener noreferrer">
+    <img src="https://img.youtube.com/vi/QW8tsbBkg4w/maxresdefault.jpg" alt="ScholarHub AI Product Demo Video Walkthrough" width="100%" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);" />
+  </a>
+  <p>
+    <em>▶️ <strong>Watch Full 4K Walkthrough on YouTube:</strong> <a href="https://youtu.be/QW8tsbBkg4w">https://youtu.be/QW8tsbBkg4w</a></em><br />
+    <em>Live demo of ScholarHub AI frontend SPA built for Ostad Presents YUNet AIgnite Buildathon 2026.</em>
+  </p>
+</div>
+
+<div align="center">
+  <img src="./public/screenshots/scholarhub-ai-landing-hero-buildathon.png" alt="ScholarHub AI Landing Page Hero" width="100%" style="border-radius: 12px; border: 1px solid #e2e8f0; margin-top: 12px;" />
+</div>
+
+---
+
 ## 🌟 Overview
 
 The **ScholarHub AI Frontend** is a modern, high-performance Single Page Application (SPA) designed to deliver a desktop-class research experience. It handles real-time Server-Sent Events (SSE) streaming, interactive multi-engine scientific visualizations (Mermaid, ECharts, React Flow, D3), and complex academic workflows with zero UI latency.
